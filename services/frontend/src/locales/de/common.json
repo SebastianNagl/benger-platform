@@ -1124,19 +1124,16 @@
     "conditionalInstructions": {
       "title": "Bedingte Anweisungen",
       "description": "Verschiedene Anweisungen für Annotatoren basierend auf randomisierter Zuweisung pro Task anzeigen",
-      "edit": "Varianten bearbeiten",
-      "add": "Varianten hinzufügen",
       "addVariant": "+ Variante hinzufügen",
       "variantId": "Varianten-ID",
       "weight": "Gewicht (%)",
       "content": "Anweisungsinhalt",
-      "save": "Varianten speichern",
-      "saved": "Bedingte Anweisungen gespeichert",
       "saveFailed": "Speichern fehlgeschlagen",
-      "weightError": "Gewichte müssen 100% ergeben",
       "weightWarning": "Gewichte ergeben {total}%, müssen 100% sein",
       "aiAllowed": "KI erlaubt",
-      "variantIdPlaceholder": "z. B. ai, no_ai"
+      "variantIdPlaceholder": "z. B. ai, no_ai",
+      "removeVariant": "Variante entfernen",
+      "incomplete": "Jede Variante braucht eine ID und einen Text, sonst werden die Varianten nicht gespeichert."
     },
     "modelSelection": {
       "title": "Modellauswahl",
@@ -1241,7 +1238,6 @@
       "orgAdminOnly": "Nur Organisationsadministratoren und Mitwirkende können {section} verwalten.",
       "creatorOnly": "Nur der Projektersteller kann {section} verwalten.",
       "noPermission": "Du hast keine Berechtigung, die Sichtbarkeit zu ändern.",
-      "saveSuccess": "Sichtbarkeit gespeichert.",
       "viewOnly": "Die Sichtbarkeit ist schreibgeschützt. Ändern können sie die Person, die das Projekt erstellt hat, Organisations-Admins und Superadmins.",
       "visibility": "Sichtbarkeit",
       "visibilityDescription": "Steuert, wer auf dieses Projekt zugreifen kann.",
@@ -1271,8 +1267,6 @@
       "lmsBadge": "Lernplattform",
       "lmsNote": "Diese Klausur ist über eine Lernplattform-Anbindung mit {organizations} verknüpft. Das Personal dieser Organisationen behält den Zugang, auch wenn du die Klausur privat stellst. Diese Freigabe lässt sich hier nicht ändern.",
       "lmsConflict": "Die Freigabe für eine über die Lernplattform verknüpfte Organisation folgt deren Anbindung. Die Gruppe dieser Freigabe lässt sich hier nicht ändern.",
-      "cancel": "Abbrechen",
-      "save": "Speichern",
       "saving": "Wird gespeichert…",
       "validation": {
         "privateNeedsOrganization": "Organisationsbasierte Projekte benötigen mindestens eine Organisation."
@@ -1299,7 +1293,6 @@
       "runCta": "Evaluierung starten"
     },
     "evaluationDefaults": {
-      "title": "Evaluierungs-Standardeinstellungen",
       "description": "Standardeinstellungen für alle LLM-Judge-Evaluierungen in diesem Projekt",
       "save": "Speichern",
       "defaultTemperature": "Standard-Temperatur",
@@ -1315,7 +1308,6 @@
       "modeMinimumDesc": "Verwende die niedrigste vom Anbieter zulässige Temperatur für jedes neu hinzugefügte Judge-Modell.",
       "modeCustom": "Benutzerdefiniert",
       "modeCustomDesc": "Verwende die unten eingegebenen Werte einheitlich für alle neu hinzugefügten Judge-Konfigurationen (Min/Max-Constraints werden weiterhin durchgesetzt).",
-      "runsTitle": "Multi-Run",
       "runsDescription": "Wie oft jede Task vom Judge bewertet werden soll. Greift, wenn kein Judge-Ensemble konfiguriert ist.",
       "defaultRunsPerTask": "Standard-Anzahl Judge-Läufe",
       "runsPerTaskHelp": "Standardwert 1. Werte > 1 erzeugen mehrere Bewertungen für Varianz-/Konsistenzanalyse. Cap 25."
@@ -1337,7 +1329,6 @@
       "modeMinimumDesc": "Verwende die niedrigste vom Anbieter zulässige Temperatur für jedes neu hinzugefügte Modell.",
       "modeCustom": "Benutzerdefiniert",
       "modeCustomDesc": "Verwende die unten eingegebenen Werte einheitlich für alle neu hinzugefügten Modelle (Min/Max-Constraints werden weiterhin durchgesetzt).",
-      "runsTitle": "Multi-Run",
       "runsDescription": "Wie oft jede Task-Modell-Kombination generiert werden soll. Multipliziert die Kosten entsprechend.",
       "defaultRunsPerTask": "Standard-Anzahl Läufe pro Task",
       "runsPerTaskHelp": "Standardwert 1. Werte > 1 erzeugen mehrere Trials für Varianzanalyse. Cap {max}."
@@ -1345,7 +1336,6 @@
     "settings": {
       "title": "Einstellungen",
       "annotationSettingsTitle": "Annotationsablauf & -verhalten",
-      "mode": "{mode}-Modus",
       "minAnnotations": "{count} min. Annotationen",
       "editSettings": "Einstellungen bearbeiten",
       "saveSettings": "Einstellungen speichern",
@@ -1405,7 +1395,6 @@
         "prepareHint": "So bereitest du ein Projekt vor, ohne dass es jemand sieht: Lass es auf „Privat“, bis es fertig ist, und ordne es erst dann der Organisation oder Gruppe zu. Soll es erst zu einem bestimmten Zeitpunkt erscheinen, setze darunter ein Zeitfenster für den Zugriff: Bis zum Öffnen bleiben die Daten verborgen, und Klausuren und Kartenstapel erscheinen bei den Studierenden noch nicht."
       },
       "annotationBehavior": {
-        "title": "Annotationsverhalten",
         "maxAnnotations": "Maximale Annotationen pro Aufgabe",
         "maxAnnotationsHelp": "Wie viele Annotationen pro Aufgabe benötigt werden",
         "minAnnotationsForCompletion": "Mindestannotationen für Aufgabenabschluss",
@@ -1443,10 +1432,14 @@
           "count4": "4 Annotationen",
           "count5": "5 Annotationen",
           "unlimited": "Unbegrenzt"
+        },
+        "modesShort": {
+          "open": "Offen",
+          "manual": "Manuell",
+          "auto": "Automatisch"
         }
       },
       "interface": {
-        "title": "Oberflächeneinstellungen",
         "showInstructions": "Anweisungen anzeigen",
         "showInstructionsHelp": "Projektanweisungen für Annotatoren anzeigen",
         "instructionsAlwaysVisible": "Anweisungen immer anzeigen",
@@ -1471,7 +1464,6 @@
       "annotationTimeLimitDescription": "Maximale Zeit für jede Annotationsaufgabe festlegen",
       "timeLimitMinutes": "Zeitlimit",
       "minutes": "Minuten",
-      "questionnaireTitle": "Post-Annotations-Fragebogen",
       "questionnaireEnabled": "Fragebogen aktivieren",
       "questionnaireEnabledDescription": "Feedbackformular nach jeder Annotationsabgabe anzeigen",
       "questionnaireTemplate": "Vorlage",
@@ -1509,6 +1501,19 @@
         "opens": "Öffnet",
         "closes": "Schließt",
         "invalid": "Das Schließdatum muss nach dem Öffnungsdatum liegen."
+      },
+      "groups": {
+        "assignment": "Zuteilung",
+        "work": "Bearbeitung",
+        "skipping": "Überspringen",
+        "submission": "Abgabe",
+        "afterSubmit": "Nach der Abgabe",
+        "display": "Anzeige",
+        "instructionText": "Anweisungstext",
+        "parameters": "Parameter",
+        "runs": "Läufe",
+        "timing": "Zeitpunkt",
+        "korrektur": "Korrektur"
       }
     },
     "quickActions": {
@@ -1710,6 +1715,36 @@
     },
     "rubricReview": {
       "extendedRequired": "Die Prüfung der Bewertungsbögen erfordert die Extended Edition."
+    },
+    "settingRisk": {
+      "visibility": {
+        "public": "Alle angemeldeten Nutzerinnen und Nutzer der Plattform sehen das Projekt und seine Daten sofort.",
+        "private": "Nur du (und Superadmins) haben danach Zugriff; alle anderen verlieren ihn sofort, auch wenn sie gerade daran arbeiten.",
+        "organization": "Die Mitglieder der gewählten Organisationen oder Gruppen sehen das Projekt sofort; wer nicht dazugehört, verliert den Zugriff."
+      },
+      "accessWindow": {
+        "none": "Das Projekt ist danach ohne Zeitbegrenzung zugänglich.",
+        "upcoming": "Das Projekt öffnet erst zum gewählten Zeitpunkt; bis dahin ist es nicht zugänglich.",
+        "open": "Das Projekt ist ab sofort zugänglich.",
+        "closed": "Der Zugriff endet sofort für alle, auch für Personen, die gerade arbeiten; die Daten sind dann schreibgeschützt."
+      },
+      "kind": "Studierende finden und bearbeiten das Projekt danach als „{kind}“, mit der Oberfläche dieses Typs.",
+      "enableAnnotationOff": "Annotierende können keine Aufgaben mehr öffnen; „Annotation starten“ verschwindet.",
+      "fullVisibility": "Alle, die schon abgegeben haben, sehen sofort alle Felder ihrer Aufgaben, auch die Musterlösung. Bereits abgegebene Annotationen: {count}.",
+      "stepDetail": "Alle, die schon abgegeben haben, sehen sofort Punkte und Begründungen je Bewertungsschritt. Bereits abgegebene Annotationen: {count}.",
+      "timeLimitOn": "Die Bearbeitungszeit wird begrenzt, auch für Personen, die gerade arbeiten.",
+      "timeLimitOff": "Die Zeitbegrenzung entfällt sofort, auch für Personen, die gerade arbeiten.",
+      "timeLimitMinutes": "Die Bearbeitungszeit beträgt danach {minutes} Minuten, auch für Personen, die gerade arbeiten.",
+      "strictTimer": "Arbeiten werden bei Zeitablauf automatisch abgegeben, auch bei Personen, die gerade arbeiten.",
+      "assignmentMode": {
+        "open": "Alle Mitglieder sehen danach alle Aufgaben.",
+        "manual": "Annotierende sehen danach nur noch Aufgaben, die ihnen zugewiesen sind.",
+        "auto": "Annotierende bekommen Aufgaben danach automatisch zugeteilt und sehen nur diese."
+      },
+      "maxAnnotations": "Aufgaben mit {count} Annotationen stehen weiteren Annotierenden nicht mehr zur Verfügung.",
+      "pasteOn": "Beim Bearbeiten darf ab sofort Text aus anderen Programmen eingefügt werden.",
+      "pasteOff": "Beim Bearbeiten lässt sich ab sofort nur noch Text einfügen, der innerhalb der Plattform kopiert wurde.",
+      "immediateEvaluation": "Neue Abgaben werden sofort bewertet; wo die Anzeige eingeschaltet ist, sehen die Verfassenden das Ergebnis direkt nach der Abgabe."
     }
   },
   "tasks": {
@@ -8386,12 +8421,6 @@
       "deleted": "Projekt erfolgreich gelöscht",
       "titleUpdated": "Titel erfolgreich aktualisiert",
       "descriptionUpdated": "Beschreibung erfolgreich aktualisiert",
-      "instructionsUpdated": "Anweisungen erfolgreich aktualisiert",
-      "labelConfigSaved": "Label-Konfiguration erfolgreich gespeichert",
-      "modelsSaved": "Modellauswahl erfolgreich gespeichert",
-      "settingsSaved": "Einstellungen erfolgreich gespeichert",
-      "evaluationDefaultsSaved": "Evaluierungs-Standardeinstellungen erfolgreich gespeichert",
-      "generationDefaultsSaved": "Generierungs-Standardeinstellungen erfolgreich gespeichert",
       "evaluationStarted": "Multi-Field-Evaluierung erfolgreich gestartet",
       "titleEmpty": "Titel darf nicht leer sein",
       "deleteFailed": "Projekt konnte nicht gelöscht werden: {error}",
@@ -9218,6 +9247,16 @@
     },
     "selectionActions": {
       "actions": "Aktionen"
+    },
+    "autoSave": {
+      "saved": "Gespeichert",
+      "undo": "Rückgängig"
+    },
+    "settingRisk": {
+      "title": "Änderung bestätigen",
+      "confirm": "Übernehmen",
+      "cancel": "Abbrechen",
+      "runningExam": "Das Zeitfenster ist gerade offen: Die Änderung gilt sofort für eine laufende Prüfung."
     }
   },
   "templates": {
@@ -9564,7 +9603,6 @@
       "fetchOneFailed": "Projekt konnte nicht geladen werden",
       "created": "Projekt erfolgreich erstellt",
       "createFailed": "Projekt konnte nicht erstellt werden",
-      "updated": "Projekt erfolgreich aktualisiert",
       "updateFailed": "Projekt konnte nicht aktualisiert werden",
       "deleted": "Projekt erfolgreich gelöscht",
       "deleteFailed": "Projekt konnte nicht gelöscht werden",

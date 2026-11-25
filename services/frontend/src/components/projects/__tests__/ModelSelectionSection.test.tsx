@@ -130,11 +130,12 @@ const renderSection = (overrides: Partial<Props> = {}) =>
 
 describe('ModelSelectionSection', () => {
   describe('outer canEditProject gate', () => {
-    it('renders only the read-only message when the user cannot edit', () => {
+    it('renders the read-only message and no model list when the user cannot edit', () => {
       renderSection({ canEditProject: () => false })
       expect(screen.getByText('read-only: Model Selection')).toBeInTheDocument()
-      // The editable header button is absent.
-      expect(screen.queryByText('Model Selection')).not.toBeInTheDocument()
+      // Same sub-collapsible header as everywhere, but nothing to pick.
+      expect(screen.getByText('Model Selection')).toBeInTheDocument()
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     })
 
     it('renders the editable header when the user can edit', () => {
@@ -171,9 +172,11 @@ describe('ModelSelectionSection', () => {
       expect(screen.getByText('No models available')).toBeInTheDocument()
     })
 
-    it('hides the badge entirely when expanded', () => {
+    it('keeps the badge while expanded, like every sub-collapsible', () => {
       renderSection({ expandedModels: true, sortedModels: null })
-      expect(screen.queryByText('No models available')).not.toBeInTheDocument()
+      expect(screen.getAllByText('No models available').length).toBeGreaterThan(
+        0,
+      )
     })
   })
 

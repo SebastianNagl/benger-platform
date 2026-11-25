@@ -16,7 +16,13 @@ import { useUIStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
 import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import '@testing-library/jest-dom'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import {
   useParams,
   usePathname,
@@ -484,14 +490,18 @@ describe('ProjectDetailPage - grading section refresh', () => {
   })
 
   it('keeps the grading policy saved while the card saves its settings', async () => {
-    // The card save PATCHes the project settings and eval defaults before
-    // its config PUT; the grading section saves while those are open.
+    // A batch with a changed setting PATCHes it before its config PUT; the
+    // grading section saves while that PATCH is open.
     const heldPatches: Array<() => void> = []
     const updateProject = jest.fn(
       () => new Promise((resolve) => heldPatches.push(() => resolve({}))),
     )
     ;(useProjectStore as jest.Mock).mockReturnValue({
-      currentProject: { ...mockProject, effective_role: 'ORG_ADMIN' },
+      currentProject: {
+        ...mockProject,
+        effective_role: 'ORG_ADMIN',
+        immediate_evaluation_enabled: true,
+      },
       loading: false,
       fetchProject: jest.fn(),
       updateProject,
@@ -507,6 +517,13 @@ describe('ProjectDetailPage - grading section refresh', () => {
     )
 
     await openEvaluationCard()
+    // Switching immediate evaluation off needs no confirmation.
+    fireEvent.click(await screen.findByText('project.evaluationSettings.title'))
+    fireEvent.click(
+      within(await screen.findByTestId('evaluation-timing-group')).getByRole(
+        'checkbox',
+      ),
+    )
     fireEvent.click(await screen.findByTestId('edit-method'))
     await waitFor(() => expect(updateProject).toHaveBeenCalled(), {
       timeout: 5000,

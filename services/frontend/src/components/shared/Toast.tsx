@@ -5,6 +5,7 @@ import { useI18n } from '@/contexts/I18nContext'
 import {
   DEFAULT_TOAST_DURATION_MS,
   ToastItem,
+  ToastOptions,
   ToastType,
   useNotificationStore,
 } from '@/stores/notificationStore'
@@ -23,8 +24,18 @@ import React, {
 export type Toast = ToastItem
 
 interface ToastContextType {
-  addToast: (message: string, type?: ToastType, duration?: number) => string
-  showToast: (message: string, type?: ToastType, duration?: number) => string
+  addToast: (
+    message: string,
+    type?: ToastType,
+    duration?: number,
+    options?: ToastOptions,
+  ) => string
+  showToast: (
+    message: string,
+    type?: ToastType,
+    duration?: number,
+    options?: ToastOptions,
+  ) => string
   removeToast: (id: string) => void
 }
 
@@ -84,10 +95,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   // toast can't keep ticking from a previous render's setTimeout — which
   // matters for tests and for the "live toasts don't persist" guarantee.
   const addToast = useCallback(
-    (message: string, type?: ToastType, duration?: number) => {
+    (
+      message: string,
+      type?: ToastType,
+      duration?: number,
+      options?: ToastOptions,
+    ) => {
       const effectiveDuration =
         duration === undefined ? DEFAULT_TOAST_DURATION_MS : duration
-      const id = storeAdd(message, type, effectiveDuration)
+      const id = storeAdd(message, type, effectiveDuration, options)
       if (effectiveDuration > 0 && id) {
         const t = setTimeout(() => {
           storeRemove(id)
@@ -293,6 +309,19 @@ function ToastItemView({
         )}
       </div>
       <div className="flex shrink-0 items-center gap-1">
+        {toast.action && (
+          <button
+            type="button"
+            onClick={() => {
+              toast.action!.onClick()
+              onRemove(toast.id)
+            }}
+            className="rounded px-2 py-1 text-sm font-medium underline-offset-2 hover:underline"
+            data-testid="toast-action"
+          >
+            {toast.action.label}
+          </button>
+        )}
         {showCancel && (
           <button
             onClick={() => progress!.onCancel!()}

@@ -10,6 +10,11 @@
  *     editor in lockstep with sibling sub-sections. The imperative
  *     `save()` resolves on success and rejects on validation error so a
  *     parent's `Promise.all([...])` short-circuits with a useful message.
+ *  3. Controlled: parent passes `value` + `onValueChange` (and `onBlur`)
+ *     and saves the text itself (`labelConfigError` tells whether it may).
+ *
+ * With `hideInternalControls` the editor sits inside a sub-collapsible that
+ * already carries its title, so its own card header is left out.
  */
 
 import { Alert } from '@/components/shared/Alert'
@@ -24,7 +29,13 @@ import {
 import { TaskFieldReferencePanel } from '@/components/shared/TaskFieldReferencePanel'
 import { Textarea } from '@/components/shared/Textarea'
 import { useI18n } from '@/contexts/I18nContext'
-import { forwardRef, useImperativeHandle, useMemo, useState } from 'react'
+import {
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from 'react'
 
 interface LabelConfigEditorProps {
   initialConfig?: string
@@ -37,6 +48,33 @@ interface LabelConfigEditorProps {
   /** Fired on every user edit so the parent can mark its card dirty and
    *  schedule an auto-save flush. */
   onConfigChange?: () => void
+  /** Controlled text (mode 3). */
+  value?: string
+  onValueChange?: (config: string) => void
+  onBlur?: () => void
+}
+
+type Translate = (key: string, params?: Record<string, unknown>) => string
+
+/** Why a label configuration cannot be saved, or null when it can. */
+export function labelConfigError(config: string, t: Translate): string | null {
+  if (!config.trim()) {
+    return t('projects.labelConfig.errorEmpty')
+  }
+  try {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(config, 'text/xml')
+    const parseError = doc.querySelector('parsererror')
+    if (parseError) {
+      return t('projects.labelConfig.errorInvalidXml') + parseError.textContent
+    }
+    if (!config.includes('<View>') || !config.includes('</View>')) {
+      return t('projects.labelConfig.errorMissingView')
+    }
+    return null
+  } catch {
+    return t('projects.labelConfig.errorInvalidFormat')
+  }
 }
 
 export interface LabelConfigEditorHandle {
@@ -57,39 +95,28 @@ export const LabelConfigEditor = forwardRef<
     projectId,
     hideInternalControls,
     onConfigChange,
+    value,
+    onValueChange,
+    onBlur,
   },
   ref,
 ) {
   const { t } = useI18n()
-  const [config, setConfig] = useState(initialConfig)
+  const [ownConfig, setOwnConfig] = useState(initialConfig)
+  const controlled = value !== undefined
+  const config = controlled ? value : ownConfig
+  const setConfig = (next: string) => {
+    if (controlled) onValueChange?.(next)
+    else setOwnConfig(next)
+  }
 
-  const error = useMemo<string | null>(() => {
-    if (!config.trim()) {
-      return t('projects.labelConfig.errorEmpty')
-    }
-    try {
-      const parser = new DOMParser()
-      const doc = parser.parseFromString(config, 'text/xml')
-      const parseError = doc.querySelector('parsererror')
-      if (parseError) {
-        return (
-          t('projects.labelConfig.errorInvalidXml') + parseError.textContent
-        )
-      }
-      if (!config.includes('<View>') || !config.includes('</View>')) {
-        return t('projects.labelConfig.errorMissingView')
-      }
-      return null
-    } catch {
-      return t('projects.labelConfig.errorInvalidFormat')
-    }
-  }, [config, t])
+  const error = useMemo(() => labelConfigError(config, t), [config, t])
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (error) throw new Error(error)
     if (!config) throw new Error(t('projects.labelConfig.errorEmpty'))
     await onSave(config)
-  }
+  }, [error, config, onSave, t])
 
   useImperativeHandle(
     ref,
@@ -98,18 +125,20 @@ export const LabelConfigEditor = forwardRef<
       isDirty: () => config !== initialConfig,
       hasErrors: () => !!error,
     }),
-    [config, initialConfig, error, onSave, t],
+    [handleSave, config, initialConfig, error],
   )
 
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader>
-          <CardTitle>{t('projects.labelConfig.title')}</CardTitle>
-          <CardDescription>
-            {t('projects.labelConfig.description')}
-          </CardDescription>
-        </CardHeader>
+        {hideInternalControls ? null : (
+          <CardHeader>
+            <CardTitle>{t('projects.labelConfig.title')}</CardTitle>
+            <CardDescription>
+              {t('projects.labelConfig.description')}
+            </CardDescription>
+          </CardHeader>
+        )}
         <CardContent className="space-y-4">
           {/* Available task fields reference */}
           {projectId && (
@@ -126,6 +155,7 @@ export const LabelConfigEditor = forwardRef<
               setConfig(e.target.value)
               onConfigChange?.()
             }}
+            onBlur={onBlur}
             placeholder={t('projects.labelConfig.placeholder')}
             className="font-mono text-sm"
             rows={15}

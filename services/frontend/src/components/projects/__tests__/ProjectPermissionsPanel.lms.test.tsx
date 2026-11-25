@@ -107,14 +107,16 @@ describe('ProjectPermissionsPanel with LMS-linked organizations', () => {
     await user.click(other)
     expect(other).not.toBeChecked()
 
-    await user.click(screen.getByTestId('save-button'))
-    await waitFor(() =>
-      expect(projectsAPI.updateVisibility).toHaveBeenCalledWith('p1', {
-        is_private: false,
-        organization_attachments: [
-          { organization_id: 'uni', group_id: 'chair' },
-        ],
-      }),
+    // Saved on its own after the auto-save delay.
+    await waitFor(
+      () =>
+        expect(projectsAPI.updateVisibility).toHaveBeenCalledWith('p1', {
+          is_private: false,
+          organization_attachments: [
+            { organization_id: 'uni', group_id: 'chair' },
+          ],
+        }),
+      { timeout: 4000 },
     )
   })
 
@@ -141,10 +143,15 @@ describe('ProjectPermissionsPanel with LMS-linked organizations', () => {
     renderPanel()
     await screen.findByTestId('organization-checkbox-uni')
 
-    await user.click(screen.getByTestId('save-button'))
+    // Any change saves on its own; the failure shows inline.
+    await user.click(screen.getByTestId('organization-checkbox-other'))
 
     expect(
-      await screen.findByTestId('project-permissions-error'),
+      await screen.findByTestId(
+        'project-permissions-error',
+        {},
+        { timeout: 4000 },
+      ),
     ).toHaveTextContent('project.permissions.lmsConflict')
   })
 
@@ -158,10 +165,15 @@ describe('ProjectPermissionsPanel with LMS-linked organizations', () => {
     renderPanel()
     await screen.findByTestId('organization-checkbox-uni')
 
-    await user.click(screen.getByTestId('save-button'))
+    // Any change saves on its own; the failure shows inline.
+    await user.click(screen.getByTestId('organization-checkbox-other'))
 
     expect(
-      await screen.findByTestId('project-permissions-error'),
+      await screen.findByTestId(
+        'project-permissions-error',
+        {},
+        { timeout: 4000 },
+      ),
     ).toHaveTextContent('Organization x not found')
   })
 })

@@ -319,7 +319,7 @@ describe('ProjectDetailPage — deleted project (superadmin view)', () => {
         screen.getByText('project.settings.annotationSettingsTitle'),
       )
       expect(
-        screen.getByText('project.settings.annotationBehavior.title'),
+        screen.getByText('project.settings.groups.assignment'),
       ).toBeInTheDocument()
       expect(
         screen.queryByTestId('access-window-fields'),
@@ -363,6 +363,12 @@ describe('ProjectDetailPage — deleted project (superadmin view)', () => {
       await act(async () => {
         fireEvent.blur(closes)
       })
+      // Changing who may reach the project when is confirmed first.
+      expect(updateProject).not.toHaveBeenCalled()
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('confirm-dialog-confirm-button'))
+      })
+      await act(async () => {})
       expect(updateProject).toHaveBeenCalledTimes(1)
       expect(updateProject).toHaveBeenCalledWith('test-project-123', {
         window_start_at: '2030-03-01T08:00:00.000Z',
@@ -373,6 +379,13 @@ describe('ProjectDetailPage — deleted project (superadmin view)', () => {
       await act(async () => {
         fireEvent.click(screen.getByTestId('access-window-toggle'))
       })
+      await act(async () => {
+        jest.advanceTimersByTime(1_000)
+      })
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('confirm-dialog-confirm-button'))
+      })
+      await act(async () => {})
       expect(updateProject).toHaveBeenCalledTimes(2)
       expect(updateProject).toHaveBeenLastCalledWith('test-project-123', {
         window_start_at: null,

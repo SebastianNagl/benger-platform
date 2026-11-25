@@ -1,22 +1,30 @@
 /**
- * Advanced annotation-settings block for the project detail page.
+ * The "Annotationsablauf & -verhalten" sub-collapsible of the project
+ * page's annotation card, in groups that follow an annotator's way through
+ * a project:
  *
- * Renders the contents of the "Annotation Settings" SubSection inside the
- * Annotation ConfigCard: annotation-behavior controls (max/min annotations,
- * assignment mode, randomize, full-visibility, timer), interface settings
- * (instruction/skip/submit toggles, skip-queue, confirm), the post-annotation
- * questionnaire, and the extended project-settings slot.
+ *   Zuteilung        who gets which items
+ *   Bearbeitung      what the annotator may do while working (time limit,
+ *                    pasting; extension slots: file upload, handwriting,
+ *                    draft checkpoints)
+ *   Überspringen     the skip button and what skipping does
+ *   Abgabe           submitting
+ *   Nach der Abgabe  what annotators see afterwards, the questionnaire
+ *   Überprüfung      extension slot (review stage)
  *
- * Extracted verbatim from ProjectDetailPage as a behavior-preserving
- * presentational sub-component — the rendered DOM/text/classNames are
- * identical to the inline version. All state lives in the parent and is
- * prop-drilled here.
+ * The instruction display switches live with the instructions themselves
+ * (`InstructionDisplaySettings`, rendered in "Annotationsanweisungen").
+ *
+ * Presentational: all state lives in the page and arrives through
+ * `advancedSettings` / `setAdvancedSettings`; the page auto-saves the
+ * buffer. Free text (the questionnaire XML) passes `{ deferSave: true }`
+ * and saves on blur through `onTextCommit`.
  */
 
 'use client'
 
+import { Checkbox } from '@/components/shared/Checkbox'
 import { Input } from '@/components/shared/Input'
-import { Label } from '@/components/shared/Label'
 import {
   Select,
   SelectContent,
@@ -25,7 +33,13 @@ import {
   SelectValue,
 } from '@/components/shared/Select'
 import { Textarea } from '@/components/shared/Textarea'
-import { type ComponentType, type Dispatch, type SetStateAction } from 'react'
+import { useState, type ComponentType, type SetStateAction } from 'react'
+import {
+  SettingField,
+  SettingRow,
+  SettingsGroup,
+  SettingsGroupStack,
+} from './SettingsGroup'
 
 export interface AdvancedSettings {
   show_instruction: boolean
@@ -63,651 +77,28 @@ export interface AdvancedSettings {
   restorable_checkpoints_enabled: boolean
 }
 
-interface AdvancedSettingsCardProps {
-  t: (key: string, params?: any) => string
-  canEditProject: () => boolean
-  getReadOnlyMessage: (sectionTitle: string) => string
-  advancedSettings: AdvancedSettings
-  setAdvancedSettings: Dispatch<SetStateAction<AdvancedSettings>>
-  editing: boolean
-  ProjectSettingsExtended: ComponentType<any> | null
-  // Overlay checkboxes rendered directly below the paste switch.
-  ProjectSettingsInterfaceExtra?: ComponentType<any> | null
-}
+/**
+ * Setter for the settings buffer. `deferSave` marks a free-text edit that
+ * saves on blur (`onTextCommit`) instead of after the usual delay.
+ * `onCancel` runs when a risky change is cancelled in its confirmation, for
+ * controls that already show the new value.
+ */
+export type AdvancedSettingsSetter = (
+  value: SetStateAction<AdvancedSettings>,
+  options?: { deferSave?: boolean; onCancel?: () => void },
+) => void
 
-export function AdvancedSettingsCard({
-  t,
-  canEditProject,
-  getReadOnlyMessage,
-  advancedSettings,
-  setAdvancedSettings,
-  editing,
-  ProjectSettingsExtended,
-  ProjectSettingsInterfaceExtra = null,
-}: AdvancedSettingsCardProps) {
-  return (
-    <div className="bg-white dark:bg-zinc-900">
-      {canEditProject() ? (
-        <>
-          <div className="space-y-6">
-            {/* Annotation Behavior */}
-            <div>
-              <h3 className="text-md mb-4 font-medium text-zinc-900 dark:text-white">
-                {t('project.settings.annotationBehavior.title')}
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="maximum_annotations">
-                    {t('project.settings.annotationBehavior.maxAnnotations')}
-                  </Label>
-                  <Select
-                    value={advancedSettings.maximum_annotations.toString()}
-                    onValueChange={(value: string) =>
-                      setAdvancedSettings((prev) => ({
-                        ...prev,
-                        maximum_annotations: parseInt(value),
-                      }))
-                    }
-                    disabled={!editing}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">
-                        {t(
-                          'project.settings.annotationBehavior.annotations.single',
-                        )}
-                      </SelectItem>
-                      <SelectItem value="2">
-                        {t(
-                          'project.settings.annotationBehavior.annotations.double',
-                        )}
-                      </SelectItem>
-                      <SelectItem value="3">
-                        {t(
-                          'project.settings.annotationBehavior.annotations.triple',
-                        )}
-                      </SelectItem>
-                      <SelectItem value="5">
-                        {t(
-                          'project.settings.annotationBehavior.annotations.multiple',
-                        )}
-                      </SelectItem>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                      <SelectItem value="100">100</SelectItem>
-                      <SelectItem value="0">
-                        {t(
-                          'project.settings.annotationBehavior.annotations.unlimited',
-                        )}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                    {t(
-                      'project.settings.annotationBehavior.maxAnnotationsHelp',
-                    )}
-                  </p>
-                </div>
+type Translate = (key: string, params?: any) => string
 
-                <div>
-                  <Label htmlFor="min_annotations_per_task">
-                    {t(
-                      'project.settings.annotationBehavior.minAnnotationsForCompletion',
-                    )}
-                  </Label>
-                  <Select
-                    value={advancedSettings.min_annotations_per_task.toString()}
-                    onValueChange={(value: string) =>
-                      setAdvancedSettings((prev) => ({
-                        ...prev,
-                        min_annotations_per_task: parseInt(value),
-                      }))
-                    }
-                    disabled={!editing}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">
-                        {t(
-                          'project.settings.annotationBehavior.annotations.count1',
-                        )}
-                      </SelectItem>
-                      <SelectItem value="2">
-                        {t(
-                          'project.settings.annotationBehavior.annotations.count2',
-                        )}
-                      </SelectItem>
-                      <SelectItem value="3">
-                        {t(
-                          'project.settings.annotationBehavior.annotations.count3',
-                        )}
-                      </SelectItem>
-                      <SelectItem value="4">
-                        {t(
-                          'project.settings.annotationBehavior.annotations.count4',
-                        )}
-                      </SelectItem>
-                      <SelectItem value="5">
-                        {t(
-                          'project.settings.annotationBehavior.annotations.count5',
-                        )}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                    {t(
-                      'project.settings.annotationBehavior.minAnnotationsHelp',
-                    )}
-                  </p>
-                </div>
-
-                <div>
-                  <Label htmlFor="assignment_mode">
-                    {t('project.settings.annotationBehavior.assignmentMode')}
-                  </Label>
-                  <Select
-                    value={advancedSettings.assignment_mode}
-                    onValueChange={(value: string) =>
-                      setAdvancedSettings((prev: any) => ({
-                        ...prev,
-                        assignment_mode: value as 'open' | 'manual' | 'auto',
-                      }))
-                    }
-                    disabled={!editing}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="open">
-                        {t('project.settings.annotationBehavior.modes.open')}
-                      </SelectItem>
-                      <SelectItem value="manual">
-                        {t('project.settings.annotationBehavior.modes.manual')}
-                      </SelectItem>
-                      <SelectItem value="auto">
-                        {t('project.settings.annotationBehavior.modes.auto')}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                    {t(
-                      'project.settings.annotationBehavior.assignmentModeHelp',
-                    )}
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>
-                      {t(
-                        'project.settings.annotationBehavior.randomizeTaskOrder',
-                      )}
-                    </Label>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                      {t(
-                        'project.settings.annotationBehavior.randomizeTaskOrderHelp',
-                      )}
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={advancedSettings.randomize_task_order}
-                    onChange={(e) =>
-                      setAdvancedSettings((prev: any) => ({
-                        ...prev,
-                        randomize_task_order: e.target.checked,
-                      }))
-                    }
-                    disabled={!editing}
-                    className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>
-                      {t(
-                        'project.settings.annotationBehavior.annotatorFullVisibility',
-                      )}
-                    </Label>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                      {t(
-                        'project.settings.annotationBehavior.annotatorFullVisibilityHelp',
-                      )}
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={
-                      advancedSettings.annotator_full_visibility_after_submit
-                    }
-                    onChange={(e) =>
-                      setAdvancedSettings((prev: any) => ({
-                        ...prev,
-                        annotator_full_visibility_after_submit:
-                          e.target.checked,
-                      }))
-                    }
-                    disabled={!editing}
-                    className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>
-                      {t(
-                        'project.settings.annotationBehavior.annotatorStepDetail',
-                      )}
-                    </Label>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                      {t(
-                        'project.settings.annotationBehavior.annotatorStepDetailHelp',
-                      )}
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    data-testid="annotator-step-detail-toggle"
-                    checked={
-                      advancedSettings.annotator_step_detail_after_submit ??
-                      advancedSettings.annotator_full_visibility_after_submit
-                    }
-                    onChange={(e) =>
-                      setAdvancedSettings((prev: any) => ({
-                        ...prev,
-                        annotator_step_detail_after_submit: e.target.checked,
-                      }))
-                    }
-                    disabled={!editing}
-                    className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                  />
-                </div>
-
-                {/* Annotation timer */}
-                <div className="space-y-3 border-t border-zinc-200 pt-4 dark:border-zinc-700">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label>
-                        {t('projects.creation.wizard.stepSettings.timeLimit')}
-                      </Label>
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                        {t(
-                          'projects.creation.wizard.stepSettings.timeLimitHint',
-                        )}
-                      </p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={advancedSettings.annotation_time_limit_enabled}
-                      onChange={(e) =>
-                        setAdvancedSettings((prev: any) => ({
-                          ...prev,
-                          annotation_time_limit_enabled: e.target.checked,
-                          annotation_time_limit_seconds: e.target.checked
-                            ? (prev.annotation_time_limit_seconds ?? 1800)
-                            : null,
-                          strict_timer_enabled: e.target.checked
-                            ? prev.strict_timer_enabled
-                            : false,
-                        }))
-                      }
-                      disabled={!editing}
-                      className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                    />
-                  </div>
-
-                  {advancedSettings.annotation_time_limit_enabled && (
-                    <>
-                      <div className="ml-4 flex items-center gap-2">
-                        <Input
-                          type="number"
-                          min={1}
-                          max={360}
-                          value={
-                            advancedSettings.annotation_time_limit_seconds
-                              ? Math.round(
-                                  advancedSettings.annotation_time_limit_seconds /
-                                    60,
-                                )
-                              : 30
-                          }
-                          onChange={(e) =>
-                            setAdvancedSettings((prev: any) => ({
-                              ...prev,
-                              annotation_time_limit_seconds:
-                                (parseInt(e.target.value) || 30) * 60,
-                            }))
-                          }
-                          disabled={!editing}
-                          className="w-20"
-                        />
-                        <span className="text-sm text-zinc-500">
-                          {t('projects.creation.wizard.stepSettings.minutes')}
-                        </span>
-                      </div>
-
-                      <div className="ml-4 flex items-center justify-between">
-                        <div>
-                          <Label>
-                            {t(
-                              'projects.creation.wizard.stepSettings.strictTimer',
-                            )}
-                          </Label>
-                          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                            {t(
-                              'projects.creation.wizard.stepSettings.strictTimerHint',
-                            )}
-                          </p>
-                        </div>
-                        <input
-                          type="checkbox"
-                          checked={advancedSettings.strict_timer_enabled}
-                          onChange={(e) =>
-                            setAdvancedSettings((prev: any) => ({
-                              ...prev,
-                              strict_timer_enabled: e.target.checked,
-                            }))
-                          }
-                          disabled={!editing}
-                          className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {/* Restorable draft checkpoints (opt-in) is an extended feature —
-                  its toggle is rendered by the project-settings-extended slot
-                  below, not here, so the community edition doesn't expose it. */}
-              </div>
-            </div>
-
-            {/* Interface Settings */}
-            <div>
-              <h3 className="text-md mb-4 font-medium text-zinc-900 dark:text-white">
-                {t('project.settings.interface.title')}
-              </h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>
-                      {t('project.settings.interface.showInstructions')}
-                    </Label>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                      {t('project.settings.interface.showInstructionsHelp')}
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={advancedSettings.show_instruction}
-                    onChange={(e) =>
-                      setAdvancedSettings((prev: any) => ({
-                        ...prev,
-                        show_instruction: e.target.checked,
-                      }))
-                    }
-                    disabled={!editing}
-                    className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>
-                      {t(
-                        'project.settings.interface.instructionsAlwaysVisible',
-                      )}
-                    </Label>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                      {t(
-                        'project.settings.interface.instructionsAlwaysVisibleHelp',
-                      )}
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={advancedSettings.instructions_always_visible}
-                    onChange={(e) =>
-                      setAdvancedSettings((prev: any) => ({
-                        ...prev,
-                        instructions_always_visible: e.target.checked,
-                      }))
-                    }
-                    disabled={!editing}
-                    className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>
-                      {t('project.settings.interface.showSkipButton')}
-                    </Label>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                      {t('project.settings.interface.showSkipButtonHelp')}
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={advancedSettings.show_skip_button}
-                    onChange={(e) =>
-                      setAdvancedSettings((prev: any) => ({
-                        ...prev,
-                        show_skip_button: e.target.checked,
-                      }))
-                    }
-                    disabled={!editing}
-                    className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>
-                      {t('project.settings.interface.requireCommentOnSkip')}
-                    </Label>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                      {t('project.settings.interface.requireCommentOnSkipHelp')}
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={advancedSettings.require_comment_on_skip}
-                    onChange={(e) =>
-                      setAdvancedSettings((prev: any) => ({
-                        ...prev,
-                        require_comment_on_skip: e.target.checked,
-                      }))
-                    }
-                    disabled={!editing}
-                    className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>
-                      {t('project.settings.interface.allowExternalPaste')}
-                    </Label>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                      {t('project.settings.interface.allowExternalPasteHelp')}
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    data-testid="allow-external-paste-checkbox"
-                    checked={advancedSettings.allow_external_paste}
-                    onChange={(e) =>
-                      setAdvancedSettings((prev: any) => ({
-                        ...prev,
-                        allow_external_paste: e.target.checked,
-                      }))
-                    }
-                    disabled={!editing}
-                    className="ml-4 h-4 w-4 shrink-0 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                  />
-                </div>
-
-                {ProjectSettingsInterfaceExtra && (
-                  <ProjectSettingsInterfaceExtra
-                    settings={advancedSettings}
-                    onSettingsChange={setAdvancedSettings}
-                    editing={editing}
-                  />
-                )}
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>{t('project.settings.interface.skipQueue')}</Label>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                      {t('project.settings.interface.skipQueueHelp')}
-                    </p>
-                  </div>
-                  <Select
-                    value={advancedSettings.skip_queue || 'requeue_for_others'}
-                    onValueChange={(v) =>
-                      setAdvancedSettings((prev: any) => ({
-                        ...prev,
-                        skip_queue: v,
-                      }))
-                    }
-                    disabled={!editing}
-                    displayValue={
-                      (advancedSettings.skip_queue || 'requeue_for_others') ===
-                      'requeue_for_me'
-                        ? t('project.settings.interface.skipQueueRequeueForMe')
-                        : (advancedSettings.skip_queue ||
-                              'requeue_for_others') === 'requeue_for_others'
-                          ? t(
-                              'project.settings.interface.skipQueueRequeueForOthers',
-                            )
-                          : t(
-                              'project.settings.interface.skipQueueIgnoreSkipped',
-                            )
-                    }
-                  >
-                    <SelectTrigger className="w-auto min-w-40">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="requeue_for_me">
-                        {t('project.settings.interface.skipQueueRequeueForMe')}
-                      </SelectItem>
-                      <SelectItem value="requeue_for_others">
-                        {t(
-                          'project.settings.interface.skipQueueRequeueForOthers',
-                        )}
-                      </SelectItem>
-                      <SelectItem value="ignore_skipped">
-                        {t('project.settings.interface.skipQueueIgnoreSkipped')}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>
-                      {t('project.settings.interface.showSubmitButton')}
-                    </Label>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                      {t('project.settings.interface.showSubmitButtonHelp')}
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={advancedSettings.show_submit_button}
-                    onChange={(e) =>
-                      setAdvancedSettings((prev: any) => ({
-                        ...prev,
-                        show_submit_button: e.target.checked,
-                      }))
-                    }
-                    disabled={!editing}
-                    className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>
-                      {t(
-                        'project.settings.interface.requireConfirmBeforeSubmit',
-                      )}
-                    </Label>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                      {t(
-                        'project.settings.interface.requireConfirmBeforeSubmitHelp',
-                      )}
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={advancedSettings.require_confirm_before_submit}
-                    onChange={(e) =>
-                      setAdvancedSettings((prev: any) => ({
-                        ...prev,
-                        require_confirm_before_submit: e.target.checked,
-                      }))
-                    }
-                    disabled={!editing}
-                    className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Post-Annotation Questionnaire (Issue #1208) */}
-            <div>
-              <h3 className="text-md mb-4 font-medium text-zinc-900 dark:text-white">
-                {t('project.settings.questionnaireTitle')}
-              </h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>{t('project.settings.questionnaireEnabled')}</Label>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                      {t('project.settings.questionnaireEnabledDescription')}
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={advancedSettings.questionnaire_enabled}
-                    onChange={(e) =>
-                      setAdvancedSettings((prev: any) => ({
-                        ...prev,
-                        questionnaire_enabled: e.target.checked,
-                      }))
-                    }
-                    disabled={!editing}
-                    className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                  />
-                </div>
-
-                {advancedSettings.questionnaire_enabled && (
-                  <div className="space-y-3 border-t border-zinc-200 pt-3 dark:border-zinc-700">
-                    <div>
-                      <Label>
-                        {t('project.settings.questionnaireTemplate')}
-                      </Label>
-                      <Select
-                        value=""
-                        onValueChange={(v) => {
-                          const templates: Record<string, string> = {
-                            confidence_difficulty: `<View>
+const QUESTIONNAIRE_TEMPLATES: Record<string, string> = {
+  confidence_difficulty: `<View>
   <Header value="Post-Annotation Feedback"/>
   <Header value="How confident are you in your annotation?" size="4"/>
   <Rating name="confidence" toName="confidence" maxRating="5" required="true"/>
   <Header value="How difficult was this task?" size="4"/>
   <Rating name="difficulty" toName="difficulty" maxRating="5" required="true"/>
 </View>`,
-                            extended: `<View>
+  extended: `<View>
   <Header value="Post-Annotation Feedback"/>
   <Header value="How confident are you in your annotation?" size="4"/>
   <Rating name="confidence" toName="confidence" maxRating="5" required="true"/>
@@ -724,7 +115,7 @@ export function AdvancedSettingsCard({
   <Header value="Additional comments (optional)" size="4"/>
   <TextArea name="comments" toName="comments" rows="3" placeholder="Note any edge cases, ambiguities, or concerns..."/>
 </View>`,
-                            utaut_study: `<View>
+  utaut_study: `<View>
   <Header value="Post-Annotations-Fragebogen" level="3"/>
 
   <Header value="Allgemeine Fragen" level="4"/>
@@ -747,81 +138,602 @@ export function AdvancedSettingsCard({
   <Header value="Frage ohne KI (nur beantworten, wenn du NICHT in der KI-Gruppe warst)" level="4"/>
   <Likert name="desired_ai" toName="desired_ai" min="1" max="7" label="Ich hätte mir die KI für die Bearbeitung dieser Aufgabe gewünscht."/>
 </View>`,
-                          }
-                          if (v in templates) {
-                            setAdvancedSettings((prev: any) => ({
-                              ...prev,
-                              questionnaire_config: templates[v],
-                            }))
-                          }
-                        }}
-                        disabled={!editing}
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue
-                            placeholder={t(
-                              'project.settings.questionnaireSelectTemplate',
-                            )}
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="confidence_difficulty">
-                            {t(
-                              'project.settings.questionnaireTemplateConfidence',
-                            )}
-                          </SelectItem>
-                          <SelectItem value="extended">
-                            {t(
-                              'project.settings.questionnaireTemplateExtended',
-                            )}
-                          </SelectItem>
-                          <SelectItem value="utaut_study">
-                            {t('project.settings.questionnaireTemplateUtaut')}
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+}
 
-                    <div>
-                      <Label>{t('project.settings.questionnaireConfig')}</Label>
-                      <Textarea
-                        value={advancedSettings.questionnaire_config}
-                        onChange={(e) =>
-                          setAdvancedSettings((prev: any) => ({
-                            ...prev,
-                            questionnaire_config: e.target.value,
-                          }))
-                        }
-                        disabled={!editing}
-                        rows={10}
-                        className="mt-1 font-mono"
-                        placeholder={`<View>\n  <Header value="Post-Annotation Feedback"/>\n  <Rating name="confidence" toName="confidence" maxRating="5" required="true"/>\n</View>`}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+interface AdvancedSettingsCardProps {
+  t: Translate
+  canEditProject: () => boolean
+  getReadOnlyMessage: (sectionTitle: string) => string
+  advancedSettings: AdvancedSettings
+  setAdvancedSettings: AdvancedSettingsSetter
+  /** Save a deferred free-text edit now (blur). */
+  onTextCommit?: () => void
+  editing: boolean
+  /** Extension slot: the review stage, rendered as the last group. */
+  ProjectSettingsExtended: ComponentType<any> | null
+  /** Extension slot: settings right below the paste switch (uploads). */
+  ProjectSettingsInterfaceExtra?: ComponentType<any> | null
+  /** Extension slot: further settings of the "Bearbeitung" group. */
+  ProjectSettingsAnnotationWork?: ComponentType<any> | null
+}
 
-            {/* Extended project settings (review, feedback) — rendered by extension slot */}
-            {ProjectSettingsExtended && (
-              <ProjectSettingsExtended
-                settings={advancedSettings}
-                onSettingsChange={setAdvancedSettings}
+export function AdvancedSettingsCard({
+  t,
+  canEditProject,
+  getReadOnlyMessage,
+  advancedSettings,
+  setAdvancedSettings,
+  onTextCommit,
+  editing,
+  ProjectSettingsExtended,
+  ProjectSettingsInterfaceExtra = null,
+  ProjectSettingsAnnotationWork = null,
+}: AdvancedSettingsCardProps) {
+  if (!canEditProject()) {
+    return (
+      <div className="py-6 text-center">
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          {getReadOnlyMessage(t('project.settings.title'))}
+        </p>
+      </div>
+    )
+  }
+
+  const set = <K extends keyof AdvancedSettings>(
+    field: K,
+    value: AdvancedSettings[K],
+  ) => setAdvancedSettings((prev) => ({ ...prev, [field]: value }))
+
+  const toggle = (
+    id: string,
+    field: keyof AdvancedSettings,
+    checked: boolean,
+    testId?: string,
+  ) => (
+    <Checkbox
+      id={id}
+      data-testid={testId}
+      checked={checked}
+      onChange={(e) => set(field, e.target.checked as never)}
+      disabled={!editing}
+    />
+  )
+
+  const slotProps = {
+    settings: advancedSettings,
+    onSettingsChange: setAdvancedSettings,
+    editing,
+  }
+  const skipQueue = advancedSettings.skip_queue || 'requeue_for_others'
+  const skipQueueLabel =
+    skipQueue === 'requeue_for_me'
+      ? t('project.settings.interface.skipQueueRequeueForMe')
+      : skipQueue === 'requeue_for_others'
+        ? t('project.settings.interface.skipQueueRequeueForOthers')
+        : t('project.settings.interface.skipQueueIgnoreSkipped')
+
+  return (
+    <SettingsGroupStack>
+      {/* Who gets which items */}
+      <SettingsGroup
+        title={t('project.settings.groups.assignment')}
+        data-testid="settings-group-assignment"
+      >
+        <SettingField
+          label={t('project.settings.annotationBehavior.assignmentMode')}
+          htmlFor="assignment_mode"
+          help={t('project.settings.annotationBehavior.assignmentModeHelp')}
+        >
+          <Select
+            value={advancedSettings.assignment_mode}
+            onValueChange={(value: string) =>
+              set(
+                'assignment_mode',
+                value as AdvancedSettings['assignment_mode'],
+              )
+            }
+            disabled={!editing}
+          >
+            <SelectTrigger id="assignment_mode">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="open">
+                {t('project.settings.annotationBehavior.modes.open')}
+              </SelectItem>
+              <SelectItem value="manual">
+                {t('project.settings.annotationBehavior.modes.manual')}
+              </SelectItem>
+              <SelectItem value="auto">
+                {t('project.settings.annotationBehavior.modes.auto')}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </SettingField>
+
+        <SettingField
+          label={t('project.settings.annotationBehavior.maxAnnotations')}
+          htmlFor="maximum_annotations"
+          help={t('project.settings.annotationBehavior.maxAnnotationsHelp')}
+        >
+          <Select
+            value={advancedSettings.maximum_annotations.toString()}
+            onValueChange={(value: string) =>
+              set('maximum_annotations', parseInt(value))
+            }
+            disabled={!editing}
+          >
+            <SelectTrigger id="maximum_annotations">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">
+                {t('project.settings.annotationBehavior.annotations.single')}
+              </SelectItem>
+              <SelectItem value="2">
+                {t('project.settings.annotationBehavior.annotations.double')}
+              </SelectItem>
+              <SelectItem value="3">
+                {t('project.settings.annotationBehavior.annotations.triple')}
+              </SelectItem>
+              <SelectItem value="5">
+                {t('project.settings.annotationBehavior.annotations.multiple')}
+              </SelectItem>
+              <SelectItem value="10">10</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+              <SelectItem value="100">100</SelectItem>
+              <SelectItem value="0">
+                {t('project.settings.annotationBehavior.annotations.unlimited')}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </SettingField>
+
+        <SettingField
+          label={t(
+            'project.settings.annotationBehavior.minAnnotationsForCompletion',
+          )}
+          htmlFor="min_annotations_per_task"
+          help={t('project.settings.annotationBehavior.minAnnotationsHelp')}
+        >
+          <Select
+            value={advancedSettings.min_annotations_per_task.toString()}
+            onValueChange={(value: string) =>
+              set('min_annotations_per_task', parseInt(value))
+            }
+            disabled={!editing}
+          >
+            <SelectTrigger id="min_annotations_per_task">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <SelectItem key={n} value={String(n)}>
+                  {t(
+                    `project.settings.annotationBehavior.annotations.count${n}`,
+                  )}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </SettingField>
+
+        <SettingRow
+          label={t('project.settings.annotationBehavior.randomizeTaskOrder')}
+          htmlFor="randomize_task_order"
+          help={t('project.settings.annotationBehavior.randomizeTaskOrderHelp')}
+          control={toggle(
+            'randomize_task_order',
+            'randomize_task_order',
+            advancedSettings.randomize_task_order,
+          )}
+        />
+      </SettingsGroup>
+
+      {/* What the annotator may do while working */}
+      <SettingsGroup
+        title={t('project.settings.groups.work')}
+        data-testid="settings-group-work"
+      >
+        <SettingRow
+          label={t('projects.creation.wizard.stepSettings.timeLimit')}
+          htmlFor="annotation_time_limit_enabled"
+          help={t('projects.creation.wizard.stepSettings.timeLimitHint')}
+          control={
+            <Checkbox
+              id="annotation_time_limit_enabled"
+              checked={advancedSettings.annotation_time_limit_enabled}
+              onChange={(e) => {
+                const checked = e.target.checked
+                setAdvancedSettings((prev) => ({
+                  ...prev,
+                  annotation_time_limit_enabled: checked,
+                  annotation_time_limit_seconds: checked
+                    ? (prev.annotation_time_limit_seconds ?? 1800)
+                    : null,
+                  strict_timer_enabled: checked
+                    ? prev.strict_timer_enabled
+                    : false,
+                }))
+              }}
+              disabled={!editing}
+            />
+          }
+        >
+          {advancedSettings.annotation_time_limit_enabled ? (
+            <>
+              <TimeLimitMinutes
+                t={t}
+                seconds={advancedSettings.annotation_time_limit_seconds}
                 editing={editing}
+                onCommit={(seconds, revert) =>
+                  setAdvancedSettings(
+                    (prev) => ({
+                      ...prev,
+                      annotation_time_limit_seconds: seconds,
+                    }),
+                    { onCancel: revert },
+                  )
+                }
               />
-            )}
+              <SettingRow
+                label={t('projects.creation.wizard.stepSettings.strictTimer')}
+                htmlFor="strict_timer_enabled"
+                help={t(
+                  'projects.creation.wizard.stepSettings.strictTimerHint',
+                )}
+                control={toggle(
+                  'strict_timer_enabled',
+                  'strict_timer_enabled',
+                  advancedSettings.strict_timer_enabled,
+                )}
+              />
+            </>
+          ) : null}
+        </SettingRow>
 
-            {/* Per-section Save/Cancel removed — card-level Speichern handles it. */}
-          </div>
-        </>
-      ) : (
-        <div className="py-6 text-center">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            {getReadOnlyMessage(t('project.settings.title'))}
-          </p>
+        <SettingRow
+          label={t('project.settings.interface.allowExternalPaste')}
+          htmlFor="allow_external_paste"
+          help={t('project.settings.interface.allowExternalPasteHelp')}
+          control={toggle(
+            'allow_external_paste',
+            'allow_external_paste',
+            advancedSettings.allow_external_paste,
+            'allow-external-paste-checkbox',
+          )}
+        />
+
+        {ProjectSettingsInterfaceExtra && (
+          <ProjectSettingsInterfaceExtra {...slotProps} />
+        )}
+        {ProjectSettingsAnnotationWork && (
+          <ProjectSettingsAnnotationWork {...slotProps} />
+        )}
+      </SettingsGroup>
+
+      {/* Skipping */}
+      <SettingsGroup
+        title={t('project.settings.groups.skipping')}
+        data-testid="settings-group-skipping"
+      >
+        <SettingRow
+          label={t('project.settings.interface.showSkipButton')}
+          htmlFor="show_skip_button"
+          help={t('project.settings.interface.showSkipButtonHelp')}
+          control={toggle(
+            'show_skip_button',
+            'show_skip_button',
+            advancedSettings.show_skip_button,
+          )}
+        >
+          <SettingRow
+            label={t('project.settings.interface.requireCommentOnSkip')}
+            htmlFor="require_comment_on_skip"
+            help={t('project.settings.interface.requireCommentOnSkipHelp')}
+            control={toggle(
+              'require_comment_on_skip',
+              'require_comment_on_skip',
+              advancedSettings.require_comment_on_skip,
+            )}
+          />
+          <SettingField
+            label={t('project.settings.interface.skipQueue')}
+            htmlFor="skip_queue"
+            help={t('project.settings.interface.skipQueueHelp')}
+          >
+            <Select
+              value={skipQueue}
+              onValueChange={(v) =>
+                set('skip_queue', v as AdvancedSettings['skip_queue'])
+              }
+              disabled={!editing}
+              displayValue={skipQueueLabel}
+            >
+              <SelectTrigger id="skip_queue">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="requeue_for_me">
+                  {t('project.settings.interface.skipQueueRequeueForMe')}
+                </SelectItem>
+                <SelectItem value="requeue_for_others">
+                  {t('project.settings.interface.skipQueueRequeueForOthers')}
+                </SelectItem>
+                <SelectItem value="ignore_skipped">
+                  {t('project.settings.interface.skipQueueIgnoreSkipped')}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </SettingField>
+        </SettingRow>
+      </SettingsGroup>
+
+      {/* Submitting */}
+      <SettingsGroup
+        title={t('project.settings.groups.submission')}
+        data-testid="settings-group-submission"
+      >
+        <SettingRow
+          label={t('project.settings.interface.showSubmitButton')}
+          htmlFor="show_submit_button"
+          help={t('project.settings.interface.showSubmitButtonHelp')}
+          control={toggle(
+            'show_submit_button',
+            'show_submit_button',
+            advancedSettings.show_submit_button,
+          )}
+        />
+        <SettingRow
+          label={t('project.settings.interface.requireConfirmBeforeSubmit')}
+          htmlFor="require_confirm_before_submit"
+          help={t('project.settings.interface.requireConfirmBeforeSubmitHelp')}
+          control={toggle(
+            'require_confirm_before_submit',
+            'require_confirm_before_submit',
+            advancedSettings.require_confirm_before_submit,
+          )}
+        />
+      </SettingsGroup>
+
+      {/* After submitting */}
+      <SettingsGroup
+        title={t('project.settings.groups.afterSubmit')}
+        data-testid="settings-group-after-submit"
+      >
+        <SettingRow
+          label={t(
+            'project.settings.annotationBehavior.annotatorFullVisibility',
+          )}
+          htmlFor="annotator_full_visibility_after_submit"
+          help={t(
+            'project.settings.annotationBehavior.annotatorFullVisibilityHelp',
+          )}
+          control={toggle(
+            'annotator_full_visibility_after_submit',
+            'annotator_full_visibility_after_submit',
+            advancedSettings.annotator_full_visibility_after_submit,
+          )}
+        />
+        {/* Its own row, never hidden by the switch above: the two are
+            independent once stored (null follows the switch above). */}
+        <SettingRow
+          label={t('project.settings.annotationBehavior.annotatorStepDetail')}
+          htmlFor="annotator_step_detail_after_submit"
+          help={t(
+            'project.settings.annotationBehavior.annotatorStepDetailHelp',
+          )}
+          control={
+            <Checkbox
+              id="annotator_step_detail_after_submit"
+              data-testid="annotator-step-detail-toggle"
+              checked={
+                advancedSettings.annotator_step_detail_after_submit ??
+                advancedSettings.annotator_full_visibility_after_submit
+              }
+              onChange={(e) =>
+                set('annotator_step_detail_after_submit', e.target.checked)
+              }
+              disabled={!editing}
+            />
+          }
+        />
+        <SettingRow
+          label={t('project.settings.questionnaireEnabled')}
+          htmlFor="questionnaire_enabled"
+          help={t('project.settings.questionnaireEnabledDescription')}
+          control={toggle(
+            'questionnaire_enabled',
+            'questionnaire_enabled',
+            advancedSettings.questionnaire_enabled,
+          )}
+        >
+          {advancedSettings.questionnaire_enabled ? (
+            <>
+              <SettingField
+                label={t('project.settings.questionnaireTemplate')}
+                htmlFor="questionnaire_template"
+              >
+                <Select
+                  value=""
+                  onValueChange={(v) => {
+                    if (v in QUESTIONNAIRE_TEMPLATES) {
+                      set('questionnaire_config', QUESTIONNAIRE_TEMPLATES[v])
+                    }
+                  }}
+                  disabled={!editing}
+                >
+                  <SelectTrigger id="questionnaire_template">
+                    <SelectValue
+                      placeholder={t(
+                        'project.settings.questionnaireSelectTemplate',
+                      )}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="confidence_difficulty">
+                      {t('project.settings.questionnaireTemplateConfidence')}
+                    </SelectItem>
+                    <SelectItem value="extended">
+                      {t('project.settings.questionnaireTemplateExtended')}
+                    </SelectItem>
+                    <SelectItem value="utaut_study">
+                      {t('project.settings.questionnaireTemplateUtaut')}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </SettingField>
+              <SettingField
+                label={t('project.settings.questionnaireConfig')}
+                htmlFor="questionnaire_config"
+              >
+                <Textarea
+                  id="questionnaire_config"
+                  value={advancedSettings.questionnaire_config}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setAdvancedSettings(
+                      (prev) => ({ ...prev, questionnaire_config: value }),
+                      { deferSave: true },
+                    )
+                  }}
+                  onBlur={() => onTextCommit?.()}
+                  disabled={!editing}
+                  rows={10}
+                  className="font-mono"
+                  placeholder={`<View>\n  <Header value="Post-Annotation Feedback"/>\n  <Rating name="confidence" toName="confidence" maxRating="5" required="true"/>\n</View>`}
+                />
+              </SettingField>
+            </>
+          ) : null}
+        </SettingRow>
+      </SettingsGroup>
+
+      {/* Review stage (extension). Its own titled group comes from the
+          slot; the wrapper adds the divider and disappears when the slot
+          renders nothing. */}
+      {ProjectSettingsExtended && (
+        <div className="border-t border-zinc-200 pt-6 empty:hidden dark:border-zinc-700">
+          <ProjectSettingsExtended {...slotProps} />
         </div>
       )}
+    </SettingsGroupStack>
+  )
+}
+
+/**
+ * Minutes of the time limit. Typed digits stay local until the field loses
+ * focus or Enter is pressed, so a half-typed number is never applied (the
+ * limit applies to people working right now). A cancelled confirmation puts
+ * the stored minutes back.
+ */
+function TimeLimitMinutes({
+  t,
+  seconds,
+  editing,
+  onCommit,
+}: {
+  t: Translate
+  seconds: number | null
+  editing: boolean
+  onCommit: (seconds: number, revert: () => void) => void
+}) {
+  const stored = seconds ? Math.round(seconds / 60) : 30
+  const [draft, setDraft] = useState(String(stored))
+  // A new stored value (save, undo, reload) replaces the draft.
+  const [shown, setShown] = useState(stored)
+  if (shown !== stored) {
+    setShown(stored)
+    setDraft(String(stored))
+  }
+  const commit = () => {
+    const minutes = parseInt(draft) || 30
+    setDraft(String(minutes))
+    if (minutes * 60 !== seconds)
+      onCommit(minutes * 60, () => setDraft(String(stored)))
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <Input
+        type="number"
+        min={1}
+        max={360}
+        aria-label={t('projects.creation.wizard.stepSettings.minutes')}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit()
+        }}
+        disabled={!editing}
+        className="w-24"
+      />
+      <span className="text-sm text-zinc-500 dark:text-zinc-400">
+        {t('projects.creation.wizard.stepSettings.minutes')}
+      </span>
     </div>
+  )
+}
+
+/**
+ * "Anzeige" group of the instructions sub-collapsible: whether annotators
+ * see the instructions, and whether always.
+ */
+export function InstructionDisplaySettings({
+  t,
+  advancedSettings,
+  setAdvancedSettings,
+  editing,
+}: {
+  t: Translate
+  advancedSettings: AdvancedSettings
+  setAdvancedSettings: AdvancedSettingsSetter
+  editing: boolean
+}) {
+  return (
+    <SettingsGroup
+      title={t('project.settings.groups.display')}
+      data-testid="settings-group-instruction-display"
+    >
+      <SettingRow
+        label={t('project.settings.interface.showInstructions')}
+        htmlFor="show_instruction"
+        help={t('project.settings.interface.showInstructionsHelp')}
+        control={
+          <Checkbox
+            id="show_instruction"
+            checked={advancedSettings.show_instruction}
+            onChange={(e) => {
+              const checked = e.target.checked
+              setAdvancedSettings((prev) => ({
+                ...prev,
+                show_instruction: checked,
+              }))
+            }}
+            disabled={!editing}
+          />
+        }
+      >
+        <SettingRow
+          label={t('project.settings.interface.instructionsAlwaysVisible')}
+          htmlFor="instructions_always_visible"
+          help={t('project.settings.interface.instructionsAlwaysVisibleHelp')}
+          control={
+            <Checkbox
+              id="instructions_always_visible"
+              checked={advancedSettings.instructions_always_visible}
+              onChange={(e) => {
+                const checked = e.target.checked
+                setAdvancedSettings((prev) => ({
+                  ...prev,
+                  instructions_always_visible: checked,
+                }))
+              }}
+              disabled={!editing}
+            />
+          }
+        />
+      </SettingRow>
+    </SettingsGroup>
   )
 }

@@ -18,14 +18,24 @@ import { ProjectAnalysesSection } from '@/components/analysis/ProjectAnalysesSec
 import { EvaluationBuilder } from '@/components/evaluation/EvaluationBuilder'
 import { EvaluationControlModal } from '@/components/evaluation/EvaluationControlModal'
 import { GenerationControlModal } from '@/components/generation/GenerationControlModal'
-import { AdvancedSettingsCard } from '@/components/projects/AdvancedSettingsCard'
+import {
+  AdvancedSettingsCard,
+  InstructionDisplaySettings,
+  type AdvancedSettings,
+  type AdvancedSettingsSetter,
+} from '@/components/projects/AdvancedSettingsCard'
+import {
+  ConditionalInstructionsEditor,
+  conditionalInstructionsValid,
+  type ConditionalInstruction,
+} from '@/components/projects/ConditionalInstructionsEditor'
 import { ConfigCard } from '@/components/projects/ConfigCard'
 import { EvaluationDefaultsCard } from '@/components/projects/EvaluationDefaultsCard'
 import { EvaluationPromptsOverview } from '@/components/projects/EvaluationPromptsOverview'
 import { GenerationDefaultsCard } from '@/components/projects/GenerationDefaultsCard'
 import {
   LabelConfigEditor,
-  type LabelConfigEditorHandle,
+  labelConfigError,
 } from '@/components/projects/LabelConfigEditor'
 import {
   ModelSelectionSection,
@@ -39,14 +49,26 @@ import { ProjectBreadcrumb } from '@/components/projects/ProjectBreadcrumb'
 import { ProjectKindSection } from '@/components/projects/ProjectKindSection'
 import { ProjectMetadataCard } from '@/components/projects/ProjectMetadataCard'
 import { ProjectPermissionsPanel } from '@/components/projects/ProjectPermissionsPanel'
+import { registerProjectSettingRisks } from '@/components/projects/projectSettingRisks'
 import { PromptStructuresManager } from '@/components/projects/PromptStructuresManager'
+import {
+  SettingsGroup,
+  SettingsGroupStack,
+} from '@/components/projects/SettingsGroup'
 import { SubSection } from '@/components/projects/SubSection'
 import { IconPickerModal } from '@/components/projects/wizard/ProjectTypeAndIcon'
 import { PublicationToggle } from '@/components/reports/PublicationToggle'
+import { useAutoSaveBuffer } from '@/components/shared/AutoSave'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
+import { Checkbox } from '@/components/shared/Checkbox'
 import { Input } from '@/components/shared/Input'
 import { Label } from '@/components/shared/Label'
+import {
+  SettingRiskProvider,
+  settingChanges,
+  useGatedSettingChange,
+} from '@/components/shared/settingRisk'
 import { Textarea } from '@/components/shared/Textarea'
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
@@ -81,6 +103,7 @@ import { evaluationsPath } from '@/lib/results/paths'
 import { logger } from '@/lib/utils/logger'
 import { useUIStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
+import { computeWindowState } from '@/utils/projectWindow'
 import {
   CheckCircleIcon,
   DocumentChartBarIcon,
@@ -92,6 +115,9 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
+// High-impact project settings ask before they are applied.
+registerProjectSettingRisks()
 
 // providerColors is shared with ModelSelectionSection — imported above.
 
@@ -143,7 +169,31 @@ interface ProjectDetailPageProps {
   }>
 }
 
-export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
+/**
+ * The page inside the high-impact settings boundary: the confirmation
+ * dialog and the context its texts use (running exam, submitted count)
+ * must sit above the page's own hooks, which ask through it.
+ */
+export default function ProjectDetailPage(props: ProjectDetailPageProps) {
+  const currentProject = useProjectStore((s) => s.currentProject)
+  return (
+    <SettingRiskProvider
+      context={{
+        project: currentProject as Record<string, any> | null,
+        runningExam:
+          computeWindowState(
+            currentProject?.window_start_at,
+            currentProject?.window_end_at,
+          ) === 'open',
+        submittedCount: currentProject?.annotation_count ?? 0,
+      }}
+    >
+      <ProjectDetailPageContent {...props} />
+    </SettingRiskProvider>
+  )
+}
+
+function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
   const router = useRouter()
   const [projectId, setProjectId] = useState<string | null>(null)
   const { user } = useAuth()
@@ -189,7 +239,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // exam is held until its grading sheet is checked, so starting it would
   // only lead to the "not released yet" card.
   const [examNotReady, setExamNotReady] = useState(false)
-  const labelConfigRef = useRef<LabelConfigEditorHandle>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -202,9 +251,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [isUpdating, setIsUpdating] = useState(false)
 
   // Expanded sections
-  const [expandedConfig, setExpandedConfig] = useState(false)
   const [expandedModels, setExpandedModels] = useState(false)
-  const [expandedInstructions, setExpandedInstructions] = useState(false)
   // Generation/Evaluation Defaults now use the shared SubSection wrapper
   // which owns its own expand state — these locals are no longer needed
   // but TypeScript treats unused setters as errors only when strict, so
@@ -387,6 +434,12 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [expanded, setExpanded] = useState(false)
   const ProjectSettingsExtended = useSlot('project-settings-extended')
   // Overlay checkboxes shown right below the paste switch (e.g. file upload).
+  // Further "Bearbeitung" settings of Annotationsablauf & -verhalten
+  // (e.g. draft checkpoints), rendered in that group. Community builds
+  // register nothing.
+  const ProjectSettingsAnnotationWork = useSlot(
+    'project-settings-annotation-work',
+  )
   const ProjectSettingsInterfaceExtra = useSlot(
     'project-settings-interface-extra',
   )
@@ -471,10 +524,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
   // Conditional instructions state
   const [conditionalInstructions, setConditionalInstructions] = useState<
-    { id: string; content: string; weight: number; ai_allowed?: boolean }[]
+    ConditionalInstruction[]
   >([])
-  const [editingConditionalInstructions, setEditingConditionalInstructions] =
-    useState(false)
+  // The label configuration being edited (saved by the annotation card).
+  const [labelConfigValue, setLabelConfigValue] = useState('')
 
   // Report state (Issue #770)
   const [reportStatus, setReportStatus] = useState<{
@@ -792,37 +845,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       setTitleValue(currentProject.title)
       setDescriptionValue(currentProject.description || '')
 
-      // Only update selectedModelIds if they're different and we're not in the middle of a save
-      // Read from generation_config first, fall back to llm_model_ids for backward compatibility
-      const projectModelIds =
-        currentProject.generation_config?.selected_configuration?.models ||
-        currentProject.llm_model_ids ||
-        []
-
-      if (!skipModelReset && Array.isArray(projectModelIds)) {
-        setSelectedModelIds((current) => {
-          // Ensure both arrays are valid before comparing
-          if (!Array.isArray(current)) return projectModelIds
-
-          // Use JSON.stringify for deep comparison to avoid sorting issues
-          const currentStr = JSON.stringify([...current].sort())
-          const projectStr = JSON.stringify([...projectModelIds].sort())
-
-          if (currentStr !== projectStr) {
-            return [...projectModelIds] // Create new array to avoid reference issues
-          }
-          return current
-        })
-      }
-
-      // Load model configs (thinking/reasoning budgets) - only if not in the middle of a save
-      if (!skipModelReset) {
-        const projectModelConfigs =
-          currentProject.generation_config?.selected_configuration
-            ?.model_configs || {}
-        setModelConfigs(projectModelConfigs)
-      }
-
       // Load evaluation defaults
       const projectEvalTemp =
         currentProject.evaluation_config?.default_temperature
@@ -830,7 +852,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         currentProject.evaluation_config?.default_max_tokens
       setEvalDefaultTemperature(projectEvalTemp)
       setEvalDefaultMaxTokens(projectEvalMaxTokens)
-      setEvalDefaultRunsPerTask(currentProject.evaluation_config?.runs_per_task)
+      setEvalDefaultRunsPerTask(
+        currentProject.evaluation_config?.runs_per_task ?? undefined,
+      )
       setEvalDefaultsMode(
         (currentProject.evaluation_config?.defaults_mode as DefaultsMode) ||
           'recommended',
@@ -842,7 +866,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         {}
       setGenDefaultTemperature(genParams.temperature)
       setGenDefaultMaxTokens(genParams.max_tokens)
-      setGenDefaultRunsPerTask(currentProject.generation_config?.runs_per_task)
+      setGenDefaultRunsPerTask(
+        currentProject.generation_config?.runs_per_task ?? undefined,
+      )
       setGenDefaultsMode(
         (currentProject.generation_config?.defaults_mode as DefaultsMode) ||
           'recommended',
@@ -850,6 +876,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
       setInstructions(currentProject.instructions || '')
       setInstructionsValue(currentProject.instructions || '')
+      setLabelConfigValue(currentProject.label_config || '')
       // Load conditional instructions
       setConditionalInstructions(currentProject.conditional_instructions || [])
 
@@ -900,6 +927,46 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Using currentProject.id instead of currentProject to prevent unnecessary re-renders
+  }, [currentProject?.id])
+
+  // Model selection re-syncs from the refetched project once a model save
+  // has settled (skipModelReset back to false). Kept apart from the
+  // initialisation above, which used to re-run with it and overwrote
+  // unsaved edits in the other cards with the stored values.
+  useEffect(() => {
+    if (currentProject) {
+      // Only update selectedModelIds if they're different and we're not in the middle of a save
+      // Read from generation_config first, fall back to llm_model_ids for backward compatibility
+      const projectModelIds =
+        currentProject.generation_config?.selected_configuration?.models ||
+        currentProject.llm_model_ids ||
+        []
+
+      if (!skipModelReset && Array.isArray(projectModelIds)) {
+        setSelectedModelIds((current) => {
+          // Ensure both arrays are valid before comparing
+          if (!Array.isArray(current)) return projectModelIds
+
+          // Use JSON.stringify for deep comparison to avoid sorting issues
+          const currentStr = JSON.stringify([...current].sort())
+          const projectStr = JSON.stringify([...projectModelIds].sort())
+
+          if (currentStr !== projectStr) {
+            return [...projectModelIds] // Create new array to avoid reference issues
+          }
+          return current
+        })
+      }
+
+      // Load model configs (thinking/reasoning budgets) - only if not in the middle of a save
+      if (!skipModelReset) {
+        const projectModelConfigs =
+          currentProject.generation_config?.selected_configuration
+            ?.model_configs || {}
+        setModelConfigs(projectModelConfigs)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-sync on project switch and after a model save settled
   }, [currentProject?.id, skipModelReset])
 
   // A soft-deleted project is open to superadmins only, to look inside: the
@@ -932,19 +999,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       await updateProject(projectId, { icon })
     } catch {
       addToast(t('project.icon.saveFailed'), 'error')
-    }
-  }
-
-  // Kind is the single source of truth for the student surfaces (Entdecken,
-  // deck workspace); editable here for non-student projects. The store echo
-  // refreshes updated_at, which re-runs the sharing card's discoverability
-  // check automatically.
-  const handleKindChange = async (kind: string | null) => {
-    if (!projectId) return
-    try {
-      await updateProject(projectId, { kind })
-    } catch {
-      addToast(t('project.details.kindSaveFailed'), 'error')
     }
   }
 
@@ -1091,7 +1145,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       await updateProject(projectId, { label_config: config })
       // Refetch project to ensure all components get updated state
       await fetchProject(projectId)
-      addToast(t('toasts.project.labelConfigSaved'), 'success')
     } catch (error) {
       console.error('Failed to save label configuration:', error)
       addToast(t('toasts.project.labelConfigFailed'), 'error')
@@ -1189,15 +1242,14 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     }
   }
 
-  const handleSaveInstructions = async () => {
+  const handleSaveInstructions = async (value: string) => {
     if (!currentProject || !projectId) return
 
     setIsUpdating(true)
 
     try {
-      await updateProject(projectId, { instructions: instructionsValue })
-      setInstructions(instructionsValue)
-      addToast(t('toasts.project.instructionsUpdated'), 'success')
+      await updateProject(projectId, { instructions: value })
+      setInstructions(value)
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : t('toasts.error.updateFailed')
@@ -1339,6 +1391,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
   // Update model-specific config (thinking budget, max tokens, etc.)
   const updateModelConfig = (modelId: string, key: string, value: any) => {
+    // A per-model setting is a change of the generation card like any
+    // other: it must schedule the auto-save (it never did before).
+    markGenerationDirty()
     setModelConfigs((prev) => ({
       ...prev,
       [modelId]: {
@@ -1401,11 +1456,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         console.warn('[API RESPONSE] No models in generation_config!')
       }
 
-      addToast(t('toasts.project.modelsSaved'), 'success')
-
-      // Collapse the section after successful save to show the updated count
-      setExpandedModels(false)
-
       // Log state after API call
       setTimeout(() => {
         logger.debug(
@@ -1461,14 +1511,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           // 3-mode picker for per-judge pre-fill; see DefaultsMode type.
           defaults_mode: evalDefaultsMode,
           // Multi-run default (migration 042); see comment on the state hook.
-          ...(evalDefaultRunsPerTask !== undefined
-            ? { runs_per_task: evalDefaultRunsPerTask }
-            : {}),
+          // Unset is sent as an explicit null, which the deep merge turns
+          // into a deleted key, so an undo back to unset is persisted too.
+          runs_per_task: evalDefaultRunsPerTask ?? null,
         },
       })
 
       await fetchProject(projectId)
-      addToast(t('toasts.project.evaluationDefaultsSaved'), 'success')
     } catch (error) {
       console.error('[ERROR] Error saving evaluation defaults:', error)
       const errorMessage =
@@ -1502,12 +1551,12 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         generation_config: {
           // 3-mode picker for per-model pre-fill; see DefaultsMode type.
           defaults_mode: genDefaultsMode,
-          // Multi-run default (migration 041): omitted when undefined so the
-          // server-side default of 1 stays implicit; clamped to 1..25 by the
-          // input field below and re-validated by the API router.
-          ...(genDefaultRunsPerTask !== undefined
-            ? { runs_per_task: genDefaultRunsPerTask }
-            : {}),
+          // Multi-run default (migration 041): unset is sent as an explicit
+          // null, which the deep merge turns into a deleted key, so the
+          // server-side default of 1 stays implicit and an undo back to
+          // unset is persisted too. Clamped to 1..25 by the input field
+          // below and re-validated by the API router.
+          runs_per_task: genDefaultRunsPerTask ?? null,
           selected_configuration: {
             parameters: {
               temperature: genDefaultTemperature,
@@ -1518,7 +1567,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       })
 
       await fetchProject(projectId)
-      addToast(t('toasts.project.generationDefaultsSaved'), 'success')
     } catch (error) {
       console.error('[ERROR] Error saving generation defaults:', error)
       const errorMessage =
@@ -1536,7 +1584,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     }
   }
 
-  const handleSaveSettings = async () => {
+  const handleSaveSettings = async (settings: AdvancedSettings) => {
     if (!currentProject || !projectId) return
 
     setIsUpdating(true)
@@ -1550,9 +1598,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         korrektur_enabled: _ke,
         korrektur_config: _kc,
         ...payload
-      } = advancedSettings
+      } = settings
       await updateProject(projectId, payload)
-      addToast(t('toasts.project.settingsSaved'), 'success')
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : t('toasts.error.saveFailed')
@@ -1567,200 +1614,306 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     }
   }
 
-  // Card-level dirty/auto-save lifecycle. Sub-sections are always editable
-  // for users with edit permission — there is no Bearbeiten mode. Any change
-  // marks its card dirty and schedules a debounced flush through the card's
-  // save handler, so all pending sub-section changes persist together
-  // (sequenced per card — issue #289).
-  const [cardDirty, setCardDirty] = useState({
-    annotation: false,
-    generation: false,
-    evaluation: false,
-  })
-  const [cardSaving, setCardSaving] = useState({
-    annotation: false,
-    generation: false,
-    evaluation: false,
-  })
-
-  type CardKey = 'annotation' | 'generation' | 'evaluation'
-  const AUTOSAVE_DEBOUNCE_MS = 2000
-  const autosaveTimersRef = useRef<
-    Partial<Record<CardKey, ReturnType<typeof setTimeout>>>
-  >({})
-  const cardSavingRef = useRef({
-    annotation: false,
-    generation: false,
-    evaluation: false,
-  })
-  // Latest save closures — the debounce timer must call the CURRENT
-  // render's closure at fire time, not the stale one captured when the
-  // timer was scheduled (the state change that triggered the schedule
-  // hasn't rendered yet at that point).
-  const cardSaveFnsRef = useRef<Record<CardKey, () => Promise<void>>>({
-    annotation: async () => {},
-    generation: async () => {},
-    evaluation: async () => {},
-  })
-
-  const scheduleCardSave = (card: CardKey) => {
-    const timers = autosaveTimersRef.current
-    if (timers[card]) clearTimeout(timers[card])
-    const fire = () => {
-      if (cardSavingRef.current[card]) {
-        // A flush is in flight; retry shortly so the newest values land.
-        timers[card] = setTimeout(fire, 500)
-        return
-      }
-      delete timers[card]
-      void cardSaveFnsRef.current[card]()
-    }
-    timers[card] = setTimeout(fire, AUTOSAVE_DEBOUNCE_MS)
-  }
-
-  const markCardDirty = (card: CardKey) => {
-    setCardDirty((p) => (p[card] ? p : { ...p, [card]: true }))
-    scheduleCardSave(card)
-  }
-  const markAnnotationDirty = () => markCardDirty('annotation')
-  const markGenerationDirty = () => markCardDirty('generation')
-  const markEvaluationDirty = () => markCardDirty('evaluation')
-
-  // Clear pending flush timers on unmount.
-  useEffect(() => {
-    const timers = autosaveTimersRef.current
-    return () => {
-      for (const key of Object.keys(timers) as CardKey[]) {
-        const timer = timers[key]
-        if (timer) clearTimeout(timer)
-      }
-    }
-  }, [])
-
-  // Only clear the dirty flag when no newer changes are waiting to flush.
-  const finishCardSave = (card: CardKey) => {
-    if (!autosaveTimersRef.current[card]) {
-      setCardDirty((p) => ({ ...p, [card]: false }))
-    }
-  }
-
-  // Track whether the annotation settings buffer actually changed so the
-  // flush only PATCHes what the user touched.
-  const advancedSettingsDirtyRef = useRef(false)
-  const handleAdvancedSettingsChange: typeof setAdvancedSettings = (value) => {
-    advancedSettingsDirtyRef.current = true
-    markAnnotationDirty()
-    setAdvancedSettings(value)
-  }
-
-  const saveAnnotationCard = async () => {
-    cardSavingRef.current.annotation = true
-    setCardSaving((p) => ({ ...p, annotation: true }))
-    try {
-      // Run all sub-section saves in parallel; each leg guards on its own
-      // dirty state so untouched sub-sections don't produce PATCHes. A
-      // label config with a validation error is skipped (the editor shows
-      // the inline alert) and keeps the card dirty until it parses.
-      const labelDirty = !!labelConfigRef.current?.isDirty()
-      const labelBlocked = labelDirty && !!labelConfigRef.current?.hasErrors()
-      await Promise.all([
-        instructionsValue !== instructions
-          ? handleSaveInstructions()
-          : Promise.resolve(),
-        advancedSettingsDirtyRef.current
-          ? handleSaveSettings()
-          : Promise.resolve(),
-        labelDirty && !labelBlocked
-          ? labelConfigRef.current!.save()
-          : Promise.resolve(),
-      ])
-      advancedSettingsDirtyRef.current = false
-      if (!labelBlocked) finishCardSave('annotation')
-    } catch {
-      // Legs toast their own errors; keep the card dirty so a failed save
-      // never looks saved, and swallow so the timer's void call doesn't
-      // surface an unhandled rejection. The next change reschedules.
-    } finally {
-      cardSavingRef.current.annotation = false
-      setCardSaving((p) => ({ ...p, annotation: false }))
-    }
-  }
-
-  const saveGenerationCard = async () => {
-    cardSavingRef.current.generation = true
-    setCardSaving((p) => ({ ...p, generation: true }))
-    try {
-      // Sequential on purpose: both handlers PATCH the same
-      // generation_config JSONB column, and the server merges via an
-      // unlocked read-merge-write — two in-flight PATCHes let the later
-      // commit resurrect the earlier one's stale keys (issue #289: a newly
-      // ticked model vanished ~1s after saving).
-      await handleSaveModels()
-      await handleSaveGenDefaults()
-      finishCardSave('generation')
-    } catch {
-      // Legs toast their own errors; keep the card dirty so a failed save
-      // never looks saved, and swallow so the timer's void call doesn't
-      // surface an unhandled rejection.
-    } finally {
-      cardSavingRef.current.generation = false
-      setCardSaving((p) => ({ ...p, generation: false }))
-    }
-  }
-
-  // Eval card hosts immediate_evaluation_enabled (now in its own evaluationSettings
-  // buffer, decoupled from advancedSettings) plus the eval-defaults form. The
-  // auto-save flush PATCHes the buffer + eval defaults + configs.
-  const saveEvaluationCard = async () => {
+  const handleSaveConditionalInstructions = async (
+    variants: ConditionalInstruction[],
+  ) => {
     if (!projectId) return
-    cardSavingRef.current.evaluation = true
-    setCardSaving((p) => ({ ...p, evaluation: true }))
-    const evaluations = evaluationConfigsRef.current
-    const base = evaluationConfigsBaselineRef.current
-    let saveDone: () => void = () => {}
-    evaluationConfigsSaveSeqRef.current += 1
-    evaluationConfigsSaveInFlightRef.current = new Promise<void>((resolve) => {
-      saveDone = resolve
-    })
     try {
-      // Sequential on purpose: the defaults PATCH and the configs PUT both
-      // write the evaluation_config JSONB column via unlocked server-side
-      // read-merge-writes, so overlapping requests can resurrect each
-      // other's stale keys (issue #289: first Save appeared to succeed but
-      // the backend kept the old value). The settings PATCH goes first so
-      // the store's currentProject updates don't interleave either.
+      await updateProject(projectId, {
+        conditional_instructions: variants.length > 0 ? variants : null,
+      })
+    } catch (error) {
+      addToast(t('project.conditionalInstructions.saveFailed'), 'error')
+      throw error
+    }
+  }
+
+  // Card-level auto-save (shared mechanism, components/shared/AutoSave).
+  // Sub-sections are always editable for users with edit permission; every
+  // user change marks its card's buffer, which saves the changed legs a
+  // moment later (free text: on blur), shows ONE saved toast with undo,
+  // and runs the legs of one card in sequence where they share a column
+  // (issue #289). Risky changes are confirmed before they are applied
+  // (components/shared/settingRisk, projectSettingRisks).
+  const gateChange = useGatedSettingChange()
+
+  const annotationBuffer = useAutoSaveBuffer({
+    values: {
+      instructions: instructionsValue,
+      settings: advancedSettings,
+      labelConfig: labelConfigValue,
+      conditional: conditionalInstructions,
+    },
+    isLegValid: (leg, values) =>
+      leg === 'labelConfig'
+        ? labelConfigError(values.labelConfig, t) === null
+        : leg === 'conditional'
+          ? conditionalInstructionsValid(values.conditional)
+          : true,
+    save: async (legs, values) => {
+      // Different columns: the legs may run side by side.
+      await Promise.all([
+        legs.includes('instructions')
+          ? handleSaveInstructions(values.instructions)
+          : null,
+        legs.includes('settings') ? handleSaveSettings(values.settings) : null,
+        legs.includes('labelConfig')
+          ? handleSaveLabelConfig(values.labelConfig)
+          : null,
+        legs.includes('conditional')
+          ? handleSaveConditionalInstructions(values.conditional)
+          : null,
+      ])
+    },
+    restore: (previous) => {
+      if (previous.instructions !== undefined)
+        setInstructionsValue(previous.instructions)
+      if (previous.settings !== undefined)
+        setAdvancedSettings(previous.settings)
+      if (previous.labelConfig !== undefined)
+        setLabelConfigValue(previous.labelConfig)
+      if (previous.conditional !== undefined)
+        setConditionalInstructions(previous.conditional)
+    },
+    riskChanges: (from, to) =>
+      settingChanges(from.settings ?? {}, to.settings ?? {}),
+    enabled: canEditProject(),
+  })
+
+  const generationBuffer = useAutoSaveBuffer({
+    values: {
+      models: { ids: selectedModelIds, configs: modelConfigs },
+      defaults: {
+        mode: genDefaultsMode,
+        temperature: genDefaultTemperature,
+        maxTokens: genDefaultMaxTokens,
+        runs: genDefaultRunsPerTask,
+      },
+    },
+    save: async (legs) => {
+      // Sequential on purpose: both legs PATCH the generation_config JSONB
+      // column, merged server-side by an unlocked read-merge-write; two
+      // in-flight PATCHes let the later one resurrect stale keys (#289).
+      if (legs.includes('models')) await handleSaveModels()
+      if (legs.includes('defaults')) await handleSaveGenDefaults()
+    },
+    restore: (previous) => {
+      if (previous.models) {
+        setSelectedModelIds(previous.models.ids)
+        setModelConfigs(previous.models.configs)
+      }
+      if (previous.defaults) {
+        genDefaultsModeRef.current = previous.defaults.mode
+        setGenDefaultsMode(previous.defaults.mode)
+        setGenDefaultTemperature(previous.defaults.temperature)
+        setGenDefaultMaxTokens(previous.defaults.maxTokens)
+        setGenDefaultRunsPerTask(previous.defaults.runs)
+      }
+    },
+    enabled: canEditProject(),
+  })
+
+  const evaluationBuffer = useAutoSaveBuffer({
+    values: {
+      settings: evaluationSettings,
+      defaults: {
+        mode: evalDefaultsMode,
+        temperature: evalDefaultTemperature,
+        maxTokens: evalDefaultMaxTokens,
+        runs: evalDefaultRunsPerTask,
+      },
+      configs: evaluationConfigs,
+    },
+    save: async (legs, values) => {
+      if (!projectId) return
+      const base = evaluationConfigsBaselineRef.current
+      let saveDone: () => void = () => {}
+      evaluationConfigsSaveSeqRef.current += 1
+      evaluationConfigsSaveInFlightRef.current = new Promise<void>(
+        (resolve) => {
+          saveDone = resolve
+        },
+      )
       try {
-        await updateProject(projectId, evaluationSettings)
+        // Sequential on purpose: the defaults PATCH and the configs PUT both
+        // write the evaluation_config JSONB column via unlocked server-side
+        // read-merge-writes (#289). The settings PATCH goes first so the
+        // store's currentProject updates don't interleave either.
+        if (legs.includes('settings')) {
+          try {
+            await updateProject(projectId, values.settings)
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error
+                ? error.message
+                : t('toasts.error.saveFailed')
+            addToast(
+              t('toasts.project.settingsSaveFailed', { error: errorMessage }),
+              'error',
+            )
+            throw error
+          }
+        }
+        if (legs.includes('defaults')) await handleSaveEvalDefaults()
+        if (legs.includes('configs'))
+          await saveEvaluationConfigsToProject(values.configs, base)
+      } finally {
+        evaluationConfigsSaveSeqRef.current += 1
+        evaluationConfigsSaveInFlightRef.current = null
+        saveDone()
+      }
+    },
+    restore: (previous) => {
+      if (previous.settings) setEvaluationSettings(previous.settings)
+      if (previous.defaults) {
+        setEvalDefaultsMode(previous.defaults.mode)
+        setEvalDefaultTemperature(previous.defaults.temperature)
+        setEvalDefaultMaxTokens(previous.defaults.maxTokens)
+        setEvalDefaultRunsPerTask(previous.defaults.runs)
+      }
+      if (previous.configs) {
+        evaluationConfigsRef.current = previous.configs
+        setEvaluationConfigs(previous.configs)
+      }
+    },
+    riskChanges: (from, to) =>
+      settingChanges(from.settings ?? {}, to.settings ?? {}),
+    enabled: canEditProject(),
+  })
+
+  const cardDirty = {
+    annotation: annotationBuffer.dirty,
+    generation: generationBuffer.dirty,
+    evaluation: evaluationBuffer.dirty,
+  }
+  const cardSaving = {
+    annotation: annotationBuffer.saving,
+    generation: generationBuffer.saving,
+    evaluation: evaluationBuffer.saving,
+  }
+  const markAnnotationDirty = () => annotationBuffer.markChanged()
+  const markAnnotationTextDirty = () =>
+    annotationBuffer.markChanged({ schedule: false })
+  const markGenerationDirty = () => generationBuffer.markChanged()
+  const markEvaluationDirty = () => evaluationBuffer.markChanged()
+
+  // The settings buffer: risky changes (registry) ask first; a cancelled
+  // change is never applied, so the control keeps its old value. Free text
+  // (`deferSave`) saves on blur.
+  const advancedSettingsRef = useRef(advancedSettings)
+  advancedSettingsRef.current = advancedSettings
+  const handleAdvancedSettingsChange: AdvancedSettingsSetter = (
+    value,
+    options,
+  ) => {
+    const prev = advancedSettingsRef.current
+    const next = typeof value === 'function' ? value(prev) : value
+    gateChange(
+      settingChanges(prev, next),
+      () => {
+        annotationBuffer.markChanged({ schedule: !options?.deferSave })
+        advancedSettingsRef.current = next
+        setAdvancedSettings(next)
+      },
+      options?.onCancel,
+    )
+  }
+
+  // Settings card: project type and which cards the page shows. Kind is
+  // the single source of truth for the student surfaces (Entdecken, deck
+  // workspace); the store echo refreshes updated_at, which re-runs the
+  // sharing card's discoverability check. Saved shortly after a click.
+  const storedProjectSettings = {
+    kind: (currentProject?.kind ?? null) as string | null,
+    features: {
+      enable_annotation: currentProject?.enable_annotation !== false,
+      enable_generation: currentProject?.enable_generation !== false,
+      enable_evaluation: currentProject?.enable_evaluation !== false,
+      enable_prompts: currentProject?.enable_prompts !== false,
+    },
+  }
+  type ProjectSettingsValue = typeof storedProjectSettings
+  const [projectSettingsDraft, setProjectSettingsDraft] =
+    useState<ProjectSettingsValue | null>(null)
+  const projectSettingsValue = projectSettingsDraft ?? storedProjectSettings
+  const projectSettingsBuffer = useAutoSaveBuffer({
+    values: projectSettingsValue,
+    baseline: storedProjectSettings,
+    delayMs: 300,
+    save: async (legs, values) => {
+      if (!projectId) return
+      try {
+        // Only the switches that changed: the others keep their stored
+        // value (which may be unset, read as on).
+        const features = Object.fromEntries(
+          Object.entries(values.features).filter(
+            ([key, on]) =>
+              on !==
+              storedProjectSettings.features[
+                key as keyof ProjectSettingsValue['features']
+              ],
+          ),
+        )
+        await updateProject(projectId, {
+          ...(legs.includes('kind') ? { kind: values.kind } : {}),
+          ...(legs.includes('features') ? features : {}),
+        } as any)
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : t('toasts.error.saveFailed')
         addToast(
-          t('toasts.project.settingsSaveFailed', { error: errorMessage }),
+          legs.includes('kind')
+            ? t('project.details.kindSaveFailed')
+            : t('toasts.project.settingsSaveFailed', {
+                error: error instanceof Error ? error.message : '',
+              }),
           'error',
         )
         throw error
       }
-      await handleSaveEvalDefaults()
-      await saveEvaluationConfigsToProject(evaluations, base)
-      finishCardSave('evaluation')
-    } catch {
-      // Legs toast their own errors; keep the card dirty so a failed save
-      // never looks saved, and swallow so the timer's void call doesn't
-      // surface an unhandled rejection.
-    } finally {
-      evaluationConfigsSaveSeqRef.current += 1
-      evaluationConfigsSaveInFlightRef.current = null
-      saveDone()
-      cardSavingRef.current.evaluation = false
-      setCardSaving((p) => ({ ...p, evaluation: false }))
-    }
+    },
+    restore: (previous) =>
+      setProjectSettingsDraft((draft) => ({
+        ...(draft ?? storedProjectSettings),
+        ...previous,
+      })),
+    riskChanges: (from, to) =>
+      settingChanges(
+        { kind: from.kind, ...from.features },
+        { kind: to.kind, ...to.features },
+      ),
+    enabled: canEditProject(),
+  })
+  const handleKindChange = (kind: string | null) => {
+    gateChange(
+      [{ key: 'kind', from: projectSettingsValue.kind, to: kind }],
+      () => {
+        projectSettingsBuffer.markChanged()
+        setProjectSettingsDraft({ ...projectSettingsValue, kind })
+      },
+    )
+  }
+  const handleFeatureVisibilityChange = (
+    key: keyof ProjectSettingsValue['features'],
+    enabled: boolean,
+  ) => {
+    gateChange(
+      [{ key, from: projectSettingsValue.features[key], to: enabled }],
+      () => {
+        projectSettingsBuffer.markChanged()
+        setProjectSettingsDraft({
+          ...projectSettingsValue,
+          features: { ...projectSettingsValue.features, [key]: enabled },
+        })
+      },
+    )
   }
 
-  // Keep the debounce timers pointed at the current render's closures.
-  cardSaveFnsRef.current = {
-    annotation: saveAnnotationCard,
-    generation: saveGenerationCard,
-    evaluation: saveEvaluationCard,
+  const evaluationSettingsRef = useRef(evaluationSettings)
+  evaluationSettingsRef.current = evaluationSettings
+  const handleEvaluationSettingsChange = (next: typeof evaluationSettings) => {
+    gateChange(settingChanges(evaluationSettingsRef.current, next), () => {
+      markEvaluationDirty()
+      setEvaluationSettings(next)
+    })
   }
 
   // One step from loading to the full page: the project of this URL, the
@@ -2083,7 +2236,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           )}
 
           {/* Configuration cards: editors/annotators only. Participants (narrow
-              tier) get the metadata, deck workspace and quick actions. */}
+              tier) get the metadata, deck workspace and quick actions.
+              Every sub-collapsible is a SubSection; settings inside it are
+              titled SettingsGroups (components/projects/SettingsGroup). */}
           {!isParticipant && (
             <>
               {currentProject.enable_annotation && (
@@ -2093,354 +2248,53 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   dirty={cardDirty.annotation}
                   saving={cardSaving.annotation}
                 >
-                  {/* Annotation Instructions Section */}
-                  <div className="bg-white dark:bg-zinc-900">
+                  <SubSection
+                    title={t('project.annotationInstructions.title')}
+                    badge={
+                      instructionsValue || conditionalInstructions.length > 0
+                        ? t('project.annotationInstructions.configured')
+                        : t('project.annotationInstructions.notConfigured')
+                    }
+                    data-testid="annotation-instructions-section"
+                  >
                     {canEditProject() ? (
-                      <>
-                        <div className="mb-6 flex items-center justify-between">
-                          <button
-                            onClick={() =>
-                              setExpandedInstructions(!expandedInstructions)
-                            }
-                            className="flex items-center space-x-3 text-left"
-                          >
-                            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
-                              {t('project.annotationInstructions.title')}
-                            </h2>
-                            {!expandedInstructions && (
-                              <span className="rounded-md bg-zinc-100 px-2 py-1 text-sm leading-tight text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                                {instructions ||
-                                (conditionalInstructions &&
-                                  conditionalInstructions.length > 0)
-                                  ? t(
-                                      'project.annotationInstructions.configured',
-                                    )
-                                  : t(
-                                      'project.annotationInstructions.notConfigured',
-                                    )}
-                              </span>
+                      <SettingsGroupStack>
+                        <SettingsGroup
+                          title={t('project.settings.groups.instructionText')}
+                        >
+                          <Textarea
+                            aria-label={t(
+                              'project.annotationInstructions.title',
                             )}
-                            <svg
-                              className={`h-5 w-5 shrink-0 text-zinc-400 transition-transform ${expandedInstructions ? 'rotate-90 transform' : ''}`}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9 5l7 7-7 7"
-                              />
-                            </svg>
-                          </button>
-                          {/* Per-section edit button removed — card-level Bearbeiten is
-                  the sole entry point. */}
-                        </div>
-
-                        {expandedInstructions && (
-                          <div className="space-y-4">
-                            <Textarea
-                              value={instructionsValue}
-                              onChange={(e) => {
-                                markAnnotationDirty()
-                                setInstructionsValue(e.target.value)
-                              }}
-                              placeholder={t(
-                                'project.annotationInstructions.placeholder',
-                              )}
-                              rows={6}
-                              className="w-full resize-none"
-                            />
-                          </div>
-                        )}
-
-                        {/* Conditional Instructions Editor */}
-                        {expandedInstructions && canEditProject() && (
-                          <div className="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-700">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <h4 className="text-sm font-medium text-zinc-900 dark:text-white">
-                                  {t('project.conditionalInstructions.title')}
-                                </h4>
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                                  {t(
-                                    'project.conditionalInstructions.description',
-                                  )}
-                                </p>
-                              </div>
-                              <Button
-                                onClick={() =>
-                                  setEditingConditionalInstructions(
-                                    !editingConditionalInstructions,
-                                  )
-                                }
-                                variant="outline"
-                                className="text-sm"
-                              >
-                                {editingConditionalInstructions
-                                  ? t('project.editing.cancel')
-                                  : conditionalInstructions.length > 0
-                                    ? t('project.conditionalInstructions.edit')
-                                    : t('project.conditionalInstructions.add')}
-                              </Button>
-                            </div>
-
-                            {!editingConditionalInstructions &&
-                              conditionalInstructions.length > 0 && (
-                                <div className="mt-3 space-y-2">
-                                  {conditionalInstructions.map((variant) => (
-                                    <div
-                                      key={variant.id}
-                                      className="rounded-md bg-zinc-50 p-3 dark:bg-zinc-800"
-                                    >
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                                            {variant.id}
-                                          </span>
-                                          {variant.ai_allowed && (
-                                            <span className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300">
-                                              {t(
-                                                'project.conditionalInstructions.aiAllowed',
-                                              )}
-                                            </span>
-                                          )}
-                                        </div>
-                                        <span className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">
-                                          {variant.weight}%
-                                        </span>
-                                      </div>
-                                      <p className="mt-1 line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400">
-                                        {variant.content}
-                                      </p>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-
-                            {editingConditionalInstructions && (
-                              <div className="mt-3 space-y-3">
-                                {conditionalInstructions.map(
-                                  (variant, index) => (
-                                    <div
-                                      key={index}
-                                      className="rounded-md border border-zinc-200 p-3 dark:border-zinc-700"
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        <div className="flex-1">
-                                          <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                                            {t(
-                                              'project.conditionalInstructions.variantId',
-                                            )}
-                                          </label>
-                                          <Input
-                                            type="text"
-                                            value={variant.id}
-                                            onChange={(e) => {
-                                              const updated = [
-                                                ...conditionalInstructions,
-                                              ]
-                                              updated[index] = {
-                                                ...updated[index],
-                                                id: e.target.value,
-                                              }
-                                              setConditionalInstructions(
-                                                updated,
-                                              )
-                                            }}
-                                            placeholder={t(
-                                              'project.conditionalInstructions.variantIdPlaceholder',
-                                            )}
-                                            className="mt-1 h-8"
-                                          />
-                                        </div>
-                                        <div className="w-24">
-                                          <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                                            {t(
-                                              'project.conditionalInstructions.weight',
-                                            )}
-                                          </label>
-                                          <Input
-                                            type="number"
-                                            min="1"
-                                            max="100"
-                                            value={variant.weight}
-                                            onChange={(e) => {
-                                              const updated = [
-                                                ...conditionalInstructions,
-                                              ]
-                                              updated[index] = {
-                                                ...updated[index],
-                                                weight:
-                                                  parseInt(e.target.value) || 0,
-                                              }
-                                              setConditionalInstructions(
-                                                updated,
-                                              )
-                                            }}
-                                            className="mt-1 h-8"
-                                          />
-                                        </div>
-                                        <div className="mt-5 flex items-center gap-1">
-                                          <input
-                                            type="checkbox"
-                                            id={`ai-allowed-${index}`}
-                                            checked={
-                                              variant.ai_allowed || false
-                                            }
-                                            onChange={(e) => {
-                                              const updated = [
-                                                ...conditionalInstructions,
-                                              ]
-                                              updated[index] = {
-                                                ...updated[index],
-                                                ai_allowed: e.target.checked,
-                                              }
-                                              setConditionalInstructions(
-                                                updated,
-                                              )
-                                            }}
-                                            className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
-                                          />
-                                          <label
-                                            htmlFor={`ai-allowed-${index}`}
-                                            className="text-xs font-medium whitespace-nowrap text-zinc-500 dark:text-zinc-400"
-                                          >
-                                            {t(
-                                              'project.conditionalInstructions.aiAllowed',
-                                            )}
-                                          </label>
-                                        </div>
-                                        <button
-                                          onClick={() => {
-                                            setConditionalInstructions(
-                                              conditionalInstructions.filter(
-                                                (_, i) => i !== index,
-                                              ),
-                                            )
-                                          }}
-                                          className="mt-5 text-red-500 hover:text-red-700"
-                                        >
-                                          &times;
-                                        </button>
-                                      </div>
-                                      <div className="mt-2">
-                                        <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                                          {t(
-                                            'project.conditionalInstructions.content',
-                                          )}
-                                        </label>
-                                        <Textarea
-                                          value={variant.content}
-                                          onChange={(e) => {
-                                            const updated = [
-                                              ...conditionalInstructions,
-                                            ]
-                                            updated[index] = {
-                                              ...updated[index],
-                                              content: e.target.value,
-                                            }
-                                            setConditionalInstructions(updated)
-                                          }}
-                                          rows={2}
-                                          className="mt-1 resize-none"
-                                        />
-                                      </div>
-                                    </div>
-                                  ),
-                                )}
-
-                                <div className="flex items-center gap-3">
-                                  <Button
-                                    onClick={() => {
-                                      setConditionalInstructions([
-                                        ...conditionalInstructions,
-                                        {
-                                          id: '',
-                                          content: '',
-                                          weight: 50,
-                                          ai_allowed: false,
-                                        },
-                                      ])
-                                    }}
-                                    variant="outline"
-                                    className="text-sm"
-                                  >
-                                    {t(
-                                      'project.conditionalInstructions.addVariant',
-                                    )}
-                                  </Button>
-                                  <Button
-                                    onClick={async () => {
-                                      const totalWeight =
-                                        conditionalInstructions.reduce(
-                                          (s, v) => s + v.weight,
-                                          0,
-                                        )
-                                      if (
-                                        conditionalInstructions.length > 0 &&
-                                        totalWeight !== 100
-                                      ) {
-                                        addToast(
-                                          t(
-                                            'project.conditionalInstructions.weightError',
-                                          ),
-                                          'error',
-                                        )
-                                        return
-                                      }
-                                      try {
-                                        await updateProject(projectId, {
-                                          conditional_instructions:
-                                            conditionalInstructions.length > 0
-                                              ? conditionalInstructions
-                                              : null,
-                                        })
-                                        setEditingConditionalInstructions(false)
-                                        addToast(
-                                          t(
-                                            'project.conditionalInstructions.saved',
-                                          ),
-                                          'success',
-                                        )
-                                      } catch {
-                                        addToast(
-                                          t(
-                                            'project.conditionalInstructions.saveFailed',
-                                          ),
-                                          'error',
-                                        )
-                                      }
-                                    }}
-                                    disabled={isUpdating}
-                                    className="text-sm"
-                                  >
-                                    {t('project.conditionalInstructions.save')}
-                                  </Button>
-                                </div>
-
-                                {conditionalInstructions.length > 0 &&
-                                  (() => {
-                                    const totalWeight =
-                                      conditionalInstructions.reduce(
-                                        (s, v) => s + v.weight,
-                                        0,
-                                      )
-                                    return totalWeight !== 100 ? (
-                                      <p className="text-xs text-red-500">
-                                        {t(
-                                          'project.conditionalInstructions.weightWarning',
-                                          { total: totalWeight },
-                                        )}
-                                      </p>
-                                    ) : null
-                                  })()}
-                              </div>
+                            value={instructionsValue}
+                            onChange={(e) => {
+                              markAnnotationTextDirty()
+                              setInstructionsValue(e.target.value)
+                            }}
+                            onBlur={() => void annotationBuffer.commit()}
+                            placeholder={t(
+                              'project.annotationInstructions.placeholder',
                             )}
-                          </div>
-                        )}
-                      </>
+                            rows={6}
+                            className="w-full resize-none"
+                          />
+                        </SettingsGroup>
+                        <InstructionDisplaySettings
+                          t={t}
+                          advancedSettings={advancedSettings}
+                          setAdvancedSettings={handleAdvancedSettingsChange}
+                          editing={canEditProject()}
+                        />
+                        <ConditionalInstructionsEditor
+                          t={t}
+                          variants={conditionalInstructions}
+                          onChange={(variants, text) => {
+                            annotationBuffer.markChanged({ schedule: !text })
+                            setConditionalInstructions(variants)
+                          }}
+                          onCommit={() => void annotationBuffer.commit()}
+                        />
+                      </SettingsGroupStack>
                     ) : (
                       <div className="py-6 text-center">
                         <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -2450,59 +2304,32 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                         </p>
                       </div>
                     )}
-                  </div>
+                  </SubSection>
 
-                  {/* Label Configuration Section */}
-                  <div className="bg-white dark:bg-zinc-900">
+                  <SubSection
+                    title={t('project.labelConfiguration.title')}
+                    badge={
+                      currentProject.label_config
+                        ? t('project.labelConfiguration.configured')
+                        : t('project.labelConfiguration.notConfigured')
+                    }
+                    data-testid="label-configuration-section"
+                  >
                     {canEditProject() ? (
-                      <>
-                        <div className="mb-6 flex items-center justify-between">
-                          <button
-                            onClick={() => setExpandedConfig(!expandedConfig)}
-                            className="flex items-center space-x-3 text-left"
-                          >
-                            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
-                              {t('project.labelConfiguration.title')}
-                            </h2>
-                            {!expandedConfig && (
-                              <span className="rounded-md bg-zinc-100 px-2 py-1 text-sm leading-tight text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                                {currentProject.label_config
-                                  ? t('project.labelConfiguration.configured')
-                                  : t(
-                                      'project.labelConfiguration.notConfigured',
-                                    )}
-                              </span>
-                            )}
-                            <svg
-                              className={`h-5 w-5 shrink-0 text-zinc-400 transition-transform ${expandedConfig ? 'rotate-90 transform' : ''}`}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9 5l7 7-7 7"
-                              />
-                            </svg>
-                          </button>
-                          {/* Label-Konfiguration folds into the card-level auto-save:
-                  saveAnnotationCard awaits labelConfigRef.current.save() in
-                  Promise.all alongside the other sub-section saves. */}
-                        </div>
-
-                        {expandedConfig && (
-                          <LabelConfigEditor
-                            ref={labelConfigRef}
-                            initialConfig={currentProject.label_config || ''}
-                            onSave={handleSaveLabelConfig}
-                            onConfigChange={markAnnotationDirty}
-                            projectId={currentProject.id}
-                            hideInternalControls
-                          />
-                        )}
-                      </>
+                      // Saved by the annotation card's auto-save on blur,
+                      // only while it parses (labelConfigError).
+                      <LabelConfigEditor
+                        initialConfig={currentProject.label_config || ''}
+                        value={labelConfigValue}
+                        onValueChange={(config) => {
+                          markAnnotationTextDirty()
+                          setLabelConfigValue(config)
+                        }}
+                        onBlur={() => void annotationBuffer.commit()}
+                        onSave={handleSaveLabelConfig}
+                        projectId={currentProject.id}
+                        hideInternalControls
+                      />
                     ) : (
                       <div className="py-6 text-center">
                         <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -2512,22 +2339,27 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                         </p>
                       </div>
                     )}
-                  </div>
+                  </SubSection>
+
                   <SubSection
                     title={t('project.settings.annotationSettingsTitle')}
-                    badge={`${t('project.settings.mode', { mode: advancedSettings.assignment_mode })}, ${t('project.settings.minAnnotations', { count: advancedSettings.min_annotations_per_task })}`}
+                    badge={`${t(`project.settings.annotationBehavior.modesShort.${advancedSettings.assignment_mode}`)}, ${t('project.settings.minAnnotations', { count: advancedSettings.min_annotations_per_task })}`}
+                    data-testid="annotation-settings-section"
                   >
-                    {/*  Settings Section */}
                     <AdvancedSettingsCard
                       t={t}
                       canEditProject={canEditProject}
                       getReadOnlyMessage={getReadOnlyMessage}
                       advancedSettings={advancedSettings}
                       setAdvancedSettings={handleAdvancedSettingsChange}
+                      onTextCommit={() => void annotationBuffer.commit()}
                       editing={canEditProject()}
                       ProjectSettingsExtended={ProjectSettingsExtended}
                       ProjectSettingsInterfaceExtra={
                         ProjectSettingsInterfaceExtra
+                      }
+                      ProjectSettingsAnnotationWork={
+                        ProjectSettingsAnnotationWork
                       }
                     />
                   </SubSection>
@@ -2541,76 +2373,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   dirty={cardDirty.generation}
                   saving={cardSaving.generation}
                 >
-                  {/* Generation Defaults — peer of Model Selection (was nested inside
-              expandedModels until the multi-run feature; pulled out so the new
-              "Default number of runs" knob is discoverable without expanding
-              Model Selection first). Uses the shared SubSection wrapper so it
-              matches the visual style of Modellauswahl / Prompt-Strukturen
-              instead of looking like a one-off styled box. */}
-                  {canEditProject() && (
-                    <GenerationDefaultsCard
-                      t={t}
-                      genDefaultsMode={genDefaultsMode}
-                      setGenDefaultsMode={setGenDefaultsMode}
-                      genDefaultsModeRef={genDefaultsModeRef}
-                      genDefaultTemperature={genDefaultTemperature}
-                      setGenDefaultTemperature={setGenDefaultTemperature}
-                      genDefaultMaxTokens={genDefaultMaxTokens}
-                      setGenDefaultMaxTokens={setGenDefaultMaxTokens}
-                      selectedModelIds={selectedModelIds}
-                      genRecConsensus={genRecConsensus}
-                      // Always false so every change re-marks the card dirty and
-                      // extends the auto-save debounce (the marker is idempotent).
-                      cardEditingGeneration={false}
-                      beginEditGeneration={markGenerationDirty}
-                    />
-                  )}
-
-                  {/* runs_per_task lives in its own SubSection because it's a
-              scheduling/budget knob — orthogonal to LLM parameters and
-              not affected by the recommended/minimum/custom mode picker
-              above. Splitting it makes the mode picker apply only to
-              actual model parameters (temperature/max_tokens). */}
-                  {canEditProject() && (
-                    <div>
-                      <SubSection
-                        title={t('project.generationDefaults.runsTitle')}
-                      >
-                        <p className="-mt-2 mb-3 text-xs text-zinc-500 dark:text-zinc-400">
-                          {t('project.generationDefaults.runsDescription')}
-                        </p>
-                        <div className="max-w-xs">
-                          <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                            {t('project.generationDefaults.defaultRunsPerTask')}
-                          </label>
-                          <Input
-                            type="number"
-                            min={1}
-                            max={maxRunsPerTask}
-                            step={1}
-                            value={genDefaultRunsPerTask ?? 1}
-                            placeholder="1"
-                            onChange={(e) => {
-                              markGenerationDirty()
-                              setGenDefaultRunsPerTask(
-                                e.target.value
-                                  ? parseInt(e.target.value)
-                                  : undefined,
-                              )
-                            }}
-                            className="mt-1 h-8"
-                          />
-                          <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                            {t('project.generationDefaults.runsPerTaskHelp', {
-                              max: maxRunsPerTask,
-                            })}
-                          </p>
-                        </div>
-                      </SubSection>
-                    </div>
-                  )}
-
-                  {/* Model Selection Section */}
+                  {/* What runs first, then how it runs. */}
                   <ModelSelectionSection
                     t={t}
                     canEditProject={canEditProject}
@@ -2629,13 +2392,34 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     onNavigateToProfile={() => router.push('/profile')}
                   />
 
-                  {/* Always-visible "Generierung starten" CTA at the card footer.
-              Mirrors the eval card's start button so both ConfigCards have
-              parallel placement, and stays visible regardless of which
-              sub-collapsibles inside are open. The modal itself handles
-              the empty-models case ("Keine Modelle für die Generierung
-              konfiguriert") so the button stays a discoverable entry
-              point even when the user hasn't picked models yet. */}
+                  {/* Parameters and runs. runs_per_task is its own group:
+                      a scheduling/budget knob the strategy picker does not
+                      touch. */}
+                  {canEditProject() && (
+                    <GenerationDefaultsCard
+                      t={t}
+                      genDefaultsMode={genDefaultsMode}
+                      setGenDefaultsMode={setGenDefaultsMode}
+                      genDefaultsModeRef={genDefaultsModeRef}
+                      genDefaultTemperature={genDefaultTemperature}
+                      setGenDefaultTemperature={setGenDefaultTemperature}
+                      genDefaultMaxTokens={genDefaultMaxTokens}
+                      setGenDefaultMaxTokens={setGenDefaultMaxTokens}
+                      selectedModelIds={selectedModelIds}
+                      genRecConsensus={genRecConsensus}
+                      // Always false so every change re-marks the card dirty and
+                      // extends the auto-save debounce (the marker is idempotent).
+                      cardEditingGeneration={false}
+                      beginEditGeneration={markGenerationDirty}
+                      runsPerTask={genDefaultRunsPerTask}
+                      setRunsPerTask={setGenDefaultRunsPerTask}
+                      maxRunsPerTask={maxRunsPerTask}
+                    />
+                  )}
+
+                  {/* Always-visible "Generierung starten" CTA at the card
+                      footer, parallel to the evaluation card's. The modal
+                      handles the no-models case itself. */}
                   {canEditProject() && (
                     <div className="flex justify-end gap-2 border-t pt-4 dark:border-zinc-700">
                       <Button
@@ -2651,32 +2435,26 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               )}
 
               {/* Prompts — every prompt the project uses or falls back to in
-              one place: the generation prompt structures (system +
-              instruction prompt, moved here from the generation card) and the
-              evaluation prompts of the configured judge methods plus the
-              default judge templates. Read-only for viewers without edit
-              rights; its own feature-visibility switch (enable_prompts). */}
+              one place: the generation prompt structures and the evaluation
+              prompts of the configured judge methods plus the default judge
+              templates. Read-only for viewers without edit rights; its own
+              feature-visibility switch (enable_prompts). */}
               {currentProject.enable_prompts !== false && (
                 <ConfigCard
                   title={t('project.prompts.title')}
+                  description={t('project.prompts.help')}
                   defaultExpanded={false}
                 >
-                  {/* Prompt Structures Section - Issue #762 */}
-                  <div className="bg-white dark:bg-zinc-900">
-                    <p className="mb-4 text-xs text-zinc-500 dark:text-zinc-400">
-                      {t('project.prompts.help')}
-                    </p>
-                    <PromptStructuresManager
-                      projectId={projectId || ''}
-                      readOnly={!canEditProject()}
-                      onStructuresChange={() => {
-                        // Refetch project to update UI
-                        if (projectId) {
-                          fetchProject(projectId)
-                        }
-                      }}
-                    />
-                  </div>
+                  <PromptStructuresManager
+                    projectId={projectId || ''}
+                    readOnly={!canEditProject()}
+                    onStructuresChange={() => {
+                      // Refetch project to update UI
+                      if (projectId) {
+                        fetchProject(projectId)
+                      }
+                    }}
+                  />
 
                   <SubSection title={t('project.prompts.evaluation.title')}>
                     <EvaluationPromptsOverview
@@ -2699,144 +2477,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   dirty={cardDirty.evaluation}
                   saving={cardSaving.evaluation}
                 >
-                  {/* Evaluation Configuration Section — flat sub-sections (no redundant
-              middle collapsible). Direct children of the ConfigCard. */}
                   {canEditProject() ? (
                     <>
-                      {/* Evaluation Defaults — placed at the top of the eval card
-                      to mirror Generation Defaults' position in the gen card.
-                      Owns the wizard-level temperature / max_tokens / runs
-                      defaults that propagate into newly added eval configs. */}
-                      {canEditProject() && (
-                        <EvaluationDefaultsCard
-                          t={t}
-                          evalDefaultsMode={evalDefaultsMode}
-                          setEvalDefaultsMode={setEvalDefaultsMode}
-                          evalDefaultTemperature={evalDefaultTemperature}
-                          setEvalDefaultTemperature={setEvalDefaultTemperature}
-                          evalDefaultMaxTokens={evalDefaultMaxTokens}
-                          setEvalDefaultMaxTokens={setEvalDefaultMaxTokens}
-                          selectedModelIds={selectedModelIds}
-                          evalRecConsensus={evalRecConsensus}
-                          // Always false so every change re-marks the card dirty
-                          // and extends the auto-save debounce (idempotent).
-                          cardEditingEvaluation={false}
-                          beginEditEvaluation={markEvaluationDirty}
-                        />
-                      )}
-
-                      {/* runs_per_task lives in its own SubSection — it's a
-                      scheduling/budget knob orthogonal to the parameter
-                      strategy picker above. Same split as the gen side. */}
-                      {canEditProject() && (
-                        <div>
-                          <SubSection
-                            title={t('project.evaluationDefaults.runsTitle')}
-                          >
-                            <p className="-mt-2 mb-3 text-xs text-zinc-500 dark:text-zinc-400">
-                              {t('project.evaluationDefaults.runsDescription')}
-                            </p>
-                            <div className="max-w-xs">
-                              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                                {t(
-                                  'project.evaluationDefaults.defaultRunsPerTask',
-                                )}
-                              </label>
-                              <Input
-                                type="number"
-                                min={1}
-                                max={25}
-                                step={1}
-                                value={evalDefaultRunsPerTask ?? 1}
-                                placeholder="1"
-                                onChange={(e) => {
-                                  markEvaluationDirty()
-                                  setEvalDefaultRunsPerTask(
-                                    e.target.value
-                                      ? parseInt(e.target.value)
-                                      : undefined,
-                                  )
-                                }}
-                                className="mt-1 h-8"
-                              />
-                              <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                                {t(
-                                  'project.evaluationDefaults.runsPerTaskHelp',
-                                )}
-                              </p>
-                            </div>
-                          </SubSection>
-                        </div>
-                      )}
-
-                      {/* Exam-level Notenschlüssel (extended slot). Sits
-                      between the scheduling knob and the methods builder
-                      because it is assessment policy over whatever the
-                      methods produce. Saves itself — see the slot comment
-                      at the useSlot call above. */}
-                      {canEditProject() && ProjectGradeScale && (
-                        // The slot renders nothing when the exam needs no
-                        // grade scale: no empty divided row in the card.
-                        <div className="empty:hidden">
-                          <ProjectGradeScale
-                            projectId={projectId || ''}
-                            evaluationConfig={
-                              currentProject?.evaluation_config ?? null
-                            }
-                          />
-                        </div>
-                      )}
-
-                      {/* Evaluation settings sub-section — owns its own state buffer,
-                      flushed by the Eval card's single Speichern. */}
-                      {canEditProject() && (
-                        <SubSection
-                          title={t('project.evaluationSettings.title')}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <Label>
-                                {t(
-                                  'projects.creation.wizard.step7.immediateEvaluation',
-                                )}
-                              </Label>
-                              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                {t(
-                                  'projects.creation.wizard.step7.immediateEvaluationHint',
-                                )}
-                              </p>
-                            </div>
-                            <input
-                              type="checkbox"
-                              checked={
-                                evaluationSettings.immediate_evaluation_enabled
-                              }
-                              onChange={(e) => {
-                                markEvaluationDirty()
-                                setEvaluationSettings((prev) => ({
-                                  ...prev,
-                                  immediate_evaluation_enabled:
-                                    e.target.checked,
-                                }))
-                              }}
-                              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                            />
-                          </div>
-                          {ProjectEvaluationSettingsSection && (
-                            <ProjectEvaluationSettingsSection
-                              projectId={projectId || ''}
-                              evaluationConfigs={evaluationConfigs}
-                              onEvaluationConfigsChange={
-                                handleEvaluationConfigsChange
-                              }
-                            />
-                          )}
-                        </SubSection>
-                      )}
-
-                      {/* Evaluation methods sub-section — wraps the EvaluationBuilder.
-                      Collapsed badge mirrors Modellauswahl / Prompt-Strukturen
-                      style: grey pill with the configured-method count. */}
+                      {/* What is evaluated first, mirroring Modellauswahl. */}
                       <SubSection
                         title={t('project.evaluationMethods.title')}
                         badge={
@@ -2852,23 +2495,62 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                             : t('project.evaluation.notConfigured')
                         }
                       >
-                        {/* Multi-Field Evaluation Builder (Phase 8: N:M Field Mapping) */}
-                        <div className="mb-6">
-                          <EvaluationBuilder
-                            projectId={projectId || ''}
-                            availableFields={availableEvaluationFields}
-                            evaluations={evaluationConfigs}
-                            onEvaluationsChange={handleEvaluationConfigsChange}
-                            onSave={handleEvaluationStarted}
-                            defaultsMode={evalDefaultsMode}
-                            customTemp={evalDefaultTemperature}
-                            customMaxTokens={evalDefaultMaxTokens}
-                          />
-                        </div>
+                        <EvaluationBuilder
+                          projectId={projectId || ''}
+                          availableFields={availableEvaluationFields}
+                          evaluations={evaluationConfigs}
+                          onEvaluationsChange={handleEvaluationConfigsChange}
+                          onSave={handleEvaluationStarted}
+                          defaultsMode={evalDefaultsMode}
+                          customTemp={evalDefaultTemperature}
+                          customMaxTokens={evalDefaultMaxTokens}
+                        />
                       </SubSection>
 
-                      {/* Grading section (extended slot): its own titled
-                      sub-section after the methods. */}
+                      {/* How evaluations run: parameters, runs, timing, and
+                      the extension's Korrektur policy switches. */}
+                      <EvaluationDefaultsCard
+                        t={t}
+                        evalDefaultsMode={evalDefaultsMode}
+                        setEvalDefaultsMode={setEvalDefaultsMode}
+                        evalDefaultTemperature={evalDefaultTemperature}
+                        setEvalDefaultTemperature={setEvalDefaultTemperature}
+                        evalDefaultMaxTokens={evalDefaultMaxTokens}
+                        setEvalDefaultMaxTokens={setEvalDefaultMaxTokens}
+                        selectedModelIds={selectedModelIds}
+                        evalRecConsensus={evalRecConsensus}
+                        // Always false so every change re-marks the card dirty
+                        // and extends the auto-save debounce (idempotent).
+                        cardEditingEvaluation={false}
+                        beginEditEvaluation={markEvaluationDirty}
+                        runsPerTask={evalDefaultRunsPerTask}
+                        setRunsPerTask={setEvalDefaultRunsPerTask}
+                        immediateEvaluation={
+                          evaluationSettings.immediate_evaluation_enabled
+                        }
+                        onImmediateEvaluationChange={(enabled) =>
+                          handleEvaluationSettingsChange({
+                            ...evaluationSettings,
+                            immediate_evaluation_enabled: enabled,
+                          })
+                        }
+                        korrekturSettings={
+                          ProjectEvaluationSettingsSection ? (
+                            <ProjectEvaluationSettingsSection
+                              projectId={projectId || ''}
+                              evaluationConfigs={evaluationConfigs}
+                              onEvaluationConfigsChange={
+                                handleEvaluationConfigsChange
+                              }
+                            />
+                          ) : null
+                        }
+                      />
+
+                      {/* Grading section (extended slot, e.g. Korrektur):
+                      how people grade, after the methods and their
+                      settings and before the grade scale that maps the
+                      results to grades. */}
                       {ProjectEvaluationGradingSection && currentProject && (
                         // The slot renders nothing for projects without
                         // such grading: no empty divided row in the card.
@@ -2883,6 +2565,22 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                               void refreshEvaluationConfigsFromServer()
                               return fetchProject(projectId)
                             }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Exam-level Notenschlüssel (extended slot): maps the
+                      grading results to grades, so it follows the methods
+                      and their settings. Saves itself. */}
+                      {ProjectGradeScale && (
+                        // The slot renders nothing when the exam needs no
+                        // grade scale: no empty divided row in the card.
+                        <div className="empty:hidden">
+                          <ProjectGradeScale
+                            projectId={projectId || ''}
+                            evaluationConfig={
+                              currentProject?.evaluation_config ?? null
+                            }
                           />
                         </div>
                       )}
@@ -2925,12 +2623,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     </div>
                   )}
 
-                  {/* Always-visible "Evaluierung starten" CTA at the card footer.
-              EvaluationBuilder also renders an internal trigger inside its
-              Methoden sub-section (only visible when expanded); this footer
-              one stays visible whenever the eval ConfigCard is open. Both
-              open the same EvaluationControlModal — two paths to the same
-              flow is fine. */}
+                  {/* Always-visible "Evaluierung starten" CTA at the card
+                      footer; EvaluationBuilder also has one inside the
+                      methods. Both open the same modal. */}
                   {canEditProject() &&
                     evaluationConfigs.filter((e: any) => e.enabled).length >
                       0 && (
@@ -2950,79 +2645,24 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               <ConfigCard
                 title={t('project.settings.title')}
                 defaultExpanded={false}
+                dirty={projectSettingsBuffer.dirty}
+                saving={projectSettingsBuffer.saving}
               >
                 {/* Project type (exam / deck / generic) — the flag the student
               surfaces key discovery off. Student-created projects keep it
               locked (server-enforced too). */}
                 {canEditProject() && currentProject.origin !== 'student' && (
-                  <div className="mb-6">
-                    <ProjectKindSection
-                      project={currentProject}
-                      onKindChange={handleKindChange}
-                    />
-                  </div>
+                  <ProjectKindSection
+                    project={{
+                      ...currentProject,
+                      kind: projectSettingsValue.kind,
+                    }}
+                    onKindChange={handleKindChange}
+                  />
                 )}
 
-                {/* Feature visibility — its own collapsed-by-default sub-section. */}
-                {canEditProject() && (
-                  <SubSection
-                    title={t('project.settings.featureVisibility.title')}
-                  >
-                    <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
-                      {t('project.settings.featureVisibility.help')}
-                    </p>
-                    <div className="space-y-2">
-                      {(
-                        [
-                          [
-                            'enable_annotation',
-                            t('project.annotationConfiguration.title'),
-                          ],
-                          [
-                            'enable_generation',
-                            t('project.generationConfiguration.title'),
-                          ],
-                          ['enable_evaluation', t('project.evaluation.title')],
-                          ['enable_prompts', t('project.prompts.title')],
-                        ] as const
-                      ).map(([key, label]) => (
-                        <label
-                          key={key}
-                          className="flex items-center space-x-2 text-sm text-zinc-700 dark:text-zinc-300"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={(currentProject as any)[key] !== false}
-                            onChange={async (e) => {
-                              if (!projectId) return
-                              try {
-                                await updateProject(projectId, {
-                                  [key]: e.target.checked,
-                                })
-                              } catch (err) {
-                                addToast(
-                                  t('toasts.project.settingsSaveFailed', {
-                                    error:
-                                      err instanceof Error ? err.message : '',
-                                  }),
-                                  'error',
-                                )
-                              }
-                            }}
-                            className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
-                          />
-                          <span>{label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </SubSection>
-                )}
-
-                {/* Visibility — collapsible sub-section, danger-zone styled
-              because flipping to public exposes the project platform-wide.
-              Everyone who may edit the project sees it, with the setting
-              greyed out unless they may change it (the panel decides), and
-              the learning platform link below it. */}
+                {/* Who reaches the project, and when: visibility, access
+              window, sharing (extended). */}
                 {currentProject &&
                   !isDeletedView &&
                   (user?.is_superadmin ||
@@ -3043,7 +2683,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                           {t('project.settings.visibilityDangerZone.help')}
                         </p>
                         <p
-                          className="mb-3 text-xs text-zinc-600 dark:text-zinc-400"
+                          className="mb-3 text-xs text-zinc-500 dark:text-zinc-400"
                           data-testid="project-visibility-prepare-hint"
                         >
                           {t(
@@ -3075,7 +2715,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                         </div>
                         {ProjectLmsLinking &&
                           currentProject.kind === 'exam' && (
-                            <div className="mt-4 empty:hidden">
+                            <div className="mt-6 empty:hidden">
                               <ProjectLmsLinking projectId={projectId} />
                             </div>
                           )}
@@ -3084,9 +2724,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   )}
 
                 {/* Access window: when the access group may see and work on
-              the project. Right after the visibility because both decide who
-              sees the project when ("Privat" plus a window is how a project
-              is prepared unseen). Saves a finished edit on its own. */}
+              the project ("Privat" plus a window is how a project is
+              prepared unseen). */}
                 {currentProject && !isDeletedView && canEditProject() && (
                   <ProjectAccessWindowSection
                     windowStartAt={currentProject.window_start_at}
@@ -3096,10 +2735,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 )}
 
                 {/* Sharing (extended): share links, participants and whether
-              students can find the project. A sub-section of Settings — it
-              sits beside "Projekt-Sichtbarkeit" because both answer who may
-              reach this project. Not gated on enable_annotation, so flashcard
-              decks get it too. */}
+              students can find the project. Not gated on enable_annotation,
+              so flashcard decks get it too. */}
                 {ProjectSharing && currentProject && canEditProject() && (
                   // The slot may render nothing: no empty divided row.
                   <div data-testid="project-sharing" className="empty:hidden">
@@ -3110,9 +2747,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   </div>
                 )}
 
-                {/* Safe Exam Browser (extended): whether students must write
-              the exam in SEB. Beside visibility and sharing because it also
-              decides how the project may be reached. */}
+                {/* Exam-only: Safe Exam Browser and the aids writers get
+              (extended). Both save on their own. */}
                 {ProjectExamSecurity &&
                   currentProject &&
                   currentProject.enable_annotation !== false &&
@@ -3122,10 +2758,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       onRefresh={() => fetchProject(projectId)}
                     />
                   )}
-
-                {/* Exam tools (extended): which aids (Hilfsmittel) the
-              writers get in the exam interface. Saves on its own like the
-              SEB section. */}
                 {ProjectExamTools &&
                   currentProject &&
                   currentProject.enable_annotation !== false &&
@@ -3135,6 +2767,42 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       onRefresh={() => fetchProject(projectId)}
                     />
                   )}
+
+                {/* Which cards this page shows (and the statistics and
+              progress count): about this page's layout, so last. */}
+                {canEditProject() && (
+                  <SubSection
+                    title={t('project.settings.featureVisibility.title')}
+                    description={t('project.settings.featureVisibility.help')}
+                  >
+                    <div className="space-y-2">
+                      {(
+                        [
+                          [
+                            'enable_annotation',
+                            t('project.annotationConfiguration.title'),
+                          ],
+                          [
+                            'enable_generation',
+                            t('project.generationConfiguration.title'),
+                          ],
+                          ['enable_evaluation', t('project.evaluation.title')],
+                          ['enable_prompts', t('project.prompts.title')],
+                        ] as const
+                      ).map(([key, label]) => (
+                        <Checkbox
+                          key={key}
+                          id={`feature-${key}`}
+                          label={label}
+                          checked={projectSettingsValue.features[key] !== false}
+                          onChange={(e) =>
+                            handleFeatureVisibilityChange(key, e.target.checked)
+                          }
+                        />
+                      ))}
+                    </div>
+                  </SubSection>
+                )}
               </ConfigCard>
             </>
           )}
