@@ -1197,3 +1197,88 @@ class TestEvaluationJudgeCallsRunScope:
                 }],
             )
         assert _per_model_cells(body, JUDGE_A) == data["expected_annotation_count"] - 1
+
+
+class TestRegradeEstimate:
+    """``outdated_only`` prices exactly the cells a re-grade plans: the
+    answers whose current grading rests on an older grading scheme."""
+
+    @staticmethod
+    def _judge(template):
+        return {
+            "id": "judge",
+            "metric": "llm_judge_custom",
+            "prediction_fields": ["human:answer"],
+            "reference_fields": ["task.q"],
+            "metric_parameters": {
+                "judges": [{"judge_model_id": JUDGE_ID, "runs": 1}],
+                "custom_prompt_template": template,
+            },
+            "enabled": True,
+        }
+
+    @pytest.mark.asyncio
+    async def test_prices_only_the_outdated_cells(self, async_test_client, async_test_db):
+        from grading_basis import stamp_grading_basis
+
+        actor = await _seed_user(async_test_db)
+        await _seed_judge_pricing(async_test_db, JUDGE_ID)
+        data = await _seed_project_with_subjects(async_test_db, actor, num_generation_models=0)
+        project = data["project"]
+        old, new = self._judge("old {prediction}"), self._judge("new {prediction}")
+        project.evaluation_config = {"evaluation_configs": [new]}
+        run = EvaluationRun(
+            id=str(uuid.uuid4()), project_id=project.id, model_id=JUDGE_ID,
+            evaluation_type_ids=[], metrics={}, status="completed", created_by=actor.id,
+        )
+        async_test_db.add(run)
+        await async_test_db.flush()
+        judge_run = EvaluationJudgeRun(
+            id=str(uuid.uuid4()), evaluation_id=run.id, judge_model_id=JUDGE_ID,
+            run_index=0, status="completed",
+        )
+        async_test_db.add(judge_run)
+        await async_test_db.flush()
+        annotations = (
+            await async_test_db.execute(
+                select(Annotation).where(Annotation.project_id == project.id)
+                .order_by(Annotation.id)
+            )
+        ).scalars().all()
+        assert len(annotations) == 6
+        for i, annotation in enumerate(annotations):
+            async_test_db.add(TaskEvaluation(
+                id=str(uuid.uuid4()), evaluation_id=run.id, judge_run_id=judge_run.id,
+                task_id=annotation.task_id, annotation_id=annotation.id,
+                field_name="judge|human:answer|task.q", evaluation_config_id="judge",
+                answer_type="text", ground_truth={}, prediction={},
+                metrics=stamp_grading_basis(
+                    {"llm_judge_custom": {"value": 0.5}}, old if i < 2 else new
+                ),
+                passed=True,
+            ))
+        await async_test_db.commit()
+
+        async def cells(**extra):
+            with _as_user(actor):
+                body = await _post_estimate(
+                    async_test_client, project_id=project.id, mode="evaluation",
+                    judge_models=[JUDGE_ID], runs_per_call=1,
+                    evaluation_configs=[{"id": "judge", "metric": "llm_judge_custom",
+                                         "prediction_fields": ["human:answer"]}],
+                    **extra,
+                )
+            return body, _judge_cells(body)
+
+        regrade, regrade_cells = await cells(outdated_only=True)
+        assert regrade_cells == 2
+        assert regrade["outdated_only"] is True and regrade["missing_only"] is False
+        _missing, missing_cells = await cells(generation_mode="missing")
+        assert missing_cells == 0
+        _full, full_cells = await cells()
+        assert full_cells == 6
+
+
+def _judge_cells(body: Dict) -> int:
+    [row] = [r for r in body["per_model"] if r["model_id"] == JUDGE_ID]
+    return row["cells_to_generate"]

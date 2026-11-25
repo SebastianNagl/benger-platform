@@ -1056,6 +1056,29 @@ def post_grade_scale_recompute(
         )
 
 
+@router.get("/projects/{project_id}/outdated-gradings")
+def get_outdated_gradings(
+    project_id: str,
+    current_user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    """How many current gradings rest on an older grading sheet or scheme.
+
+    ``{"total", "ai", "human", "configs": [{"config_id", "metric",
+    "display_name", "human", "graded", "outdated", "reasons": {"sheet",
+    "scheme"}}]}`` per tracked config of the project
+    (``shared/grading_basis.py``): ``outdated`` of its ``graded`` current
+    rows were graded along another sheet than the task has now, or with
+    another grading scheme than the config holds now. A run with
+    ``outdated_only`` re-grades the model-graded ones; human gradings are
+    never re-graded by a run. Edit-gated like the drift count above.
+    """
+    from grading_basis import outdated_gradings_summary
+
+    project = _project_for_grade_scale_write(project_id, current_user, db)
+    return {"project_id": project.id, **outdated_gradings_summary(db, project)}
+
+
 @router.get("/projects/{project_id}/detect-answer-types")
 async def detect_answer_types(
     project_id: str,

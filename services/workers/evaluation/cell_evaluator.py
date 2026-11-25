@@ -17,6 +17,7 @@ unchanged.
 from typing import Any, Dict, List, Optional  # noqa: F401  (used by the bodies)
 
 from evaluation.inline_judges import inline_judge_row, resolve_inline_judge
+from grading_basis import stamp_rows as stamp_grading_basis_rows
 from metric_filters import (
     graded_reference_fields,
     is_reference_free,
@@ -347,6 +348,8 @@ def evaluate_generation_cell_impl(
     triggered_by_user_id: str,
     label_config_version: Optional[str] = None,
     already_evaluated_field_keys: Optional[List[str]] = None,
+    *,
+    regrade: bool = False,
 ) -> Dict[str, Any]:
     """Per-(task, generation) sub-task dispatched by the eval orchestrator.
 
@@ -1030,6 +1033,9 @@ def evaluate_generation_cell_impl(
         # redelivery, all rows conflict and `n_inserted == 0`, so the
         # redelivered task contributes nothing to the parent counters
         # — defense against the `acks_late=True` double-bump path.
+        # Every row records the grading scheme it was graded on
+        # (grading_basis); a model generation's row never becomes a draft.
+        stamp_grading_basis_rows(sample_results, configs_for_cell, regrade=regrade)
         n_inserted, n_passed, n_failed, n_written = _bulk_upsert_task_evaluations(
             db, sample_results
         )
@@ -1108,6 +1114,8 @@ def evaluate_annotation_cell_impl(
     organization_id: Optional[str],
     triggered_by_user_id: str,
     already_evaluated_field_keys: Optional[List[str]] = None,
+    *,
+    regrade: bool = False,
 ) -> Dict[str, Any]:
     """Per-(task, annotation) sub-task dispatched by the eval orchestrator.
 
@@ -1710,6 +1718,9 @@ def evaluate_annotation_cell_impl(
                             local_samples_failed += 1
 
         # Bump by RETURNING-derived counts — see gen sub-task for rationale.
+        # The grading scheme on every row, and a re-grade writes its rows as
+        # drafts a teacher releases (grading_basis).
+        stamp_grading_basis_rows(sample_results, configs_for_cell, regrade=regrade)
         n_inserted, n_passed, n_failed, n_written = _bulk_upsert_task_evaluations(
             db, sample_results
         )

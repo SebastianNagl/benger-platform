@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
@@ -72,6 +72,10 @@ class EvaluationRunRequest(BaseModel):
     batch_size: int = 100
     label_config_version: Optional[str] = None
     force_rerun: bool = False  # If True, re-evaluate all; if False, only evaluate missing
+    # A re-grade: grade only the cells whose current grading rests on an older
+    # sheet or grading scheme (shared/grading_basis.py), as drafts of the
+    # submitted answers that a teacher releases. Excludes force_rerun.
+    outdated_only: bool = False
     task_ids: Optional[List[str]] = None  # Filter to specific tasks (for single-cell re-evaluation)
     model_ids: Optional[List[str]] = None  # Filter to specific models (for single-cell re-evaluation)
     annotator_user_ids: Optional[List[str]] = None  # Filter annotation-side judge fan-out to specific annotators
@@ -86,6 +90,12 @@ class EvaluationRunRequest(BaseModel):
     # The org whose keys pay for the judge calls ("billed to"); must be one
     # of the caller's billing options for the project. None = the default rule.
     billing_organization_id: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _outdated_only_excludes_force_rerun(self) -> "EvaluationRunRequest":
+        if self.outdated_only and self.force_rerun:
+            raise ValueError("outdated_only and force_rerun exclude each other")
+        return self
 
 
 class EvaluationRunResponse(BaseModel):

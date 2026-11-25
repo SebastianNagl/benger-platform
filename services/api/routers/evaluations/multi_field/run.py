@@ -436,6 +436,7 @@ def run_evaluation(
             "annotator_user_ids": request.annotator_user_ids,
             "structure_keys": request.structure_keys or [],
             "force_rerun": request.force_rerun,
+            "outdated_only": request.outdated_only,
         }
         dispatch_hash = hashlib.sha1(
             _stdjson.dumps(dispatch_payload, sort_keys=True, default=str).encode("utf-8")
@@ -513,6 +514,10 @@ def run_evaluation(
                 # graded ones land in evaluated_model_ids once it is done.
                 "planned_model_ids": evaluated_model_ids,
                 "force_rerun": request.force_rerun,
+                # A re-grade (shared/grading_basis.py): only the outdated
+                # cells, the answers' rows written as drafts to release.
+                "outdated_only": request.outdated_only,
+                "regrade": request.outdated_only,
                 "organization_id": organization_id,
                 "task_ids": request.task_ids,
                 "model_ids": request.model_ids,
@@ -554,6 +559,7 @@ def run_evaluation(
                     "model_ids": request.model_ids,
                     "annotator_user_ids": request.annotator_user_ids,
                     "structure_keys": request.structure_keys,
+                    **({"outdated_only": True} if request.outdated_only else {}),
                 },
             )
 

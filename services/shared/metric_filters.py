@@ -106,37 +106,79 @@ HEAVY_METRICS = frozenset(
 )
 
 
+def details_await_release(details: Any) -> bool:
+    """Whether a metric's details hold a result its student may not see yet.
+
+    Two shapes wait for a release: a review whose status is not released
+    (``details.review.status`` other than ``"released"``: a re-graded row
+    starts as a draft, core 2.84, and the overlay's teacher review writes the
+    same key) and a feedback-only judge result (``details.feedback_only``,
+    core 2.41) without a released review. A judge that releases on writing,
+    or a teacher who released later, stores ``review.status = "released"``.
+    A review without a status on any other result is no release state. The
+    overlay owns the review workflow; this only reads the stored shape,
+    because the attempt-score surfaces and the grading notices live in the
+    platform.
+    """
+    if not isinstance(details, dict):
+        return False
+    review = details.get("review")
+    status = review.get("status") if isinstance(review, dict) else None
+    if status is not None:
+        return status != "released"
+    return details.get("feedback_only") is True
+
+
+def blob_awaits_release(blob: Any) -> bool:
+    """:func:`details_await_release` for a ``{value, method, details}``
+    metric blob: such a blob is a draft for the teacher, not a score, so no
+    attempt score or student-facing number may read it."""
+    return isinstance(blob, dict) and details_await_release(blob.get("details"))
+
+
+def metric_awaits_release(metrics: Any, key: Any) -> bool:
+    """Whether the result of metric ``key`` in a row's metrics awaits its
+    release: its blob (:func:`blob_awaits_release`) or, for a flat row, its
+    ``<key>_details`` sibling."""
+    if not isinstance(metrics, dict):
+        return False
+    if blob_awaits_release(metrics.get(key)):
+        return True
+    return isinstance(key, str) and details_await_release(metrics.get(f"{key}_details"))
+
+
 def is_unreleased_feedback(blob: Any) -> bool:
     """Whether a metric blob is a feedback-only judge result still waiting for
-    its release (``details.feedback_only``, core 2.41).
-
-    Such a blob is a draft for the teacher, not a score, so no attempt score
-    or student-facing number may read it. A judge that releases on writing, or
-    a teacher who released later, stores ``details.review.status = "released"``
-    on the row. The overlay owns the review workflow; this only reads the
-    stored shape, because the attempt-score surfaces live in the platform.
-    """
+    its release (``details.feedback_only``, core 2.41); the feedback case of
+    :func:`blob_awaits_release`."""
     if not isinstance(blob, dict):
         return False
     details = blob.get("details")
-    if not isinstance(details, dict) or details.get("feedback_only") is not True:
-        return False
-    review = details.get("review")
-    return not (isinstance(review, dict) and review.get("status") == "released")
+    return (
+        isinstance(details, dict)
+        and details.get("feedback_only") is True
+        and details_await_release(details)
+    )
 
 
 def row_awaits_release(metrics: Any) -> bool:
-    """Whether a ``task_evaluations`` row holds a feedback-only result still
-    waiting for its release (:func:`is_unreleased_feedback`).
+    """Whether a ``task_evaluations`` row holds a result still waiting for its
+    release (:func:`details_await_release`), in a metric blob or in the flat
+    ``<metric>_details`` sibling of a flat row.
 
     Its submitter cannot see such a row yet, so no "grading received" notice
     may announce it; the release itself is the moment to tell them. The
     batch notice (``tasks._notify_batch_grading_received``) is stricter in
-    SQL: it counts a feedback row only when the judge released it.
+    SQL: it counts a row with a review only when the judge released it.
     """
-    return isinstance(metrics, dict) and any(
-        is_unreleased_feedback(blob) for blob in metrics.values()
-    )
+    if not isinstance(metrics, dict):
+        return False
+    for key, blob in metrics.items():
+        if blob_awaits_release(blob):
+            return True
+        if isinstance(key, str) and key.endswith("_details") and details_await_release(blob):
+            return True
+    return False
 
 
 def is_heavy_metric(metric_name: Optional[str]) -> bool:

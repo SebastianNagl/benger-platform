@@ -131,11 +131,11 @@ def test_allowed_batch_run_bills_the_policy_org_in_every_cell(
     original = cell_module.evaluate_annotation_cell_impl
 
     def _spy(self, evaluation_id, task_id, annotation_id, project_id, configs_for_cell,
-             judge_run_ids_by_config, default_judge_run_id, organization_id, *rest):
+             judge_run_ids_by_config, default_judge_run_id, organization_id, *rest, **kwargs):
         cell_orgs.append(organization_id)
         return original(
             self, evaluation_id, task_id, annotation_id, project_id, configs_for_cell,
-            judge_run_ids_by_config, default_judge_run_id, organization_id, *rest,
+            judge_run_ids_by_config, default_judge_run_id, organization_id, *rest, **kwargs,
         )
 
     monkeypatch.setattr(cell_module, "evaluate_annotation_cell_impl", _spy)

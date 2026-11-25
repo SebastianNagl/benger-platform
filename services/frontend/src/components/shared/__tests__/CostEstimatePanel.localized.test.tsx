@@ -160,6 +160,39 @@ describe('CostEstimatePanel localized note', () => {
     expect(note).not.toHaveTextContent('Zellen pro Judge')
   })
 
+  it('prices a re-grade and says it counts only outdated gradings', async () => {
+    mockPost.mockResolvedValue({
+      ...baseEstimate,
+      accuracy_percent: 20,
+      encoding: 'o200k_base',
+      input_basis: 'rendered_judge_prompt',
+      output_utilization_percent: 15,
+      missing_only: false,
+      outdated_only: true,
+    })
+    render(
+      <CostEstimatePanel
+        projectId="p1"
+        mode="evaluation"
+        judgeModels={['gpt-5-mini']}
+        runsPerCall={1}
+        outdatedOnly
+      />,
+    )
+
+    const note = await screen.findByText(/Genauigkeit der Schätzung/)
+    expect(note).toHaveTextContent('älteren Fassung des Bewertungsbogens')
+    expect(note).not.toHaveTextContent('tatsächlich ausgeführt')
+    expect(mockPost.mock.calls[0][1]).toMatchObject({ outdated_only: true })
+  })
+
+  it('sends no re-grade flag for a plain estimate', async () => {
+    mockPost.mockResolvedValue(baseEstimate)
+    renderPanel()
+    await waitFor(() => expect(mockPost).toHaveBeenCalled())
+    expect(mockPost.mock.calls[0][1]).not.toHaveProperty('outdated_only')
+  })
+
   it('falls back to the API note when the structured fields are absent', async () => {
     mockPost.mockResolvedValue(baseEstimate)
     renderPanel()
@@ -180,6 +213,7 @@ describe('CostEstimatePanel localized note', () => {
       'outputGeneration',
       'encoding',
       'countingMissing',
+      'countingOutdated',
       'countingAll',
       'perJudgeCells',
     ]

@@ -10,6 +10,10 @@ from __future__ import annotations
 
 from metric_filters import (
     GRADE_POINT_LIFT_BASES,
+    blob_awaits_release,
+    details_await_release,
+    is_unreleased_feedback,
+    metric_awaits_release,
     metric_key_counts_as_evaluation,
     metric_key_is_real,
     row_awaits_release,
@@ -139,3 +143,38 @@ class TestRowAwaitsRelease:
         assert row_awaits_release({"llm_judge_falloesung": {"value": 0.7, "details": {}}}) is False
         assert row_awaits_release({}) is False
         assert row_awaits_release(None) is False
+
+    def test_a_regraded_score_row_waits_until_released(self):
+        draft = {"status": "draft", "reason": "regrade"}
+        unified = {"llm_judge_rubric": {"value": 0.6, "details": {"review": draft}}}
+        assert row_awaits_release(unified) is True
+        assert row_awaits_release(
+            {"llm_judge_rubric": {"value": 0.6, "details": {"review": {"status": "released"}}}}
+        ) is False
+
+    def test_a_flat_row_waits_through_its_details_sibling(self):
+        draft = {"status": "draft", "reason": "regrade"}
+        flat = {"llm_judge_custom": 0.6, "llm_judge_custom_details": {"review": draft}}
+        assert row_awaits_release(flat) is True
+        assert metric_awaits_release(flat, "llm_judge_custom") is True
+        stamped = {"llm_judge_custom": 0.6, "llm_judge_custom_details": {"scheme_fingerprint": "x"}}
+        assert row_awaits_release(stamped) is False
+
+
+class TestReleasePredicates:
+    def test_details_await_release(self):
+        assert details_await_release({"review": {"status": "draft"}}) is True
+        # A review without a status is no release state, unless the result
+        # is feedback-only (which waits until a release).
+        assert details_await_release({"review": {}}) is False
+        assert details_await_release({"feedback_only": True, "review": {}}) is True
+        assert details_await_release({"feedback_only": True}) is True
+        assert details_await_release({"feedback_only": True, "review": {"status": "released"}}) is False
+        assert details_await_release({"rubric_id": "r"}) is False
+        assert details_await_release(None) is False
+
+    def test_feedback_predicate_keeps_its_meaning(self):
+        draft_score = {"value": 0.6, "details": {"review": {"status": "draft"}}}
+        assert blob_awaits_release(draft_score) is True
+        assert is_unreleased_feedback(draft_score) is False
+        assert is_unreleased_feedback({"value": None, "details": {"feedback_only": True}}) is True
