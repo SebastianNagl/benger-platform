@@ -2078,6 +2078,10 @@ API change).
     the project page's evaluation card, after the methods, for editors only,
     with props ``{ project, projectId, onRefresh }``. It saves itself and is
     not part of the card's auto-save; rendering nothing leaves no gap.
+    Calling ``onRefresh`` after a save also re-reads the evaluation configs
+    into the card, and the card sends ``evaluation_configs_base`` with its
+    list writes, so its next save keeps the section's
+    ``metric_parameters`` keys in any order of the two writes.
 """
 
 import os

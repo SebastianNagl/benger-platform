@@ -850,6 +850,14 @@ describe('Evaluation card', () => {
           },
           { id: 'new-2', metric: 'bleu', enabled: true },
         ],
+        evaluation_configs_base: [
+          {
+            id: 'e1',
+            metric: 'some_metric',
+            enabled: true,
+            metric_parameters: { keep: 1 },
+          },
+        ],
       },
     )
   })
@@ -918,6 +926,14 @@ describe('Evaluation card', () => {
       '/evaluations/projects/proj-1/evaluation-config',
       {
         evaluation_configs: [
+          {
+            id: 'e1',
+            metric: 'some_metric',
+            enabled: true,
+            metric_parameters: {},
+          },
+        ],
+        evaluation_configs_base: [
           {
             id: 'e1',
             metric: 'some_metric',
@@ -1296,6 +1312,7 @@ describe('Evaluation card — save orchestration (issue #289)', () => {
           bleuConfig,
           { id: 'new-2', metric: 'bleu', enabled: true },
         ],
+        evaluation_configs_base: [bleuConfig],
       },
     )
   })
@@ -1355,6 +1372,7 @@ describe('Evaluation card — save orchestration (issue #289)', () => {
           bleuConfig,
           { id: 'new-2', metric: 'bleu', enabled: true },
         ],
+        evaluation_configs_base: [bleuConfig],
       },
     )
     // Successful flush clears the dirty + saving flags.

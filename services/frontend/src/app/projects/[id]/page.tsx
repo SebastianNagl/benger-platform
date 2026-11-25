@@ -691,7 +691,12 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     try {
       response = await apiClient.put(
         `/evaluations/projects/${projectId}/evaluation-config`,
-        { evaluation_configs: evaluations },
+        {
+          evaluation_configs: evaluations,
+          // The list this buffer started from: keys another writer changed
+          // since then and this save did not touch keep the server's value.
+          evaluation_configs_base: evaluationConfigsBaselineRef.current,
+        },
       )
       evaluationConfigsBaselineRef.current = evaluations
     } catch (error) {

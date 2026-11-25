@@ -379,4 +379,18 @@ describe('ProjectDetailPage - grading section refresh', () => {
       reviews_per_submission: 2,
     })
   })
+  it('sends the list it started from, so the server keeps writes it missed', async () => {
+    await openEvaluationCard()
+    fireEvent.click(await screen.findByTestId('edit-method'))
+    await waitFor(() => expect(lastConfigPut()).toBeDefined(), {
+      timeout: 5000,
+    })
+    const calls = (apiClient.put as jest.Mock).mock.calls.filter(
+      ([url, body]: any) =>
+        url.includes('/evaluation-config') && body.evaluation_configs,
+    )
+    expect(calls[calls.length - 1][1].evaluation_configs_base).toEqual(
+      initialConfigs(),
+    )
+  })
 })

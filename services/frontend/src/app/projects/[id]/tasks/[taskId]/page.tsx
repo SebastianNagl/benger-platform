@@ -138,6 +138,7 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
       console.warn('taskId is falsy but resolvedParams exist:', resolvedParams)
       setLoading(false)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- t only words the error toast; a language switch must not reload the task
   }, [taskId, resolvedParams, addToast])
 
   // Load annotations for the task
