@@ -239,9 +239,8 @@ describe('DynamicAnnotationInterface', () => {
     it('should pass hideSubmitButton=true to TextArea components when showSubmitButton=true', async () => {
       render(<DynamicAnnotationInterface {...defaultProps} />)
 
-      // The actual implementation passes hideSubmitButton={showSubmitButton}
-      // So when showSubmitButton=true (default), hideSubmitButton=true
-      // This means component-level submit buttons are HIDDEN (centralized submit button shown instead)
+      // Components always get hideSubmitButton=true, so component-level
+      // submit buttons are HIDDEN (centralized submit button shown instead)
       const componentSubmitButton = screen.queryByTestId(
         'component-submit-button',
       )
@@ -258,8 +257,7 @@ describe('DynamicAnnotationInterface', () => {
       render(<DynamicAnnotationInterface {...defaultProps} />)
 
       // Verify the mocked TextArea component was called with hideSubmitButton=true
-      // because showSubmitButton defaults to true and hideSubmitButton={showSubmitButton}
-      // (hide individual buttons when centralized submit is shown)
+      // (components never show their own submit button inside the form)
       expect(mockTextAreaComponent()).toHaveBeenCalledWith(
         expect.objectContaining({
           hideSubmitButton: true,

@@ -37,12 +37,17 @@ export default function TextAreaInput({
   const required = config.props.required === 'true'
   const showSubmitButton = config.props.showSubmitButton !== 'false'
 
-  // Sync external value changes - properly handle undefined to clear the field
-  useEffect(() => {
-    // When externalValue is undefined or empty string, clear the field
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: sync with external prop
-    setValue(externalValue || '')
-  }, [externalValue])
+  // Take a value from outside (initial values, a cleared form, a restored
+  // draft; undefined clears the field) when it changes, during render. The
+  // form hands every typed value straight back as externalValue; setting it
+  // again from an effect scheduled one more update per key, and after about
+  // fifty keys typed without a pause React stopped with "Maximum update depth
+  // exceeded" and dropped that key.
+  const [syncedValue, setSyncedValue] = useState(externalValue)
+  if (externalValue !== syncedValue) {
+    setSyncedValue(externalValue)
+    if ((externalValue || '') !== value) setValue(externalValue || '')
+  }
 
   // Create annotation after a delay when value changes (debounced)
   useEffect(() => {

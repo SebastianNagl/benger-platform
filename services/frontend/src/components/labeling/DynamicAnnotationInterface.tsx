@@ -403,8 +403,10 @@ export function DynamicAnnotationInterface({
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Submit on Ctrl/Cmd + Enter (blocked if confirmation required but not checked)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      // Submit on Ctrl/Cmd + Enter (blocked if confirmation required but not
+      // checked). Only where this form offers a submit: a host that hides the
+      // submit button submits through its own controls.
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && showSubmitButton) {
         if (requireConfirmBeforeSubmit && !confirmedDone) return
         e.preventDefault()
         handleSubmit()
@@ -419,7 +421,13 @@ export function DynamicAnnotationInterface({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleSubmit, onSkip, requireConfirmBeforeSubmit, confirmedDone])
+  }, [
+    handleSubmit,
+    onSkip,
+    requireConfirmBeforeSubmit,
+    confirmedDone,
+    showSubmitButton,
+  ])
 
   // Render component tree recursively
   const renderComponent = (
@@ -463,7 +471,9 @@ export function DynamicAnnotationInterface({
               : (val) => handleComponentChange(componentName, val)
           }
           onAnnotation={readOnly ? () => {} : handleAnnotation}
-          hideSubmitButton={showSubmitButton} // Hide individual submit buttons when main button is shown (Issue #251, #1030)
+          // A field's own submit button only rebuilds that field's result and
+          // saves nothing; this form or its host submits, so never show it.
+          hideSubmitButton
           onSaveToDb={enableAutoSave && !readOnly ? handleSaveToDb : undefined} // Pass immediate save handler for Ctrl+S
           readOnly={readOnly}
         />
@@ -619,9 +629,13 @@ export function DynamicAnnotationInterface({
               </div>
             )}
           </div>
-          <div className="mt-2 text-center text-xs text-zinc-500 dark:text-zinc-400">
-            {t('annotation.interface.tip')}
-          </div>
+          {/* The tip advertises the submit and skip shortcuts, so only show
+              it while one of them does something. */}
+          {(showSubmitButton || onSkip) && (
+            <div className="mt-2 text-center text-xs text-zinc-500 dark:text-zinc-400">
+              {t('annotation.interface.tip')}
+            </div>
+          )}
         </div>
       )}
     </div>

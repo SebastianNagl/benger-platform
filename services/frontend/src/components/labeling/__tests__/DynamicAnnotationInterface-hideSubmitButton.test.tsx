@@ -2,9 +2,11 @@
  * Simple integration test for DynamicAnnotationInterface hideSubmitButton functionality
  * Tests that hideSubmitButton prop is properly passed to components to resolve issue #251, #1030
  *
- * Correct behavior:
- * - When showSubmitButton=true (main button shown), hideSubmitButton=true (hide individual buttons)
- * - When showSubmitButton=false (main button hidden), hideSubmitButton=false (show individual buttons)
+ * Correct behavior: components always get hideSubmitButton=true. A field's own
+ * submit button only rebuilds that field's result and saves nothing, so it is
+ * never shown inside the form: with the main button shown it would duplicate
+ * it, and with the main button hidden the host submits through its own
+ * controls (for example the review page's action bar).
  */
 
 /**
@@ -169,7 +171,7 @@ describe('DynamicAnnotationInterface hideSubmitButton Integration', () => {
     )
   })
 
-  it('should pass hideSubmitButton=false when showSubmitButton=false (embedded use case)', () => {
+  it('should pass hideSubmitButton=true when showSubmitButton=false (host submits)', () => {
     const props = {
       labelConfig: '<TextArea name="answer" placeholder="Enter your answer" />',
       taskData: {},
@@ -185,15 +187,14 @@ describe('DynamicAnnotationInterface hideSubmitButton Integration', () => {
     const mainSubmitButton = screen.queryByText(/Ctrl\+Enter/i)
     expect(mainSubmitButton).not.toBeInTheDocument()
 
-    // When showSubmitButton=false, hideSubmitButton=false, so component buttons are shown
-    // This allows individual components to have their own submit buttons in embedded scenarios
+    // The host hides the main button because it submits itself, so the
+    // component's own button (which saves nothing) stays hidden too
     const componentSubmitButton = screen.queryByTestId(
       'component-submit-button',
     )
-    expect(componentSubmitButton).toBeInTheDocument()
+    expect(componentSubmitButton).not.toBeInTheDocument()
 
-    // Verify our mock component was called with hideSubmitButton=false
-    expect(MockTextAreaComponent).toHaveBeenCalledWith(
+    expect(MockTextAreaComponent).not.toHaveBeenCalledWith(
       expect.objectContaining({
         hideSubmitButton: false,
       }),
@@ -210,8 +211,7 @@ describe('DynamicAnnotationInterface hideSubmitButton Integration', () => {
 
     render(<DynamicAnnotationInterface {...props} />)
 
-    // With the fix (hideSubmitButton=showSubmitButton), when showSubmitButton=true,
-    // only the main submit button should be present, not the component button
+    // Only the main submit button should be present, not the component button
     const submitButtons = screen.getAllByRole('button', { name: /submit/i })
     expect(submitButtons.length).toBe(1)
 
