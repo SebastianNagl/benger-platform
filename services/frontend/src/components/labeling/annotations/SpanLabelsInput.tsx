@@ -87,6 +87,7 @@ export default function SpanLabelsInput({
   onChange,
   onAnnotation,
   sourceText: propSourceText,
+  readOnly = false,
 }: SpanLabelsInputProps) {
   const { t } = useI18n()
 
@@ -214,6 +215,7 @@ export default function SpanLabelsInput({
 
   // Handle text selection
   const handleTextSelection = useCallback(() => {
+    if (readOnly) return
     const selection = window.getSelection()
     if (!selection || selection.isCollapsed || !textContainerRef.current) {
       return
@@ -254,7 +256,7 @@ export default function SpanLabelsInput({
       selection.removeAllRanges()
       setPendingSelection(null)
     }
-  }, [selectedLabel, createSpan])
+  }, [selectedLabel, createSpan, readOnly])
 
   // Apply label to pending selection
   const applyLabelToSelection = useCallback(
@@ -280,12 +282,17 @@ export default function SpanLabelsInput({
   )
 
   // Remove a span (notifications handled by useEffect)
-  const removeSpan = useCallback((spanId: string) => {
-    setSpans((prev) => prev.filter((s) => s.id !== spanId))
-  }, [])
+  const removeSpan = useCallback(
+    (spanId: string) => {
+      if (readOnly) return
+      setSpans((prev) => prev.filter((s) => s.id !== spanId))
+    },
+    [readOnly],
+  )
 
   // Keyboard shortcuts for labels (1-9)
   useEffect(() => {
+    if (readOnly) return
     const handleKeyDown = (e: KeyboardEvent) => {
       // Number keys 1-9 for label shortcuts
       if (e.key >= '1' && e.key <= '9') {
@@ -310,7 +317,14 @@ export default function SpanLabelsInput({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [labels, pendingSelection, spans, applyLabelToSelection, removeSpan])
+  }, [
+    readOnly,
+    labels,
+    pendingSelection,
+    spans,
+    applyLabelToSelection,
+    removeSpan,
+  ])
 
   // Render highlighted text with spans
   const renderHighlightedText = useMemo(() => {
@@ -350,14 +364,20 @@ export default function SpanLabelsInput({
       elements.push(
         <span
           key={`span-${span.id}`}
-          className="group relative cursor-pointer rounded px-0.5"
+          className={`group relative rounded px-0.5 ${readOnly ? '' : 'cursor-pointer'}`}
           style={{ backgroundColor: bgColor, color: getContrastColor(bgColor) }}
-          onClick={() => removeSpan(span.id)}
-          title={`${span.labels.join(', ')} (${t('labeling.spanLabels.clickToRemove')})`}
+          onClick={readOnly ? undefined : () => removeSpan(span.id)}
+          title={
+            readOnly
+              ? span.labels.join(', ')
+              : `${span.labels.join(', ')} (${t('labeling.spanLabels.clickToRemove')})`
+          }
         >
           {span.text}
           <span className="absolute -top-6 left-0 z-10 hidden rounded bg-zinc-800 px-2 py-1 text-xs whitespace-nowrap text-white group-hover:block">
-            {span.labels.join(', ')} - {t('labeling.spanLabels.clickToRemove')}
+            {readOnly
+              ? span.labels.join(', ')
+              : `${span.labels.join(', ')} - ${t('labeling.spanLabels.clickToRemove')}`}
           </span>
         </span>,
       )
@@ -373,54 +393,56 @@ export default function SpanLabelsInput({
     }
 
     return elements
-  }, [sourceText, spans, labels, removeSpan, t])
+  }, [sourceText, spans, labels, removeSpan, readOnly, t])
 
   return (
     <div className="span-labels-input space-y-4">
       {/* Label selector */}
-      <div className="space-y-2">
-        <div className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          {t('labeling.spanLabels.selectLabelThenHighlight')}
-          {labels.some((l) => l.alias) && (
-            <span className="ml-2 text-xs text-zinc-500">
-              ({t('labeling.spanLabels.orUseKeyboardShortcuts')})
-            </span>
-          )}
+      {!readOnly && (
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            {t('labeling.spanLabels.selectLabelThenHighlight')}
+            {labels.some((l) => l.alias) && (
+              <span className="ml-2 text-xs text-zinc-500">
+                ({t('labeling.spanLabels.orUseKeyboardShortcuts')})
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {labels.map((label, index) => (
+              <button
+                key={label.value}
+                type="button"
+                onClick={() => {
+                  setSelectedLabel(label.value)
+                  if (pendingSelection) {
+                    applyLabelToSelection(label.value)
+                  }
+                }}
+                className={`h-8 max-w-full truncate rounded-full px-3 text-sm font-medium whitespace-nowrap transition-all ${
+                  selectedLabel === label.value
+                    ? 'ring-2 ring-emerald-500 ring-offset-2 dark:ring-emerald-400'
+                    : 'opacity-70 hover:opacity-100'
+                }`}
+                style={{
+                  backgroundColor: label.background,
+                  color: getContrastColor(label.background),
+                }}
+              >
+                {label.alias && (
+                  <span className="mr-1 rounded bg-white/20 px-1 text-xs">
+                    {index + 1}
+                  </span>
+                )}
+                {label.value}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {labels.map((label, index) => (
-            <button
-              key={label.value}
-              type="button"
-              onClick={() => {
-                setSelectedLabel(label.value)
-                if (pendingSelection) {
-                  applyLabelToSelection(label.value)
-                }
-              }}
-              className={`h-8 max-w-full truncate rounded-full px-3 text-sm font-medium whitespace-nowrap transition-all ${
-                selectedLabel === label.value
-                  ? 'ring-2 ring-emerald-500 ring-offset-2 dark:ring-emerald-400'
-                  : 'opacity-70 hover:opacity-100'
-              }`}
-              style={{
-                backgroundColor: label.background,
-                color: getContrastColor(label.background),
-              }}
-            >
-              {label.alias && (
-                <span className="mr-1 rounded bg-white/20 px-1 text-xs">
-                  {index + 1}
-                </span>
-              )}
-              {label.value}
-            </button>
-          ))}
-        </div>
-      </div>
+      )}
 
       {/* Pending selection indicator */}
-      {pendingSelection && (
+      {pendingSelection && !readOnly && (
         <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 dark:border-emerald-700 dark:bg-emerald-900/20">
           <div className="text-sm text-emerald-800 dark:text-emerald-200">
             {t('labeling.spanLabels.selected')}: "{pendingSelection.text}"
@@ -504,14 +526,16 @@ export default function SpanLabelsInput({
                       [{span.start}:{span.end}]
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeSpan(span.id)}
-                    className="rounded p-0.5 text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
-                    title={t('labeling.spanLabels.removeAnnotation')}
-                  >
-                    <XMarkIcon className="h-4 w-4" />
-                  </button>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => removeSpan(span.id)}
+                      className="rounded p-0.5 text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+                      title={t('labeling.spanLabels.removeAnnotation')}
+                    >
+                      <XMarkIcon className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               )
             })}

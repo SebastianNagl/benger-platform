@@ -17,6 +17,7 @@ export default function RatingInput({
   value: externalValue,
   onChange,
   onAnnotation,
+  readOnly = false,
 }: AnnotationComponentProps) {
   const [rating, setRating] = useState<number>(externalValue || 0)
   const [hoverRating, setHoverRating] = useState<number>(0)
@@ -29,6 +30,7 @@ export default function RatingInput({
 
   // Handle rating change
   const handleRatingClick = (newRating: number) => {
+    if (readOnly) return
     const finalRating = rating === newRating ? 0 : newRating
     setRating(finalRating)
     onChange(finalRating)
@@ -57,9 +59,14 @@ export default function RatingInput({
               key={star}
               type="button"
               onClick={() => handleRatingClick(star)}
-              onMouseEnter={() => setHoverRating(star)}
+              disabled={readOnly}
+              onMouseEnter={() => !readOnly && setHoverRating(star)}
               onMouseLeave={() => setHoverRating(0)}
-              className="p-1 transition-colors hover:text-amber-500"
+              className={
+                readOnly
+                  ? 'cursor-default p-1'
+                  : 'p-1 transition-colors hover:text-amber-500'
+              }
             >
               <Icon
                 className={`h-6 w-6 ${isActive ? 'text-amber-500' : 'text-zinc-400'}`}

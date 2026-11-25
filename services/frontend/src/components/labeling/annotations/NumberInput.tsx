@@ -17,6 +17,7 @@ export default function NumberInput({
   value: externalValue,
   onChange,
   onAnnotation,
+  readOnly = false,
 }: AnnotationComponentProps) {
   const { t } = useI18n()
   const [value, setValue] = useState<string>(externalValue?.toString() || '')
@@ -33,6 +34,7 @@ export default function NumberInput({
 
   // Handle value change
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (readOnly) return
     const newValue = e.target.value
     setValue(newValue)
 
@@ -70,6 +72,7 @@ export default function NumberInput({
         max={max}
         step={step}
         required={required}
+        readOnly={readOnly}
         className="w-full"
       />
 
