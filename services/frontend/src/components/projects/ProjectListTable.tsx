@@ -1134,19 +1134,23 @@ export function ProjectListTable({
                     <SortIcon field="created_at" />
                   </button>
                 </th>
-                <th
-                  scope="col"
-                  className="relative px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
-                >
-                  <span className="sr-only">{t('projects.list.actions')}</span>
-                </th>
+                {showDeletedOnly && (
+                  <th
+                    scope="col"
+                    className="relative px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
+                  >
+                    <span className="sr-only">
+                      {t('projects.list.actions')}
+                    </span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 bg-white dark:divide-zinc-700 dark:bg-zinc-900">
               {sortedProjects.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={canSelect ? 8 : 7}
+                    colSpan={(canSelect ? 7 : 6) + (showDeletedOnly ? 1 : 0)}
                     className="px-6 py-12 text-center"
                   >
                     <div
@@ -1418,8 +1422,8 @@ export function ProjectListTable({
                           })}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right text-sm font-medium whitespace-nowrap">
-                        {showDeletedOnly ? (
+                      {showDeletedOnly && (
+                        <td className="px-4 py-3 text-right text-sm font-medium whitespace-nowrap">
                           <div className="flex items-center justify-end gap-2">
                             <Button
                               variant="outline"
@@ -1452,31 +1456,8 @@ export function ProjectListTable({
                                 : t('projects.deleted.purge')}
                             </Button>
                           </div>
-                        ) : project.kind === 'flashcard_collection' ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              router.push(`/projects/${project.id}`)
-                            }}
-                            className="mr-4 text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
-                            data-testid={`project-study-${project.id}`}
-                          >
-                            {t('projects.list.study')}
-                          </button>
-                        ) : (
-                          project.enable_annotation !== false && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                router.push(`/projects/${project.id}/label`)
-                              }}
-                              className="mr-4 text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
-                            >
-                              {t('projects.list.label')}
-                            </button>
-                          )
-                        )}
-                      </td>
+                        </td>
+                      )}
                     </tr>
                   )
                 })

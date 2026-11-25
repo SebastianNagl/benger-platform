@@ -460,7 +460,7 @@ describe('ProjectListTable', () => {
       ).toBeInTheDocument()
     })
 
-    it('should render Label button for each project', () => {
+    it('renders no per-row action column outside the deleted view', () => {
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
         ...defaultStoreState,
         projects: mockProjects,
@@ -468,8 +468,11 @@ describe('ProjectListTable', () => {
 
       render(<ProjectListTable />)
 
-      const labelButtons = screen.getAllByText('Label')
-      expect(labelButtons).toHaveLength(3)
+      expect(screen.queryByText('Label')).not.toBeInTheDocument()
+      expect(
+        screen.queryByText('projects.list.actions'),
+      ).not.toBeInTheDocument()
+      expect(screen.queryByText('Actions')).not.toBeInTheDocument()
     })
   })
 
@@ -1503,24 +1506,6 @@ describe('ProjectListTable', () => {
       fireEvent.click(projectTitle)
 
       expect(mockPush).toHaveBeenCalledWith('/projects/1')
-    })
-
-    it('should navigate to label page on Label button click', () => {
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
-        ...defaultStoreState,
-        projects: mockProjects,
-      })
-
-      render(<ProjectListTable />)
-
-      const labelButtons = screen.getAllByText('Label')
-      fireEvent.click(labelButtons[0])
-
-      // The first label button corresponds to the first project in sortedProjects
-      // which might be different from mockProjects order due to default sort
-      expect(mockPush).toHaveBeenCalledWith(
-        expect.stringMatching(/\/projects\/\d+\/label/),
-      )
     })
 
     it('should navigate to create project page', () => {
