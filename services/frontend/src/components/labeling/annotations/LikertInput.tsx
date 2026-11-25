@@ -15,6 +15,7 @@ export default function LikertInput({
   value: externalValue,
   onChange,
   onAnnotation,
+  readOnly = false,
 }: AnnotationComponentProps) {
   const [value, setValue] = useState<number | undefined>(
     externalValue || undefined,
@@ -28,6 +29,7 @@ export default function LikertInput({
   const label = config.props.label || name
 
   const handleChange = (newValue: number) => {
+    if (readOnly) return
     setValue(newValue)
     onChange(newValue)
 
@@ -47,6 +49,7 @@ export default function LikertInput({
         required={required}
         min={min}
         max={max}
+        disabled={readOnly}
       />
       {config.props.hint && (
         <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">

@@ -91,6 +91,9 @@
     @apply block w-full bg-white px-4 py-1.5 text-base text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm;
     @apply dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400;
     @apply disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-500 disabled:hover:ring-zinc-900/10 dark:disabled:bg-white/2.5;
+    /* Read-only shows the content at full contrast but must not look
+       editable: no hover or green focus ring. */
+    @apply read-only:bg-zinc-50 read-only:hover:ring-zinc-900/10 read-only:focus:ring-1 read-only:focus:ring-zinc-900/10 dark:read-only:bg-white/2.5 dark:read-only:hover:ring-white/10 dark:read-only:focus:ring-white/10;
   }
 
   .ui-input {

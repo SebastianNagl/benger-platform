@@ -11,6 +11,7 @@ interface LikertScaleProps {
   required?: boolean
   min?: number
   max?: number
+  disabled?: boolean
 }
 
 const SCALE_POINTS = [1, 2, 3, 4, 5, 6, 7]
@@ -23,6 +24,7 @@ export function LikertScale({
   required = false,
   min = 1,
   max = 7,
+  disabled = false,
 }: LikertScaleProps) {
   const { t } = useI18n()
   const points = Array.from({ length: max - min + 1 }, (_, i) => min + i)
@@ -42,10 +44,13 @@ export function LikertScale({
             <label
               key={point}
               className={clsx(
-                'flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-2 text-sm font-medium transition-colors',
+                'flex h-9 w-9 items-center justify-center rounded-full border-2 text-sm font-medium transition-colors',
+                disabled ? 'cursor-default' : 'cursor-pointer',
                 value === point
                   ? 'border-emerald-600 bg-emerald-600 text-white dark:border-emerald-500 dark:bg-emerald-500'
-                  : 'border-zinc-300 text-zinc-700 hover:border-emerald-400 hover:bg-emerald-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:border-emerald-500 dark:hover:bg-emerald-900/30',
+                  : disabled
+                    ? 'border-zinc-300 text-zinc-700 dark:border-zinc-600 dark:text-zinc-300'
+                    : 'border-zinc-300 text-zinc-700 hover:border-emerald-400 hover:bg-emerald-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:border-emerald-500 dark:hover:bg-emerald-900/30',
               )}
             >
               <input
@@ -54,6 +59,7 @@ export function LikertScale({
                 value={point}
                 checked={value === point}
                 onChange={() => onChange(point)}
+                disabled={disabled}
                 className="sr-only"
                 required={required && value === undefined}
               />

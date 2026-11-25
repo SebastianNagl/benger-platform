@@ -15,6 +15,7 @@ export default function ChoicesInput({
   value: externalValue,
   onChange,
   onAnnotation,
+  readOnly = false,
 }: AnnotationComponentProps) {
   const [selectedValues, setSelectedValues] = useState<string[]>(() => {
     // Initialize from external value if provided and not null
@@ -70,6 +71,7 @@ export default function ChoicesInput({
 
   // Handle selection change
   const handleChange = (value: string, checked: boolean) => {
+    if (readOnly) return
     let newValues: string[]
 
     if (choice === 'single') {
@@ -110,7 +112,11 @@ export default function ChoicesInput({
         {choices.map((choiceOption) => (
           <label
             key={choiceOption.value}
-            className="flex cursor-pointer items-center space-x-2 hover:text-emerald-600 dark:hover:text-emerald-400"
+            className={
+              readOnly
+                ? 'flex cursor-default items-center space-x-2'
+                : 'flex cursor-pointer items-center space-x-2 hover:text-emerald-600 dark:hover:text-emerald-400'
+            }
           >
             <input
               type={inputType}
@@ -122,6 +128,7 @@ export default function ChoicesInput({
               }
               className="form-radio text-emerald-600 focus:ring-emerald-500"
               required={required && selectedValues.length === 0}
+              disabled={readOnly}
             />
             <span className="text-sm">{choiceOption.label}</span>
           </label>
