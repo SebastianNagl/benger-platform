@@ -1215,7 +1215,9 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
                     total: totalTasks,
                   })}
                 </span>
-                <span className="hidden sm:inline"> · </span>
+                <span className="mx-1.5 hidden sm:inline" aria-hidden="true">
+                  ·
+                </span>
                 <span>
                   {t('common.pageOf', {
                     page: currentPage,
