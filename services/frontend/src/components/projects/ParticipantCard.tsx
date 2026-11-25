@@ -1,7 +1,7 @@
 'use client'
 
 import { UserGroupIcon } from '@heroicons/react/24/outline'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 
 import { Button } from '@/components/shared/Button'
 import { useToast } from '@/components/shared/Toast'
@@ -13,6 +13,12 @@ import { useSlot } from '@/lib/extensions/slots'
 interface Props {
   projectId: string
   via: 'share' | 'entitlement' | 'org_exam' | 'attempted' | null
+  /**
+   * The caller's participation, read by the page before its first render
+   * (so the card is there from the first frame); null when it could not be
+   * read.
+   */
+  participation: Participation | null
   /** Called after the user left the project (e.g. navigate to the list). */
   onLeft: () => void
 }
@@ -47,49 +53,31 @@ export interface ProjectCohortLeaderboardSlotProps {
  * i.e. no slot is registered (community edition) or the slot reported
  * `onEmpty(true)`. A leavable participation always shows the card (the leave
  * button is the GDPR withdrawal); its cohort box collapses while the slot
- * reports empty instead of framing an empty table. While the participation
- * is loading the card renders nothing (it may turn out to have nothing to
- * show, and a card that appears and vanishes again shifts the cards below).
- * Likewise, a card that cannot be left stays hidden (mounted, so the slot
- * can fetch) until the slot reported whether the cohort has rows; a slot
- * that never reports keeps such a card hidden. When that fetch fails, the card shows the `via` text, so a page whose
- * participation endpoint is unavailable still says how the user got in.
+ * reports empty instead of framing an empty table. The participation is
+ * read by the page, which waits for it before its first render, so the
+ * card never appears late or vanishes again and shifts the cards below.
+ * A card that cannot be left stays hidden (mounted, so the slot can fetch)
+ * until the slot reported whether the cohort has rows; a slot that never
+ * reports keeps such a card hidden. When the participation could not be
+ * read, the card shows the `via` text, so a page whose participation
+ * endpoint is unavailable still says how the user got in.
  */
-export function ParticipantCard({ projectId, via, onLeft }: Props) {
+export function ParticipantCard({
+  projectId,
+  via,
+  participation,
+  onLeft,
+}: Props) {
   const { t } = useI18n()
   const confirm = useConfirm()
   const { addToast } = useToast()
   const CohortLeaderboard = useSlot('ProjectCohortLeaderboard')
-  const [participation, setParticipation] = useState<Participation | null>(null)
-  // The project whose getParticipation answered (or failed); the card waits
-  // for the answer of the current one.
-  const [settledFor, setSettledFor] = useState<string | null>(null)
-  const settled = settledFor === projectId
   const [leaving, setLeaving] = useState(false)
   // null until the slot reports; see ProjectCohortLeaderboardSlotProps.
   const [cohortEmpty, setCohortEmpty] = useState<boolean | null>(null)
   const onCohortEmpty = useCallback((empty: boolean) => {
     setCohortEmpty(empty)
   }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    sharesAPI
-      .getParticipation(projectId)
-      .then((p) => {
-        if (cancelled) return
-        setParticipation(p)
-        setSettledFor(projectId)
-      })
-      .catch(() => {
-        if (cancelled) return
-        setParticipation(null)
-        setSettledFor(projectId)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [projectId])
 
   const effectiveVia = participation?.via ?? via ?? 'share'
   const canLeave = participation?.can_leave ?? false
@@ -120,8 +108,6 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
     }
   }
 
-  // Unknown yet: show nothing rather than a card that may vanish again.
-  if (!settled) return null
   // Nothing actionable: the user cannot leave and there is no cohort to show.
   if (participation && !canLeave && cohortIsEmpty) return null
 
