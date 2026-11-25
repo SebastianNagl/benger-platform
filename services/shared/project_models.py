@@ -92,12 +92,13 @@ class Project(Base):
     # follow ``annotator_full_visibility_after_submit`` (the reference
     # reveal); True/False decide it on its own, so an exam can show the
     # grading steps while the reference stays hidden. Read it through
-    # ``solution_reveal.step_detail_revealed`` (migration 116). The creation
-    # paths (project create, wizard draft, import without the key) store
-    # True, so hiding the reference on a new project keeps the grading steps
-    # visible. No column default: an ORM default would also replace an
-    # explicit None (an imported "never set"), and rows that never set it
-    # stay NULL and keep following the reference switch.
+    # ``solution_reveal.step_detail_revealed`` (migration 116). New projects
+    # (project create, wizard draft) store True, so hiding the reference on a
+    # new project keeps the grading steps visible. Imports keep the exported
+    # value, and an export without the key imports as NULL, so the copy
+    # behaves like its source. No column default: an ORM default would also
+    # replace those NULLs, and rows that never set it keep following the
+    # reference switch.
     annotator_step_detail_after_submit = Column(Boolean, nullable=True)
 
     # Whether annotators may paste text copied outside BenGER into the

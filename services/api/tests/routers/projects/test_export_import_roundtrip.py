@@ -1456,8 +1456,9 @@ class TestRoundtripExtensions:
         assert imported.handwriting_ocr_enabled is True
         assert imported.handwriting_ocr_model is None
         assert imported.peer_review_enabled is False
-        # An export without the steps switch gets the new-project default.
-        assert imported.annotator_step_detail_after_submit is True
+        # An export without the steps switch keeps following the reference
+        # switch, as its source project did.
+        assert imported.annotator_step_detail_after_submit is None
 
     def test_exported_null_steps_switch_is_kept(
         self, db_session, user, project_with_full_data
