@@ -2046,11 +2046,15 @@ API change).
     keys, Home and End move between the tabs and select). ``TabsList``
     passes other div props such as ``aria-label`` through.
   - ``@/components/shared/Badge``: variant ``info``.
-  - ``@/lib/utils/color``: ``getContrastColor(hex)``, black or white text
-    for a ``#rgb`` / ``#rrggbb`` / ``#rrggbbaa`` background, black for
-    anything else.
-  - ``projectStore.fetchProject`` shares one request per project while it
-    is in flight.
+  - ``@/lib/utils/color``: ``getContrastColor(color)``, black or white text
+    for a background in any CSS colour (hex read directly; names,
+    ``rgb()``, ``hsl()`` through the browser; alpha ignored), white for
+    anything that is not a colour.
+  - ``projectStore.fetchProject(projectId, options?: { shared?: boolean })``:
+    with ``shared: true`` (plain page and breadcrumb reads) it joins the
+    project's request in flight; any other call reads anew, so a refresh
+    after a write never gets data read before it. The response of a
+    request that a newer one has replaced does not touch the store.
 """
 
 import os
