@@ -44,9 +44,7 @@ beforeEach(() => {
   mockAddToast.mockReset()
   useNotificationStore.getState().clearToasts()
   mockAddToast.mockImplementation((message, type, duration, options) =>
-    useNotificationStore
-      .getState()
-      .addToast(message, type, duration, options),
+    useNotificationStore.getState().addToast(message, type, duration, options),
   )
 })
 afterEach(() => {

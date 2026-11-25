@@ -28,7 +28,7 @@ import {
   TrashIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 interface PromptStructure {
   key: string
@@ -76,6 +76,10 @@ export function PromptStructuresManager({
   readOnly = false,
 }: PromptStructuresManagerProps) {
   const { t } = useI18n()
+  // Read t through a ref so a locale or catalog change does not refetch the
+  // structures (t gets a new identity on each of those changes).
+  const tRef = useRef(t)
+  tRef.current = t
   // The answer-format options belong to the variant_experiments flag: off,
   // the editor neither shows nor sends them (the API ignores them too).
   const answerFormat = useFeatureFlag(VARIANT_EXPERIMENTS)
@@ -135,7 +139,7 @@ export function PromptStructuresManager({
       setActiveStructures(activeKeys)
     } catch (err) {
       console.error('Failed to fetch prompt structures:', err)
-      setError(t('projects.promptStructures.loadFailed'))
+      setError(tRef.current('projects.promptStructures.loadFailed'))
       setStructures({})
       setActiveStructures([])
     } finally {

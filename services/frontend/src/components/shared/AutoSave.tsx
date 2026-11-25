@@ -414,9 +414,7 @@ export function useAutoSaveBuffer<V extends Legs>({
     return () => {
       mountedRef.current = false
       if (savedToastRef.current)
-        useNotificationStore
-          .getState()
-          .clearToastAction(savedToastRef.current)
+        useNotificationStore.getState().clearToastAction(savedToastRef.current)
       if (!enabledRef.current || !userChangedRef.current) return
       const pending = valuesRef.current
       if (
