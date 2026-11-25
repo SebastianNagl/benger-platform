@@ -397,6 +397,38 @@ describe('ProjectDetailPage - grading section refresh', () => {
     )
   })
 
+  // Commits a config PUT like the API does: metric_parameters keys the
+  // write left as they were in its base keep the server's value.
+  const commitRebased = (body: any) => {
+    server.evaluation_configs = body.evaluation_configs.map((cfg: any) => {
+      const base = body.evaluation_configs_base.find(
+        (b: any) => b.id === cfg.id,
+      )
+      const stored = server.evaluation_configs.find((c: any) => c.id === cfg.id)
+      const params = { ...cfg.metric_parameters }
+      for (const [key, value] of Object.entries(
+        stored?.metric_parameters ?? {},
+      )) {
+        if (
+          JSON.stringify(cfg.metric_parameters?.[key]) ===
+          JSON.stringify(base?.metric_parameters?.[key])
+        ) {
+          params[key] = value
+        }
+      }
+      return JSON.parse(JSON.stringify({ ...cfg, metric_parameters: params }))
+    })
+  }
+
+  const expectedAfterBoth = {
+    display_name: 'Edited method',
+    metric_parameters: {
+      rubric: 'r1',
+      blind_policy: 'blind',
+      peer_policy: { enabled: true, reviews_per_submission: 2 },
+    },
+  }
+
   it('does not apply a refresh read that a card save overtook', async () => {
     // The server answers a read with the list it holds when the read
     // arrives, and commits a write when it answers it, rebasing the
@@ -423,30 +455,7 @@ describe('ProjectDetailPage - grading section refresh', () => {
         new Promise((resolve) => {
           releasePut = () => {
             if (url.includes('/evaluation-config') && body.evaluation_configs) {
-              server.evaluation_configs = body.evaluation_configs.map(
-                (cfg: any) => {
-                  const base = body.evaluation_configs_base.find(
-                    (b: any) => b.id === cfg.id,
-                  )
-                  const stored = server.evaluation_configs.find(
-                    (c: any) => c.id === cfg.id,
-                  )
-                  const params = { ...cfg.metric_parameters }
-                  for (const [key, value] of Object.entries(
-                    stored?.metric_parameters ?? {},
-                  )) {
-                    if (
-                      JSON.stringify(cfg.metric_parameters?.[key]) ===
-                      JSON.stringify(base?.metric_parameters?.[key])
-                    ) {
-                      params[key] = value
-                    }
-                  }
-                  return JSON.parse(
-                    JSON.stringify({ ...cfg, metric_parameters: params }),
-                  )
-                },
-              )
+              commitRebased(body)
             }
             resolve({ warnings: [] })
           }
@@ -468,17 +477,52 @@ describe('ProjectDetailPage - grading section refresh', () => {
     await new Promise((r) => setTimeout(r, 50))
     await releaseGets()
 
-    const expected = {
-      display_name: 'Edited method',
-      metric_parameters: {
-        rubric: 'r1',
-        blind_policy: 'blind',
-        peer_policy: { enabled: true, reviews_per_submission: 2 },
-      },
-    }
-    expect(server.evaluation_configs[0]).toMatchObject(expected)
+    expect(server.evaluation_configs[0]).toMatchObject(expectedAfterBoth)
     expect(
       JSON.parse(screen.getByTestId('card-configs').textContent!)[0],
-    ).toMatchObject(expected)
+    ).toMatchObject(expectedAfterBoth)
+  })
+
+  it('keeps the grading policy saved while the card saves its settings', async () => {
+    // The card save PATCHes the project settings and eval defaults before
+    // its config PUT; the grading section saves while those are open.
+    const heldPatches: Array<() => void> = []
+    const updateProject = jest.fn(
+      () => new Promise((resolve) => heldPatches.push(() => resolve({}))),
+    )
+    ;(useProjectStore as jest.Mock).mockReturnValue({
+      currentProject: { ...mockProject, effective_role: 'ORG_ADMIN' },
+      loading: false,
+      fetchProject: jest.fn(),
+      updateProject,
+      deleteProject: jest.fn().mockResolvedValue({}),
+    })
+    ;(apiClient.put as jest.Mock).mockImplementation(
+      (url: string, body: any) => {
+        if (url.includes('/evaluation-config') && body.evaluation_configs) {
+          commitRebased(body)
+        }
+        return Promise.resolve({ warnings: [] })
+      },
+    )
+
+    await openEvaluationCard()
+    fireEvent.click(await screen.findByTestId('edit-method'))
+    await waitFor(() => expect(updateProject).toHaveBeenCalled(), {
+      timeout: 5000,
+    })
+
+    fireEvent.click(await screen.findByTestId('save-grading-policy'))
+    await new Promise((r) => setTimeout(r, 50))
+    while (heldPatches.length > 0 || !lastConfigPut()) {
+      heldPatches.splice(0).forEach((release) => release())
+      await new Promise((r) => setTimeout(r, 50))
+    }
+    await new Promise((r) => setTimeout(r, 100))
+
+    expect(server.evaluation_configs[0]).toMatchObject(expectedAfterBoth)
+    expect(
+      JSON.parse(screen.getByTestId('card-configs').textContent!)[0],
+    ).toMatchObject(expectedAfterBoth)
   })
 })
