@@ -29,7 +29,13 @@ import {
 import { TaskFieldReferencePanel } from '@/components/shared/TaskFieldReferencePanel'
 import { Textarea } from '@/components/shared/Textarea'
 import { useI18n } from '@/contexts/I18nContext'
-import { forwardRef, useImperativeHandle, useMemo, useState } from 'react'
+import {
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from 'react'
 
 interface LabelConfigEditorProps {
   initialConfig?: string
@@ -106,11 +112,11 @@ export const LabelConfigEditor = forwardRef<
 
   const error = useMemo(() => labelConfigError(config, t), [config, t])
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (error) throw new Error(error)
     if (!config) throw new Error(t('projects.labelConfig.errorEmpty'))
     await onSave(config)
-  }
+  }, [error, config, onSave, t])
 
   useImperativeHandle(
     ref,
@@ -119,7 +125,7 @@ export const LabelConfigEditor = forwardRef<
       isDirty: () => config !== initialConfig,
       hasErrors: () => !!error,
     }),
-    [config, initialConfig, error, onSave, t],
+    [handleSave, config, initialConfig, error],
   )
 
   return (
