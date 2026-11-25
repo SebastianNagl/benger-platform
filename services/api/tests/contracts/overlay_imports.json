@@ -2013,6 +2013,14 @@
     },
     {
       "module": "project_models",
+      "name": "UploadBatch",
+      "importers": [
+        "benger_extended/api/routers/grading_imports.py",
+        "benger_extended/grading_import.py"
+      ]
+    },
+    {
+      "module": "project_models",
       "name": "attach_ocr_job_to_user",
       "importers": [
         "benger_extended/api/routers/submission_uploads.py"
@@ -2922,6 +2930,27 @@
       "name": "object_storage",
       "importers": [
         "benger_extended/workers/ocr_tasks.py"
+      ]
+    },
+    {
+      "module": "table_grid",
+      "name": "TableReadError",
+      "importers": [
+        "benger_extended/grading_import.py"
+      ]
+    },
+    {
+      "module": "table_grid",
+      "name": "cell_ref",
+      "importers": [
+        "benger_extended/grading_import.py"
+      ]
+    },
+    {
+      "module": "table_grid",
+      "name": "read_table",
+      "importers": [
+        "benger_extended/grading_import.py"
       ]
     },
     {
