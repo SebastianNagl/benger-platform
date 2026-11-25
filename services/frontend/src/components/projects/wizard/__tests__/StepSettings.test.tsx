@@ -125,13 +125,19 @@ describe('StepSettings — toggle handlers', () => {
 
   it('shows the grading steps switch on by default, independent of the model solution', () => {
     renderStep({ annotator_full_visibility_after_submit: false })
-    expect(screen.getByTestId('wizard-setting-reveal-solution')).not.toBeChecked()
-    expect(screen.getByTestId('wizard-setting-reveal-step-detail')).toBeChecked()
+    expect(
+      screen.getByTestId('wizard-setting-reveal-solution'),
+    ).not.toBeChecked()
+    expect(
+      screen.getByTestId('wizard-setting-reveal-step-detail'),
+    ).toBeChecked()
   })
 
   it('treats a draft without the grading steps switch as on', () => {
     renderStep({ annotator_step_detail_after_submit: undefined })
-    expect(screen.getByTestId('wizard-setting-reveal-step-detail')).toBeChecked()
+    expect(
+      screen.getByTestId('wizard-setting-reveal-step-detail'),
+    ).toBeChecked()
   })
 
   it('toggles annotator_step_detail_after_submit (Prüfungspunkte nach Abgabe)', () => {

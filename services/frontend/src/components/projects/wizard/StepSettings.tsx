@@ -184,7 +184,7 @@ export function StepSettings({
               </Label>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
                 {t(
-                  'projects.creation.wizard.stepSettings.revealStepDetailHint'
+                  'projects.creation.wizard.stepSettings.revealStepDetailHint',
                 )}
               </p>
             </div>
