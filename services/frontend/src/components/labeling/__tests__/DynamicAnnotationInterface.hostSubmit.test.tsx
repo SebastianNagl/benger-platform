@@ -66,6 +66,15 @@ describe('DynamicAnnotationInterface: host without the submit button', () => {
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
+  it('renders no empty action bar', async () => {
+    renderForm({ showSubmitButton: false })
+    await screen.findByRole('textbox')
+
+    expect(
+      screen.queryByTestId('annotation-action-bar'),
+    ).not.toBeInTheDocument()
+  })
+
   it('keeps the tip while the skip shortcut works', async () => {
     renderForm({ showSubmitButton: false, onSkip: jest.fn() })
     await screen.findByRole('textbox')
