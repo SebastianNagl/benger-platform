@@ -292,7 +292,7 @@ test.describe('Randomized Order with Annotation Features', () => {
       const buttons = Array.from(document.querySelectorAll('button'))
       for (const btn of buttons) {
         const text = btn.textContent?.trim() || ''
-        if (text === 'Start' || text === 'Annotation starten') {
+        if (text === 'Start' || text === 'Aufgabe starten') {
           btn.click()
           break
         }
@@ -305,7 +305,7 @@ test.describe('Randomized Order with Annotation Features', () => {
       const buttons = Array.from(document.querySelectorAll('button'))
       for (const btn of buttons) {
         const text = btn.textContent?.trim() || ''
-        if (text === 'Annotation starten') {
+        if (text === 'Aufgabe starten') {
           btn.click()
           break
         }

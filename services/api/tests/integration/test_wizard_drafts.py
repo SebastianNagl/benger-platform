@@ -101,6 +101,8 @@ async def test_create_makes_a_private_flagged_project_without_org_rows(
     assert project.is_wizard_draft is True
     assert project.is_private is True and project.is_public is False
     assert project.kind == "exam" and project.label_config == EXAM_CONFIG
+    # Steps stay visible when the wizard hides the reference solution.
+    assert project.annotator_step_detail_after_submit is True
     rows = (
         await db.execute(
             select(ProjectOrganization).where(ProjectOrganization.project_id == project.id)

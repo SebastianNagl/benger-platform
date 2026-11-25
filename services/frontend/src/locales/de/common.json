@@ -249,8 +249,7 @@
       "duplicateSelected": "Ausgewählte duplizieren",
       "editMetadata": "Metadaten bearbeiten",
       "archiveSelected": "Ausgewählte archivieren",
-      "deleteSelected": "Ausgewählte löschen",
-      "selectTasksPrompt": "Aufgaben auswählen, um verfügbare Aktionen zu sehen"
+      "deleteSelected": "Ausgewählte löschen"
     },
     "pagination": {
       "showing": "Zeige",
@@ -538,7 +537,9 @@
           "strictTimerHint": "Annotation automatisch absenden, wenn die Zeit abläuft",
           "advancedNote": "Weitere Einstellungen (Review-Modus, Feedback) sind nach der Erstellung auf der Projektseite verfügbar.",
           "revealSolution": "Musterlösung nach Abgabe anzeigen",
-          "revealSolutionHint": "Nach der Abgabe sehen Bearbeitende alle Aufgabenfelder inkl. Musterlösung."
+          "revealSolutionHint": "Nach der Abgabe sehen Bearbeitende alle Aufgabenfelder inkl. Musterlösung.",
+          "revealStepDetail": "Prüfungspunkte nach Abgabe anzeigen",
+          "revealStepDetailHint": "Nach der Abgabe sehen Bearbeitende die Punkte und Begründungen zu jedem Prüfungspunkt ihrer Bewertung, auch wenn die Musterlösung verborgen bleibt."
         },
         "evalSaveFailed": "Evaluationskonfiguration konnte nicht gespeichert werden",
         "promptStructureSaveFailed": "Prompt-Struktur konnte nicht gespeichert werden (Prompts sind weiterhin in der Generierungskonfiguration gespeichert)",
@@ -744,7 +745,6 @@
       "showingResults": "Zeige {shown} von {total} Ergebnissen",
       "created": "Erstellt",
       "actions": "Aktionen",
-      "label": "Annotieren",
       "sortTitle": "Titel",
       "sortOrganization": "Organisation",
       "sortCreated": "Erstellungsdatum",
@@ -768,7 +768,6 @@
       },
       "kindDeck": "Kartenstapel",
       "kindExam": "Klausur",
-      "study": "Lernen",
       "importTargetGroupLabel": "Gruppe",
       "importTargetGroupOrgWide": "Gesamte Organisation",
       "publicContributorBadge": "Öffentlich · Mitwirkende:r",
@@ -939,7 +938,6 @@
       "unarchiveSelected": "Ausgewählte dearchivieren",
       "archiveSelected": "Ausgewählte archivieren",
       "deleteSelected": "Ausgewählte löschen",
-      "selectProjectsPrompt": "Projekte auswählen, um verfügbare Aktionen zu sehen",
       "exportNdjsonGz": "Als NDJSON (gzip) exportieren, für große Projekte",
       "exportComprehensive": "Als JSON exportieren (eine Datei je Projekt)"
     },
@@ -1419,7 +1417,7 @@
         "annotatorFullVisibility": "Alle Felder nach Abgabe anzeigen",
         "annotatorFullVisibilityHelp": "Wenn aktiviert, sehen Annotatoren beim Ansehen ihrer eigenen abgegebenen Arbeit alle Aufgabenfelder einschließlich der Musterlösung. Wenn deaktiviert, ist diese Ansicht auf die Felder beschränkt, die sie beim Annotieren gesehen haben, und die Musterlösung bleibt verborgen. Die Schritte der Bewertung steuert die Einstellung darunter.",
         "annotatorStepDetail": "Bewertungsschritte nach Abgabe anzeigen",
-        "annotatorStepDetailHelp": "Wenn aktiviert, sehen Annotatoren nach ihrer Abgabe die Punkte und Begründungen zu jedem Schritt des Bewertungsbogens. Note und Gesamtpunkte sind immer sichtbar. Die Hinweise des Bewertungsbogens bleiben verborgen, solange die Musterlösung nicht angezeigt wird. Solange du sie nicht änderst, übernimmt sie den Wert der Einstellung darüber.",
+        "annotatorStepDetailHelp": "Wenn aktiviert, sehen Annotatoren nach ihrer Abgabe die Punkte und Begründungen zu jedem Schritt des Bewertungsbogens. Note und Gesamtpunkte sind immer sichtbar. Die Hinweise des Bewertungsbogens bleiben verborgen, solange die Musterlösung nicht angezeigt wird. Sie ist unabhängig von der Musterlösung: neue Projekte zeigen die Schritte standardmäßig an. Bei älteren Projekten, in denen sie nie gesetzt wurde, übernimmt sie den Wert der Einstellung darüber.",
         "restorableCheckpoints": "Wiederherstellbare Zwischenstände speichern",
         "restorableCheckpointsHelp": "Speichert regelmäßig (alle 5 Minuten) Zwischenstände der laufenden Bearbeitung, sodass Annotatoren einen früheren Stand wiederherstellen können. Die Zwischenstände bleiben auch nach der Abgabe erhalten.",
         "samplingMethod": "Aufgaben-Sampling-Methode",
@@ -1515,7 +1513,7 @@
     },
     "quickActions": {
       "title": "Schnellaktionen",
-      "startLabeling": "Annotation starten",
+      "startLabeling": "Aufgabe starten",
       "allTasksAnnotated": "Alle Aufgaben annotiert",
       "projectData": "Projektdaten",
       "myTasks": "Meine Aufgaben",
@@ -1523,7 +1521,7 @@
       "generation": "Generierung",
       "evaluations": "Evaluierungen",
       "reviewWorkflow": "Review-Workflow",
-      "korrektur": "Korrektur",
+      "korrektur": "Menschl. Korrektur",
       "members": "Mitglieder"
     },
     "billing": {
@@ -1805,7 +1803,7 @@
       "unlabeled": "Unbeschriftet",
       "annotations": "Annotationen",
       "generations": "Generierungen",
-      "startLabeling": "Beschriftung starten",
+      "startLabeling": "Aufgabe starten",
       "viewAnnotations": "Annotationen anzeigen",
       "skipTask": "Aufgabe überspringen",
       "existingAnnotations": "Vorhandene Annotationen",
@@ -1865,7 +1863,7 @@
       "skipped": "Übersprungen",
       "allTasks": "Alle Aufgaben",
       "tasksAssigned": "Aufgaben zugewiesen",
-      "startAnnotating": "Annotation starten",
+      "startAnnotating": "Aufgabe starten",
       "loadingTasks": "Aufgaben werden geladen...",
       "noTasksWithStatus": "Keine Aufgaben mit Status \"{status}\".",
       "searchPlaceholder": "Nach Aufgaben-ID oder Titel suchen…",
@@ -7209,7 +7207,7 @@
     "instructions": {
       "title": "Annotationsanweisungen",
       "dontShowAgain": "Für dieses Projekt nicht mehr anzeigen",
-      "startAnnotating": "Annotation starten",
+      "startAnnotating": "Aufgabe starten",
       "showInstructions": "Anweisungen",
       "close": "Schließen"
     },
@@ -7418,7 +7416,7 @@
       "search": "Suchen",
       "orderBy": "Sortieren nach",
       "reviewAll": "Alle Aufgaben prüfen",
-      "labelAll": "Alle Aufgaben beschriften",
+      "labelAll": "Aufgabe starten",
       "import": "Aufgaben importieren",
       "export": "Aufgaben exportieren",
       "previous": "Zurück",
@@ -8749,7 +8747,7 @@
     }
   },
   "korrekturWorkflow": {
-    "title": "Korrektur",
+    "title": "Menschliche Korrektur",
     "loadFailed": "Korrektur-Daten konnten nicht geladen werden",
     "notEnabled": "Korrektur ist für dieses Projekt nicht aktiviert. Aktiviere es im Projekt-Wizard unter Evaluation Methods → Human Evaluation.",
     "noTasks": "Keine Aufgaben gefunden",
@@ -9217,6 +9215,9 @@
     },
     "pagination": {
       "goToPage": "Gehe zu Seite {page}"
+    },
+    "selectionActions": {
+      "actions": "Aktionen"
     }
   },
   "templates": {

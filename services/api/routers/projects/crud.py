@@ -622,6 +622,9 @@ async def create_project(
         # Timed access window (optional at creation; also editable via ProjectUpdate).
         window_start_at=project.window_start_at,
         window_end_at=project.window_end_at,
+        # Grading steps stay visible after submit even when the reference
+        # solution is hidden; NULL ("follow the reference") is legacy only.
+        annotator_step_detail_after_submit=True,
     )
 
     db.add(db_project)

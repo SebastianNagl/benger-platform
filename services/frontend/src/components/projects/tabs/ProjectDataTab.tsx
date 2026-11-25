@@ -1000,27 +1000,33 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
                 </Menu.Items>
               </Menu>
 
-              <Button variant="outline" className="hidden md:flex">
-                <DocumentMagnifyingGlassIcon className="mr-2 h-4 w-4" />
-                <span className="hidden lg:inline">
+              {/* The review page only serves projects with review on. */}
+              {currentProject?.review_enabled && !isDeletedProject && (
+                <Button
+                  href={`/projects/${projectId}/review`}
+                  variant="outline"
+                  className="hidden md:flex"
+                  data-testid="data-review-all"
+                >
+                  <DocumentMagnifyingGlassIcon className="mr-2 h-4 w-4" />
                   {t('annotationTab.buttons.reviewAll')}
-                </span>
-                <span className="lg:hidden">
-                  {t('annotationTab.buttons.reviewAll')}
-                </span>
-              </Button>
-
-              {!isDeletedProject && (
-                <Button variant="primary" className="flex">
-                  <PlayIcon className="mr-2 h-4 w-4" />
-                  <span className="hidden sm:inline">
-                    {t('annotationTab.buttons.labelAll')}
-                  </span>
-                  <span className="sm:hidden">
-                    {t('annotationTab.buttons.labelAll')}
-                  </span>
                 </Button>
               )}
+
+              {/* Same way into the task queue as the project page's start
+              button. */}
+              {!isDeletedProject &&
+                currentProject?.enable_annotation !== false && (
+                  <Button
+                    href={`/projects/${projectId}/label`}
+                    variant="primary"
+                    className="flex"
+                    data-testid="data-start-tasks"
+                  >
+                    <PlayIcon className="mr-2 h-4 w-4" />
+                    {t('annotationTab.buttons.labelAll')}
+                  </Button>
+                )}
             </div>
 
             {/* Secondary Actions - Import/Export buttons */}

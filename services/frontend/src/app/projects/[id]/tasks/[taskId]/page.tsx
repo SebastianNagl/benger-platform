@@ -14,11 +14,11 @@ import { Textarea } from '@/components/shared/Textarea'
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { useRouteProject } from '@/hooks/useRouteProject'
 import { isExamNotReadyError } from '@/lib/api/errors'
 import { projectsAPI } from '@/lib/api/projects'
 import { useSlot } from '@/lib/extensions/slots'
 import { logger } from '@/lib/utils/logger'
-import { useProjectStore } from '@/stores/projectStore'
 import { Task } from '@/types/labelStudio'
 import { CheckIcon, PencilIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/navigation'
@@ -72,7 +72,10 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
     typeof projectId,
   )
 
-  const { currentProject, fetchProject } = useProjectStore()
+  // Only this URL's project: the store may still hold another one, whose
+  // title and skip setting must not show here.
+  const { project: currentProject, notFound: projectNotFound } =
+    useRouteProject(projectId)
   const [task, setTask] = useState<Task | null>(null)
   const [loading, setLoading] = useState(true)
   // The read was refused with 403 exam_not_ready (a participant of an exam
@@ -86,13 +89,6 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editedData, setEditedData] = useState('')
   const [isSaving, setIsSaving] = useState(false)
-
-  // Load project if not already loaded
-  useEffect(() => {
-    if (projectId && (!currentProject || currentProject.id !== projectId)) {
-      fetchProject(projectId)
-    }
-  }, [projectId, currentProject, fetchProject])
 
   // Load task details
   useEffect(() => {
@@ -225,7 +221,9 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
     }
   }
 
-  if (loading) {
+  // The header shows the project's title and the actions its settings: wait
+  // for both the task and the project (unless the project read failed).
+  if (loading || (!currentProject && !projectNotFound)) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">

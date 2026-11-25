@@ -34,15 +34,18 @@ jest.mock(
 
 import { registerAll as complianceRegisterAll } from '@benger/compliance'
 import { registerAll as extendedRegisterAll } from '@benger/extended'
+import { act, renderHook } from '@testing-library/react'
 import {
   _resetExtensionsForTests,
   enabledExtensions,
+  extensionsSettled,
   getRegistrationOwner,
   isExtendedLoaded,
   isExtensionEnabled,
   isExtensionLoaded,
   loadExtended,
   loadExtensions,
+  useExtensionsSettled,
 } from '../index'
 
 const extendedMock = extendedRegisterAll as jest.Mock
@@ -259,5 +262,38 @@ describe('loadExtended (legacy entry point)', () => {
     setEnv(EXT, 'compliance')
     await expect(loadExtended()).resolves.toBe(false)
     expect(isExtensionLoaded('compliance')).toBe(true)
+  })
+})
+
+describe('extensionsSettled', () => {
+  test('is settled at once when the build enables no overlay', () => {
+    expect(extensionsSettled()).toBe(true)
+  })
+
+  test('settles once every enabled overlay had its first load', async () => {
+    setEnv(EXT, 'extended,compliance')
+    expect(extensionsSettled()).toBe(false)
+    await loadExtensions()
+    expect(extensionsSettled()).toBe(true)
+  })
+
+  test('a failed overlay counts as settled, so nothing waits forever', async () => {
+    setEnv(EXT, 'extended')
+    extendedMock.mockImplementationOnce(() => {
+      throw new Error('boom')
+    })
+    await loadExtensions()
+    expect(isExtensionLoaded('extended')).toBe(false)
+    expect(extensionsSettled()).toBe(true)
+  })
+
+  test('the hook re-renders when the overlays settle', async () => {
+    setEnv(EXT, 'extended')
+    const { result } = renderHook(() => useExtensionsSettled())
+    expect(result.current).toBe(false)
+    await act(async () => {
+      await loadExtensions()
+    })
+    expect(result.current).toBe(true)
   })
 })

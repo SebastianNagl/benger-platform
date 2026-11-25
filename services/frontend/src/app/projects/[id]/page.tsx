@@ -52,6 +52,7 @@ import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useModels } from '@/hooks/useModels'
+import { useRouteProject } from '@/hooks/useRouteProject'
 import { analysisAPI } from '@/lib/api/analysis'
 import { apiClient } from '@/lib/api/client'
 import { isExamNotReadyError } from '@/lib/api/errors'
@@ -61,7 +62,7 @@ import type {
 } from '@/lib/api/evaluation-types'
 import { describeEvaluationConfigWarnings } from '@/lib/evaluation/configWarnings'
 import { useSlot } from '@/lib/extensions/slots'
-import { useFeatureFlag } from '@/lib/featureFlags'
+import { useFeatureFlag, useFeatureFlagsReady } from '@/lib/featureFlags'
 import {
   REPORT_PAPER,
   VARIANT_EXPERIMENTS,
@@ -154,13 +155,17 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const reportPaper = useFeatureFlag(REPORT_PAPER)
   const maxRunsPerTask = useMaxGenerationRunsPerTask()
 
-  const {
-    currentProject,
-    loading,
-    fetchProject,
-    updateProject,
-    deleteProject,
-  } = useProjectStore()
+  const { fetchProject, updateProject, deleteProject } = useProjectStore()
+  // Only the project this URL names: the store may still hold the one
+  // opened before, whose title, gates and quick actions must not show here
+  // until the answer swaps them. Fetched on every visit (fresh counts).
+  const { project: currentProject, notFound } = useRouteProject(projectId, {
+    refresh: true,
+  })
+  // The page's first frame already shows flag-gated parts (the Evaluations
+  // target, the report card, the extended quick actions): it waits for the
+  // flags rather than adding them a moment later.
+  const flagsReady = useFeatureFlagsReady()
 
   // Every gate below reads the per-project fields the API resolves across
   // ALL of the caller's memberships (effective_role, can_edit, access_tier).
@@ -399,6 +404,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const ProjectEvaluationSettingsSection = useSlot(
     'project-evaluation-settings-section',
   )
+  // A section of its own inside the evaluation card, after the methods, for
+  // how people grade (e.g. the human grading settings). It saves itself like
+  // the grade scale slot and is not part of the card's auto-save. Community
+  // builds register nothing → the card is unchanged.
+  const ProjectEvaluationGradingSection = useSlot(
+    'project-evaluation-grading-section',
+  )
   // Student access (share links, participants, discoverability) — sub-sections
   // of the Project settings card, filled by the extended edition.
   const ProjectSharing = useSlot('project-sharing')
@@ -518,35 +530,58 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     }
   }
 
-  // Always fetch project data when component mounts - ensures fresh data
+  // Check if current user has completed all tasks (per-user, not global).
+  // Its answer shapes the first quick action (the "all annotated" notice,
+  // "Annotation starten" disabled while an exam is not ready), so the page
+  // waits for it (nextCheckedFor) instead of changing the action later. The
+  // first check runs while the project still loads, not after it; the
+  // project's arrival is no reason to ask again, a change of its counts is.
+  const taskCount = currentProject?.task_count
+  const annotationCount = currentProject?.annotation_count
+  const [nextCheckedFor, setNextCheckedFor] = useState<string | null>(null)
+  const nextAskedRef = useRef<{
+    projectId: string
+    counts: string | null
+    request: number
+  } | null>(null)
   useEffect(() => {
-    if (projectId) {
-      // Always fetch the project data to ensure we have the latest information
-      // This handles both initial load and navigation back from other pages
-      fetchProject(projectId, { shared: true })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchProject is stable, only re-run when projectId changes
-  }, [projectId])
-
-  // Check if current user has completed all tasks (per-user, not global)
-  useEffect(() => {
-    if (!projectId || !currentProject?.task_count) {
-      setUserCompletedAllTasks(false)
-      setExamNotReady(false)
+    if (!projectId) return
+    const counts =
+      taskCount === undefined ? null : `${taskCount}:${annotationCount}`
+    const prev = nextAskedRef.current
+    if (
+      prev &&
+      prev.projectId === projectId &&
+      (prev.counts === null || prev.counts === counts)
+    ) {
+      prev.counts = counts
       return
     }
-    const checkUserCompletion = async () => {
-      try {
-        const result = await apiClient.get(`/projects/${projectId}/next`)
+    const request = (prev?.request ?? 0) + 1
+    nextAskedRef.current = { projectId, counts, request }
+    const isLatest = () => nextAskedRef.current?.request === request
+    if (taskCount === 0) {
+      setUserCompletedAllTasks(false)
+      setExamNotReady(false)
+      setNextCheckedFor(projectId)
+      return
+    }
+    apiClient
+      .get(`/projects/${projectId}/next`)
+      .then((result: { task?: unknown; remaining?: number }) => {
+        if (!isLatest()) return
         setUserCompletedAllTasks(!result.task && result.remaining === 0)
         setExamNotReady(false)
-      } catch (error) {
+      })
+      .catch((error: unknown) => {
+        if (!isLatest()) return
         setUserCompletedAllTasks(false)
         setExamNotReady(isExamNotReadyError(error))
-      }
-    }
-    checkUserCompletion()
-  }, [projectId, currentProject?.task_count, currentProject?.annotation_count])
+      })
+      .finally(() => {
+        if (isLatest()) setNextCheckedFor(projectId)
+      })
+  }, [projectId, taskCount, annotationCount])
 
   // Fetch report status when user or projectId changes (Issue #770)
   useEffect(() => {
@@ -1663,7 +1698,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     evaluation: saveEvaluationCard,
   }
 
-  if (!projectId || (loading && !currentProject)) {
+  // One step from loading to the full page: the project of this URL, the
+  // flags and the per-user task check are all known before anything shows.
+  if (
+    !projectId ||
+    (!currentProject && !notFound) ||
+    (currentProject && (!flagsReady || nextCheckedFor !== projectId))
+  ) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <div className="text-center">
@@ -1817,11 +1858,14 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                         : t('projects.list.participantBadge')}
                     </span>
                   )}
+                  {/* The edit buttons show on hover; on a touch screen (no
+                      hover) and for keyboard focus they always show, so
+                      they are never invisible yet in the way. */}
                   {canEditProject() && (
                     <Button
                       onClick={handleStartEditTitle}
                       variant="outline"
-                      className="opacity-0 transition-opacity group-hover:opacity-100"
+                      className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
                     >
                       <PencilIcon className="h-4 w-4" />
                     </Button>
@@ -1832,7 +1876,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       <Button
                         onClick={handleStartEditDescription}
                         variant="outline"
-                        className="text-sm opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                        className="text-sm opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
                         data-testid="project-add-description"
                       >
                         {t('project.editing.addDescription')}
@@ -1888,7 +1932,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       <Button
                         onClick={handleStartEditDescription}
                         variant="outline"
-                        className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                        className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
                       >
                         <PencilIcon className="h-4 w-4" />
                       </Button>
@@ -2758,6 +2802,23 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                         </div>
                       </SubSection>
 
+                      {/* Grading section (extended slot): its own titled
+                      sub-section after the methods. */}
+                      {ProjectEvaluationGradingSection && currentProject && (
+                        // The slot renders nothing for projects without
+                        // such grading: no empty divided row in the card.
+                        <div
+                          data-testid="project-evaluation-grading-section"
+                          className="empty:hidden"
+                        >
+                          <ProjectEvaluationGradingSection
+                            project={currentProject}
+                            projectId={projectId || ''}
+                            onRefresh={() => fetchProject(projectId)}
+                          />
+                        </div>
+                      )}
+
                       {/* Analyses of variant experiments: designs, saved
                       plans and the start dialog the evaluations page
                       shares. Saves itself. */}
@@ -3075,7 +3136,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   variant="outline"
                   className="w-full"
                 >
-                  <DocumentTextIcon className="mr-2 h-4 w-4" />
                   {t('project.quickActions.myTasks')}
                 </Button>
               )}

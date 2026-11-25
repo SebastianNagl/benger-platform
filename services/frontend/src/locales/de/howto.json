@@ -77,7 +77,7 @@
         "**API-Schlüssel**: Stellt deine Organisation Schlüssel bereit, musst du nichts tun. Sonst hinterlegst du unter [Profil](/profile) → *API-Schlüssel-Verwaltung* einen Schlüssel des KI-Anbieters, den du nutzen willst.",
         "**Projekt anlegen**: [Projekte](/projects) → *Neues Projekt*, Projekttyp und Funktionen wählen.",
         "**Daten hochladen**: im Assistenten oder später über *Projektdaten* (JSON, CSV, TSV, TXT).",
-        "**Annotieren**: *Annotation starten* auf der Projektseite. **Generieren** und **Evaluieren** über die jeweilige Konfigurationskarte.",
+        "**Annotieren**: *Aufgabe starten* auf der Projektseite. **Generieren** und **Evaluieren** über die jeweilige Konfigurationskarte.",
         "**Ergebnisse**: [Evaluation](/evaluations), [Berichte](/reports) und [Bestenlisten](/leaderboards)."
       ],
       "keywords": ["Einstieg", "Start", "Checkliste", "Anfang", "los"]
@@ -274,14 +274,14 @@
     },
     "project-page": {
       "title": "Wie ist die Projektseite aufgebaut und wo finde ich was?",
-      "summary": "Die Projektseite besteht aus aufklappbaren Karten. Links die Konfiguration (Projektdetails, Annotationskonfiguration, Generierung, Evaluation, Einstellungen, Freigabe), rechts Schnellaktionen, Abrechnung, Statistiken und der Projektbericht. Daten, Meine Aufgaben, Korrektur und Review sind eigene Seiten.",
+      "summary": "Die Projektseite besteht aus aufklappbaren Karten. Links die Konfiguration (Projektdetails, Annotationskonfiguration, Generierung, Evaluation, Einstellungen, Freigabe), rechts Schnellaktionen, Abrechnung, Statistiken und der Projektbericht. Daten, Meine Aufgaben, Menschliche Korrektur und Review sind eigene Seiten.",
       "steps": [
         "**Projektdetails**: Status, Ersteller, Projekt-ID, Organisationen. Titel und Beschreibung änderst du direkt im Kopf der Seite (Stift beim Überfahren).",
         "**Annotationskonfiguration**: Anweisungen für Annotierende, Varianten für A/B-Tests, die Label-Konfiguration (XML) und *Annotationsablauf & -verhalten* (Zuweisungsmodus, Zeitlimit, Review- und Korrekturphase).",
         "**Generierungskonfiguration** und **Evaluierungskonfiguration**: Modelle, Prompts, Bewertungsverfahren, jeweils mit einem Startknopf.",
         "**Einstellungen**: Projekttyp, Sichtbarkeit der Bereiche (welche Karten es gibt), die Projekt-Sichtbarkeit (Privat, Organisation, Öffentlich) und das Zeitfenster für den Zugriff.",
         "**Freigabe**: Auffindbarkeit unter *Entdecken*, Freigabe-Links und Teilnehmende.",
-        "**Schnellaktionen** rechts: *Annotation starten*, *Projektdaten* (Aufgaben, Import, Export), *Meine Aufgaben*, *Generierung*, *Evaluierungen*, *Review-Workflow*, *Korrektur*, *Projekt löschen*."
+        "**Schnellaktionen** rechts: *Aufgabe starten*, *Projektdaten* (Aufgaben, Import, Export), *Meine Aufgaben*, *Generierung*, *Evaluierungen*, *Review-Workflow*, *Menschl. Korrektur*, *Projekt löschen*."
       ],
       "tips": [
         "Fehlt eine Karte, ist der Bereich unter **Einstellungen → Sichtbarkeit der Bereiche** ausgeschaltet. Diese Schalter steuern auch die Fortschrittsanzeige.",
@@ -519,7 +519,7 @@
         "**Anzeigen**: `<Text name=\"fall\" value=\"$sachverhalt\"/>` zeigt ein Datenfeld. `<Header value=\"Frage\"/>` ist eine Überschrift. `<Image>` zeigt Bilder.",
         "**Eingeben**: `<TextArea name=\"antwort\" toName=\"fall\" rows=\"6\"/>` (Freitext), `<Choices name=\"wahl\" toName=\"fall\"><Choice value=\"A\"/><Choice value=\"B\"/></Choices>` (Auswahl), `<Labels name=\"marken\" toName=\"fall\"><Label value=\"Norm\"/></Labels>` (Textstellen markieren), `<Rating>`, `<Likert>`, `<Number>`.",
         "Jedes Eingabe-Tag braucht ein eindeutiges `name` (wird der Schlüssel der Annotation) und ein `toName`, das auf ein Anzeige-Tag zeigt.",
-        "**Konfiguration speichern**. Prüf das Ergebnis über **Annotation starten**, eine Live-Vorschau gibt es nicht."
+        "**Konfiguration speichern**. Prüf das Ergebnis über **Aufgabe starten**, eine Live-Vorschau gibt es nicht."
       ],
       "tips": [
         "Klausur-Tags der erweiterten Edition: `<Angabe value=\"$sachverhalt\" bearbeitervermerk=\"$bearbeitervermerk\" zusatzmaterial=\"$zusatzmaterial\">` mit `<Label>`-Kindern als Markierungsfarben, `<Notizen>`, `<Gliederung>` und `<Loesung linkedTo=\"gliederung\">`. Die Vorlage *Klausurlösung* zeigt das vollständige Beispiel.",
@@ -550,7 +550,7 @@
     },
     "annotation-instructions": {
       "title": "Wie gebe ich Annotierenden Anweisungen und wie funktioniert das Annotieren?",
-      "summary": "Anweisungen schreibst du im Assistenten (Schritt *Anweisungen*) oder auf der Projektseite unter **Annotationskonfiguration → Annotationsanweisungen**. Annotierende starten über **Annotation starten** oder **Meine Aufgaben**, bearbeiten Aufgabe für Aufgabe und geben mit *Absenden* ab.",
+      "summary": "Anweisungen schreibst du im Assistenten (Schritt *Anweisungen*) oder auf der Projektseite unter **Annotationskonfiguration → Annotationsanweisungen**. Annotierende starten über **Aufgabe starten** oder **Meine Aufgaben**, bearbeiten Aufgabe für Aufgabe und geben mit *Absenden* ab.",
       "steps": [
         "**Annotationsanweisungen** (Markdown) werden Annotierenden über der Aufgabe angezeigt.",
         "**Bedingte Anweisungsvarianten** für A/B-Tests: mehrere Varianten mit Gewichten in Prozent, die zusammen 100 ergeben müssen.",
@@ -737,7 +737,7 @@
         "**Semantisch**: Semantic Similarity, BERTScore, MoverScore. Vergleichen Bedeutung über Embeddings, laufen nur in der Batch-Evaluation.",
         "**Klassifikation**: Accuracy, Precision, Recall, F1 für Auswahlaufgaben.",
         "**LLM-as-Judge**: *Classic* (vordefinierte Dimensionen), *Custom* (eigener Prompt und eigene Kriterien), *Falllösung* (10 juristische Dimensionen mit Notenpunkten 0 bis 18), *LLM Custom Rubric* (pro Aufgabe automatisch erzeugter Bewertungsbogen).",
-        "**Menschliche Korrektur**: *Korrektur (Classic)* mit Kommentaren und Markierungen, *Korrektur (Falllösung)* und *Korrektur (Custom Rubric)* nach demselben Schema wie der jeweilige Judge. Du schaltest die Seite **Korrektur** im Projekt frei.",
+        "**Menschliche Korrektur**: *Korrektur (Classic)* mit Kommentaren und Markierungen, *Korrektur (Falllösung)* und *Korrektur (Custom Rubric)* nach demselben Schema wie der jeweilige Judge. Du schaltest die Seite **Menschliche Korrektur** im Projekt frei.",
         "Für jedes Verfahren: **Vorhersagefeld** (z.B. `loesung` oder *Alle Modellausgaben*) und **Referenzfeld** (z.B. `task.musterloesung`). Bei mehreren Referenzen zählt der beste Treffer."
       ],
       "tips": [
@@ -809,11 +809,11 @@
       ]
     },
     "korrektur-review": {
-      "title": "Wie korrigieren Menschen Abgaben (Korrektur) und was ist der Review-Workflow?",
-      "summary": "**Korrektur** ist die menschliche Bewertung von Abgaben nach dem Falllösungsschema, einer eigenen Rubrik oder mit Kommentaren. Sie wird über die Verfahren *Korrektur (…)* aktiviert und über die Schnellaktion **Korrektur** bedient. **Review** ist eine Prüfphase, in der Annotationen vor der Finalisierung geprüft werden.",
+      "title": "Wie korrigieren Menschen Abgaben (menschliche Korrektur) und was ist der Review-Workflow?",
+      "summary": "**Menschliche Korrektur** ist die Bewertung von Abgaben durch Menschen nach dem Falllösungsschema, einer eigenen Rubrik oder mit Kommentaren. Sie wird über die Verfahren *Korrektur (…)* aktiviert und über die Schnellaktion **Menschl. Korrektur** bedient. **Review** ist eine Prüfphase, in der Annotationen vor der Finalisierung geprüft werden.",
       "steps": [
         "Korrektur aktivieren: Verfahren *Korrektur (Falllösung)*, *Korrektur (Custom Rubric)* oder *Korrektur (Classic)* auswählen. Im Verfahren stellst du Warteschlange (wer korrigiert was), blinde Korrektur (fremde Bewertungen verbergen) und Zeitlimit ein.",
-        "Korrigieren: Projektseite → **Korrektur** → nächste Abgabe. Punkte je Dimension, Gesamtwürdigung und Verbesserungstipps, optional Randbemerkungen.",
+        "Korrigieren: Projektseite → **Menschl. Korrektur** → nächste Abgabe. Punkte je Dimension, Gesamtwürdigung und Verbesserungstipps, optional Randbemerkungen.",
         "Annotierende sehen ihre Korrektur unter **Meine Aufgaben** bzw. Studierende unter *Feedback* in der Klausur. Eine menschliche Note überschreibt die KI-Note in der Bestenliste und in der Lernplattform.",
         "Review: Projektseite → *Annotationsablauf & -verhalten* → **Überprüfungsphase aktivieren**, Modus *Direkte Korrektur*, *Unabhängige Überprüfung* oder *Beides*. Bedienung über die Schnellaktion **Review-Workflow**."
       ],

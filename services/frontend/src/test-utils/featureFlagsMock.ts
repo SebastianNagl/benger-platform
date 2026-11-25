@@ -36,6 +36,7 @@ export function featureFlagsMockModule() {
     useFeatureFlagStatus: (name: string) =>
       flags[name] === true ? 'on' : 'off',
     useFeatureFlagMap: () => flags,
+    useFeatureFlagsReady: () => true,
     useFeatureFlagsSync: () => undefined,
     FeatureFlagsSync: () => null,
   }

@@ -27,6 +27,7 @@ from auth_module.models import User as AuthUser
 from main import app
 from models import Organization, User
 from project_models import Project, ProjectOrganization
+from solution_reveal import reference_revealed, step_detail_revealed
 
 
 def _uid() -> str:
@@ -265,6 +266,12 @@ class TestProjectsRouter:
         assert row is not None
         assert row.title == "New Project"
         assert row.created_by == admin.id
+        # Regression: a new project hides the reference solution by default
+        # but still shows the grading steps after submit.
+        assert row.annotator_step_detail_after_submit is True
+        assert row.annotator_full_visibility_after_submit is False
+        assert reference_revealed(row) is False
+        assert step_detail_revealed(row) is True
 
     @pytest.mark.asyncio
     async def test_create_project_invalid_data(self, async_test_client, async_test_db):

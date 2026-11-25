@@ -179,8 +179,33 @@ let mockGradeScaleSlotRendersNothing = false
 // received and, on click, hands back a list with one parameter changed on the
 // first config, the way an extension row edits a config.
 let mockEvalSettingsSlotRegistered = false
+// Grading section slot: its own section after the methods; the stub shows
+// the props it got and can be told to render nothing.
+let mockGradingSlotRegistered = false
+let mockGradingSlotRendersNothing = false
 jest.mock('@/lib/extensions/slots', () => ({
   useSlot: (name: string) => {
+    if (name === 'project-evaluation-grading-section') {
+      if (!mockGradingSlotRegistered) return null
+      if (mockGradingSlotRendersNothing) {
+        const EmptyGradingStub = () => null
+        EmptyGradingStub.displayName = 'EmptyGradingStub'
+        return EmptyGradingStub
+      }
+      const GradingStub = ({ project, projectId, onRefresh }: any) => (
+        <div
+          data-testid="grading-section-slot"
+          data-project-id={projectId}
+          data-project-title={project?.title}
+        >
+          <button data-testid="grading-section-refresh" onClick={onRefresh}>
+            refresh
+          </button>
+        </div>
+      )
+      GradingStub.displayName = 'GradingStub'
+      return GradingStub
+    }
     if (name === 'project-evaluation-settings-section') {
       if (!mockEvalSettingsSlotRegistered) return null
       const EvalSettingsStub = ({
@@ -1145,6 +1170,78 @@ describe('Evaluation card — grade-scale slot', () => {
     expect(screen.queryByTestId('grade-scale-slot')).not.toBeInTheDocument()
     // and the rest of the card is untouched
     expect(await screen.findByTestId('evaluation-builder')).toBeInTheDocument()
+  })
+})
+
+describe('Evaluation card — grading section slot', () => {
+  afterEach(() => {
+    mockGradingSlotRegistered = false
+    mockGradingSlotRendersNothing = false
+  })
+
+  it('mounts the slot in the eval card after the methods, with the project', async () => {
+    mockGradingSlotRegistered = true
+    setStore()
+    render(<ProjectDetailPage params={params()} />)
+    const card = await screen.findByTestId(
+      'config-card-project.evaluation.title',
+    )
+    const slot = within(card).getByTestId('grading-section-slot')
+    expect(slot).toHaveAttribute('data-project-id', 'proj-1')
+    expect(slot).toHaveAttribute('data-project-title', baseProject.title)
+    const builder = await screen.findByTestId('evaluation-builder')
+    // Node.compareDocumentPosition: 4 = the argument FOLLOWS the receiver.
+    expect(builder.compareDocumentPosition(slot) & 4).toBeTruthy()
+  })
+
+  it('refetches the project when the slot asks for a refresh', async () => {
+    mockGradingSlotRegistered = true
+    const fetchProject = jest.fn().mockResolvedValue(undefined)
+    setStore({ fetchProject })
+    render(<ProjectDetailPage params={params()} />)
+    const refresh = await screen.findByTestId('grading-section-refresh')
+    fetchProject.mockClear()
+    fireEvent.click(refresh)
+    expect(fetchProject).toHaveBeenCalledWith('proj-1')
+  })
+
+  it('collapses its wrapper when the registered slot renders nothing', async () => {
+    mockGradingSlotRegistered = true
+    mockGradingSlotRendersNothing = true
+    setStore()
+    render(<ProjectDetailPage params={params()} />)
+    await screen.findByTestId('evaluation-builder')
+    const wrapper = screen.getByTestId('project-evaluation-grading-section')
+    expect(wrapper).toBeEmptyDOMElement()
+    expect(wrapper).toHaveClass('empty:hidden')
+  })
+
+  it('renders nothing extra in a community build (slot unregistered)', async () => {
+    setStore()
+    render(<ProjectDetailPage params={params()} />)
+    await screen.findByTestId('evaluation-builder')
+    expect(
+      screen.queryByTestId('project-evaluation-grading-section'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('is not shown to people who cannot edit the project', async () => {
+    mockGradingSlotRegistered = true
+    ;(useAuth as jest.Mock).mockReturnValue({
+      user: { id: 'other', is_superadmin: false, role: 'ANNOTATOR' },
+      currentOrganization: null,
+    })
+    setStore({
+      currentProject: {
+        ...baseProject,
+        organizations: [],
+        effective_role: 'ANNOTATOR',
+        can_edit: false,
+      },
+    })
+    render(<ProjectDetailPage params={params()} />)
+    await screen.findByTestId('config-card-project.evaluation.title')
+    expect(screen.queryByTestId('grading-section-slot')).not.toBeInTheDocument()
   })
 })
 

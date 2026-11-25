@@ -949,8 +949,11 @@ class TestReadAccessForPlainMembers:
 
     @pytest.mark.asyncio
     async def test_submission_reveals_nothing_without_the_project_flag(self, async_test_client, async_test_db):
+        """A project that never set the steps switch (NULL, as before the
+        creation paths stored True) keeps following the reference switch."""
         db = async_test_db
         w = await self._world(db, reveal=False)
+        w["project"].annotator_step_detail_after_submit = None
         await _submit(db, w["project"], w["done"], w["member"])
         await db.commit()
         base = f"/api/projects/{w['project'].id}/task-rubrics"

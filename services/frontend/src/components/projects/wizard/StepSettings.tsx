@@ -180,6 +180,30 @@ export function StepSettings({
           <div className="flex items-center justify-between">
             <div>
               <Label>
+                {t('projects.creation.wizard.stepSettings.revealStepDetail')}
+              </Label>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                {t(
+                  'projects.creation.wizard.stepSettings.revealStepDetailHint',
+                )}
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              checked={settings.annotator_step_detail_after_submit ?? true}
+              onChange={(e) =>
+                update({
+                  annotator_step_detail_after_submit: e.target.checked,
+                })
+              }
+              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+              data-testid="wizard-setting-reveal-step-detail"
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>
                 {t('projects.creation.wizard.stepSettings.randomizeOrder')}
               </Label>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">

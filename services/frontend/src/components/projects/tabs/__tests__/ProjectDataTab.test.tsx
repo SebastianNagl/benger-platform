@@ -250,11 +250,22 @@ jest.mock('@/components/projects/UserAvatar', () => ({
 }))
 
 jest.mock('@/components/shared/Button', () => ({
-  Button: ({ children, onClick, variant, disabled, className, title }: any) => (
+  Button: ({
+    children,
+    onClick,
+    variant,
+    disabled,
+    className,
+    title,
+    href,
+    'data-testid': testId,
+  }: any) => (
     <button
       onClick={onClick}
       disabled={disabled}
       data-variant={variant}
+      data-href={href}
+      data-testid={testId}
       className={className}
       title={title}
     >
@@ -642,6 +653,56 @@ describe('ProjectDataTab', () => {
           screen.getByText(/annotationTab\.empty\.noTasks/i),
         ).toBeInTheDocument()
       })
+    })
+  })
+
+  describe('Start and review buttons', () => {
+    const project = {
+      id: 'project-1',
+      title: 'Test Project',
+      num_tasks: 2,
+      num_annotations: 2,
+      can_edit: true,
+    }
+
+    it('leads into the task queue like the project page start button', async () => {
+      render(<ProjectDataTab projectId="project-1" />)
+      const start = await screen.findByTestId('data-start-tasks')
+      expect(start).toHaveAttribute('data-href', '/projects/project-1/label')
+      expect(start).toHaveTextContent('annotationTab.buttons.labelAll')
+    })
+
+    it('offers no start button when the project has annotation off', async () => {
+      mockUseProjectStore.mockReturnValue({
+        currentProject: { ...project, enable_annotation: false },
+        loading: false,
+        fetchProjectTasks: mockFetchProjectTasks,
+      } as any)
+      render(<ProjectDataTab projectId="project-1" />)
+      await waitFor(() => {
+        expect(mockFetchProjectTasks).toHaveBeenCalled()
+      })
+      expect(screen.queryByTestId('data-start-tasks')).not.toBeInTheDocument()
+    })
+
+    it('links review all to the review page only when review is on', async () => {
+      const { unmount } = render(<ProjectDataTab projectId="project-1" />)
+      await waitFor(() => {
+        expect(mockFetchProjectTasks).toHaveBeenCalled()
+      })
+      expect(screen.queryByTestId('data-review-all')).not.toBeInTheDocument()
+      unmount()
+
+      mockUseProjectStore.mockReturnValue({
+        currentProject: { ...project, review_enabled: true },
+        loading: false,
+        fetchProjectTasks: mockFetchProjectTasks,
+      } as any)
+      render(<ProjectDataTab projectId="project-1" />)
+      expect(await screen.findByTestId('data-review-all')).toHaveAttribute(
+        'data-href',
+        '/projects/project-1/review',
+      )
     })
   })
 

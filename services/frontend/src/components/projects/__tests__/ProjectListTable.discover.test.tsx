@@ -138,7 +138,8 @@ describe('ProjectListTable — discover + participant', () => {
     expect(screen.getByTestId('project-kind-badge-d1')).toHaveTextContent(
       'Kartenstapel',
     )
-    fireEvent.click(screen.getByTestId('project-study-d1'))
+    expect(screen.queryByTestId('project-study-d1')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('project-kind-badge-d1'))
     expect(push).toHaveBeenCalledWith('/projects/d1')
   })
 

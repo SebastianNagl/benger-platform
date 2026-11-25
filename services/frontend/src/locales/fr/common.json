@@ -249,8 +249,7 @@
       "duplicateSelected": "Dupliquer la sélection",
       "editMetadata": "Modifier les métadonnées",
       "archiveSelected": "Archiver la sélection",
-      "deleteSelected": "Supprimer la sélection",
-      "selectTasksPrompt": "Sélectionnez des tâches pour voir les actions disponibles"
+      "deleteSelected": "Supprimer la sélection"
     },
     "pagination": {
       "showing": "Affichage de",
@@ -538,7 +537,9 @@
           "strictTimerHint": "Soumettre automatiquement l'annotation à l'expiration du temps",
           "advancedNote": "D'autres paramètres (mode relecture, retour) sont disponibles sur la page du projet après sa création.",
           "revealSolution": "Afficher le corrigé type après la remise",
-          "revealSolutionHint": "Après la remise, les participants voient tous les champs de la tâche, corrigé type compris."
+          "revealSolutionHint": "Après la remise, les participants voient tous les champs de la tâche, corrigé type compris.",
+          "revealStepDetail": "Afficher les étapes de notation après la remise",
+          "revealStepDetailHint": "Après la remise, les participants voient les points et les justifications de chaque étape de leur notation, même si le corrigé type reste masqué."
         },
         "evalSaveFailed": "Impossible d'enregistrer la configuration d'évaluation",
         "promptStructureSaveFailed": "Impossible d'enregistrer la structure des prompts (les prompts restent enregistrés dans la configuration de génération)",
@@ -744,7 +745,6 @@
       "showingResults": "Affichage de {shown} résultats sur {total}",
       "created": "Créé le",
       "actions": "Actions",
-      "label": "Annoter",
       "sortTitle": "Titre",
       "sortOrganization": "Organisation",
       "sortCreated": "Date de création",
@@ -768,7 +768,6 @@
       },
       "kindDeck": "Paquet de fiches",
       "kindExam": "Examen",
-      "study": "Réviser",
       "importTargetGroupLabel": "Groupe",
       "importTargetGroupOrgWide": "Toute l'organisation",
       "publicContributorBadge": "Public · Contributeur",
@@ -939,7 +938,6 @@
       "unarchiveSelected": "Désarchiver la sélection",
       "archiveSelected": "Archiver la sélection",
       "deleteSelected": "Supprimer la sélection",
-      "selectProjectsPrompt": "Sélectionnez des projets pour voir les actions disponibles",
       "exportNdjsonGz": "Exporter en NDJSON (gzip), pour les grands projets",
       "exportComprehensive": "Exporter en JSON (un fichier par projet)"
     },
@@ -1419,7 +1417,7 @@
         "annotatorFullVisibility": "Afficher tous les champs après la remise",
         "annotatorFullVisibilityHelp": "Si activé, les annotateurs voient tous les champs de la tâche, y compris le corrigé type, lorsqu'ils consultent leur propre travail remis. Si désactivé, cette vue se limite aux champs qu'ils ont vus pendant l'annotation et le corrigé type reste masqué. Les étapes de la notation sont régies par le paramètre ci-dessous.",
         "annotatorStepDetail": "Afficher les étapes de notation après la remise",
-        "annotatorStepDetailHelp": "Si activé, les annotateurs voient après leur remise les points et les justifications de chaque étape de la grille d'évaluation. La note et le total des points sont toujours visibles. Les indications de la grille d'évaluation restent masquées tant que le corrigé type n'est pas affiché. Tant que vous ne le modifiez pas, ce paramètre reprend la valeur du paramètre ci-dessus.",
+        "annotatorStepDetailHelp": "Si activé, les annotateurs voient après leur remise les points et les justifications de chaque étape de la grille d'évaluation. La note et le total des points sont toujours visibles. Les indications de la grille d'évaluation restent masquées tant que le corrigé type n'est pas affiché. Il est indépendant du corrigé type : les nouveaux projets affichent les étapes par défaut. Les projets plus anciens où il n'a jamais été défini reprennent la valeur du paramètre ci-dessus.",
         "restorableCheckpoints": "Enregistrer des états intermédiaires restaurables",
         "restorableCheckpointsHelp": "Enregistre régulièrement (toutes les 5 minutes) des états intermédiaires du travail en cours, afin que les annotateurs puissent restaurer une version antérieure. Les états intermédiaires sont conservés même après la remise.",
         "samplingMethod": "Méthode d'échantillonnage des tâches",
@@ -1515,7 +1513,7 @@
     },
     "quickActions": {
       "title": "Actions rapides",
-      "startLabeling": "Commencer l'annotation",
+      "startLabeling": "Commencer la tâche",
       "allTasksAnnotated": "Toutes les tâches sont annotées",
       "projectData": "Données du projet",
       "myTasks": "Mes tâches",
@@ -1523,7 +1521,7 @@
       "generation": "Génération",
       "evaluations": "Évaluations",
       "reviewWorkflow": "Processus de relecture",
-      "korrektur": "Correction",
+      "korrektur": "Correction humaine",
       "members": "Membres"
     },
     "billing": {
@@ -1805,7 +1803,7 @@
       "unlabeled": "Non étiquetée",
       "annotations": "Annotations",
       "generations": "Générations",
-      "startLabeling": "Commencer l'étiquetage",
+      "startLabeling": "Commencer la tâche",
       "viewAnnotations": "Afficher les annotations",
       "skipTask": "Ignorer la tâche",
       "existingAnnotations": "Annotations existantes",
@@ -1865,7 +1863,7 @@
       "skipped": "Ignorée",
       "allTasks": "Toutes les tâches",
       "tasksAssigned": "tâches attribuées",
-      "startAnnotating": "Commencer l'annotation",
+      "startAnnotating": "Commencer la tâche",
       "loadingTasks": "Chargement des tâches...",
       "noTasksWithStatus": "Aucune tâche avec le statut « {status} ».",
       "searchPlaceholder": "Rechercher par ID ou titre de tâche…",
@@ -7209,7 +7207,7 @@
     "instructions": {
       "title": "Instructions d'annotation",
       "dontShowAgain": "Ne plus afficher pour ce projet",
-      "startAnnotating": "Commencer l'annotation",
+      "startAnnotating": "Commencer la tâche",
       "showInstructions": "Instructions",
       "close": "Fermer"
     },
@@ -7418,7 +7416,7 @@
       "search": "Rechercher",
       "orderBy": "Trier par",
       "reviewAll": "Relire toutes les tâches",
-      "labelAll": "Annoter toutes les tâches",
+      "labelAll": "Commencer la tâche",
       "import": "Importer des tâches",
       "export": "Exporter des tâches",
       "previous": "Précédent",
@@ -8749,7 +8747,7 @@
     }
   },
   "korrekturWorkflow": {
-    "title": "Correction",
+    "title": "Correction humaine",
     "loadFailed": "Impossible de charger les données de correction",
     "notEnabled": "La correction n'est pas activée pour ce projet. Activez-la dans l'assistant de projet sous Méthodes d'évaluation → Évaluation humaine.",
     "noTasks": "Aucune tâche trouvée",
@@ -9217,6 +9215,9 @@
     },
     "pagination": {
       "goToPage": "Aller à la page {page}"
+    },
+    "selectionActions": {
+      "actions": "Actions"
     }
   },
   "templates": {

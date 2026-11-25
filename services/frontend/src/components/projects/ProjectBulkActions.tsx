@@ -1,19 +1,20 @@
 /**
  * Project Bulk Actions component for the Projects List
  *
- * Provides bulk operations for selected projects
+ * Provides bulk operations for selected projects, through the shared
+ * SelectionActions menu every table with row selection uses.
  */
 
-import { Button } from '@/components/shared/Button'
+import {
+  SelectionActions,
+  type SelectionAction,
+} from '@/components/shared/SelectionActions'
 import { useI18n } from '@/contexts/I18nContext'
-import { Menu } from '@headlessui/react'
 import {
   ArchiveBoxIcon,
   ArrowDownTrayIcon,
   ArrowUpTrayIcon,
-  ChevronDownIcon,
   DocumentDuplicateIcon,
-  EllipsisHorizontalIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline'
 
@@ -41,155 +42,74 @@ export function ProjectBulkActions({
   isArchivedContext = false,
 }: ProjectBulkActionsProps) {
   const { t } = useI18n()
-  const isDisabled = selectedCount === 0
+
+  const actions: SelectionAction[] = []
+  if (onFullExport) {
+    actions.push({
+      id: 'export',
+      label: t('projects.projectBulkActions.exportSelected'),
+      icon: ArrowDownTrayIcon,
+      onSelect: onFullExport,
+      testId: 'projects-bulk-export-option',
+    })
+  }
+  if (onAsyncExport) {
+    for (const format of ['ndjson_gz', 'comprehensive'] as const) {
+      actions.push({
+        id: `export-${format}`,
+        label:
+          format === 'ndjson_gz'
+            ? t('projects.projectBulkActions.exportNdjsonGz')
+            : t('projects.projectBulkActions.exportComprehensive'),
+        icon: ArrowDownTrayIcon,
+        onSelect: () => onAsyncExport(format),
+        testId: `projects-bulk-export-${format}-option`,
+      })
+    }
+  }
+  if (onDuplicate) {
+    actions.push({
+      id: 'duplicate',
+      label: t('projects.projectBulkActions.duplicateSelected'),
+      icon: DocumentDuplicateIcon,
+      onSelect: onDuplicate,
+    })
+  }
+  // Archive or unarchive, depending on the list being shown.
+  const archiveAction = isArchivedContext ? onUnarchive : onArchive
+  if (archiveAction) {
+    actions.push({
+      id: isArchivedContext ? 'unarchive' : 'archive',
+      label: isArchivedContext
+        ? t('projects.projectBulkActions.unarchiveSelected')
+        : t('projects.projectBulkActions.archiveSelected'),
+      icon: isArchivedContext ? ArrowUpTrayIcon : ArchiveBoxIcon,
+      onSelect: archiveAction,
+      separatorBefore: true,
+      testId: isArchivedContext
+        ? 'projects-bulk-unarchive-option'
+        : 'projects-bulk-archive-option',
+    })
+  }
+  actions.push({
+    id: 'delete',
+    label: t('projects.projectBulkActions.deleteSelected'),
+    icon: TrashIcon,
+    onSelect: onDelete,
+    danger: true,
+    separatorBefore: !archiveAction,
+    testId: 'projects-bulk-delete-option',
+  })
 
   return (
-    <Menu as="div" className="relative inline-block text-left">
-      <div>
-        <Menu.Button
-          as={Button}
-          variant="outline"
-          className="gap-2"
-          disabled={isDisabled}
-          data-testid="projects-bulk-actions-button"
-        >
-          <EllipsisHorizontalIcon className="h-4 w-4" />
-          {t('projects.projectBulkActions.actions')}
-          {selectedCount > 0 && (
-            <span className="ml-1 inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs leading-none font-medium text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
-              {selectedCount}
-            </span>
-          )}
-          <ChevronDownIcon className="h-4 w-4" />
-        </Menu.Button>
-      </div>
-
-      <Menu.Items
-        anchor="bottom end"
-        className="z-10 w-64 rounded-lg bg-white shadow-lg ring-1 ring-black/5 transition duration-100 ease-out focus:outline-none data-closed:scale-95 data-closed:transform data-closed:opacity-0 dark:bg-zinc-900"
-        data-testid="projects-bulk-actions-menu"
-      >
-        <div className="p-1">
-          {selectedCount > 0 ? (
-            <>
-              <div className="px-3 py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                {t('projects.projectBulkActions.projectsSelected', {
-                  count: selectedCount,
-                })}
-              </div>
-
-              {onFullExport && (
-                <Menu.Item>
-                  {({ active }) => (
-                    <button
-                      className={`${
-                        active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
-                      } group flex w-full items-center rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
-                      onClick={onFullExport}
-                      data-testid="projects-bulk-export-option"
-                    >
-                      <ArrowDownTrayIcon className="mr-3 h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      {t('projects.projectBulkActions.exportSelected')}
-                    </button>
-                  )}
-                </Menu.Item>
-              )}
-
-              {onAsyncExport &&
-                (['ndjson_gz', 'comprehensive'] as const).map((format) => (
-                  <Menu.Item key={format}>
-                    {({ active }) => (
-                      <button
-                        className={`${
-                          active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
-                        } group flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-zinc-900 dark:text-white`}
-                        onClick={() => onAsyncExport(format)}
-                        data-testid={`projects-bulk-export-${format}-option`}
-                      >
-                        <ArrowDownTrayIcon className="mr-3 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                        {format === 'ndjson_gz'
-                          ? t('projects.projectBulkActions.exportNdjsonGz')
-                          : t(
-                              'projects.projectBulkActions.exportComprehensive',
-                            )}
-                      </button>
-                    )}
-                  </Menu.Item>
-                ))}
-
-              {onDuplicate && (
-                <Menu.Item>
-                  {({ active }) => (
-                    <button
-                      className={`${
-                        active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
-                      } group flex w-full items-center rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
-                      onClick={onDuplicate}
-                    >
-                      <DocumentDuplicateIcon className="mr-3 h-4 w-4" />
-                      {t('projects.projectBulkActions.duplicateSelected')}
-                    </button>
-                  )}
-                </Menu.Item>
-              )}
-
-              <div className="my-1 border-t border-zinc-200 dark:border-zinc-700" />
-
-              {/* Archive/Unarchive based on context */}
-              {isArchivedContext ? (
-                <Menu.Item>
-                  {({ active }) => (
-                    <button
-                      className={`${
-                        active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
-                      } group flex w-full items-center rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
-                      onClick={onUnarchive}
-                      data-testid="projects-bulk-unarchive-option"
-                    >
-                      <ArrowUpTrayIcon className="mr-3 h-4 w-4" />
-                      {t('projects.projectBulkActions.unarchiveSelected')}
-                    </button>
-                  )}
-                </Menu.Item>
-              ) : (
-                <Menu.Item>
-                  {({ active }) => (
-                    <button
-                      className={`${
-                        active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
-                      } group flex w-full items-center rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
-                      onClick={onArchive}
-                      data-testid="projects-bulk-archive-option"
-                    >
-                      <ArchiveBoxIcon className="mr-3 h-4 w-4" />
-                      {t('projects.projectBulkActions.archiveSelected')}
-                    </button>
-                  )}
-                </Menu.Item>
-              )}
-
-              <Menu.Item>
-                {({ active }) => (
-                  <button
-                    className={`${
-                      active ? 'bg-red-50 dark:bg-red-950/40' : ''
-                    } group flex w-full items-center rounded-md px-3 py-2 text-sm text-red-600 dark:text-red-400`}
-                    onClick={onDelete}
-                    data-testid="projects-bulk-delete-option"
-                  >
-                    <TrashIcon className="mr-3 h-4 w-4" />
-                    {t('projects.projectBulkActions.deleteSelected')}
-                  </button>
-                )}
-              </Menu.Item>
-            </>
-          ) : (
-            <div className="px-3 py-2 text-sm text-zinc-500 dark:text-zinc-400">
-              {t('projects.projectBulkActions.selectProjectsPrompt')}
-            </div>
-          )}
-        </div>
-      </Menu.Items>
-    </Menu>
+    <SelectionActions
+      selectedCount={selectedCount}
+      selectedLabel={t('projects.projectBulkActions.projectsSelected', {
+        count: selectedCount,
+      })}
+      label={t('projects.projectBulkActions.actions')}
+      actions={actions}
+      testId="projects-bulk-actions"
+    />
   )
 }
