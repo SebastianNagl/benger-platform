@@ -18,13 +18,7 @@ import { apiClient } from '@/lib/api/client'
 import { useUIStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
 import '@testing-library/jest-dom'
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import {
   useParams,
   usePathname,
@@ -219,7 +213,10 @@ describe('ProjectDetailPage — participant tier', () => {
     ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
     ;(useAuth as jest.Mock).mockReturnValue({ user, currentOrganization: null })
     ;(useI18n as jest.Mock).mockReturnValue({ t: (key: string) => key })
-    ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false, isHydrated: true })
+    ;(useUIStore as jest.Mock).mockReturnValue({
+      isSidebarHidden: false,
+      isHydrated: true,
+    })
     ;(useModels as jest.Mock).mockReturnValue({
       models: [],
       loading: false,
@@ -323,9 +320,10 @@ describe('ProjectDetailPage — participant tier', () => {
         cannot_leave_reason: null,
       }),
     )
-    expect(
-      await screen.findByTestId('participant-card-stub'),
-    ).toHaveAttribute('data-can-leave', 'true')
+    expect(await screen.findByTestId('participant-card-stub')).toHaveAttribute(
+      'data-can-leave',
+      'true',
+    )
     expect(screen.getByTestId('project-participant-badge')).toBeInTheDocument()
   })
 
@@ -588,7 +586,10 @@ describe('ProjectDetailPage — header icon editing', () => {
     ;(useI18n as jest.Mock).mockReturnValue({
       t: (k: string, _vars?: Record<string, unknown>) => k,
     })
-    ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false, isHydrated: true })
+    ;(useUIStore as jest.Mock).mockReturnValue({
+      isSidebarHidden: false,
+      isHydrated: true,
+    })
     ;(useModels as jest.Mock).mockReturnValue({
       models: [],
       loading: false,
@@ -663,7 +664,10 @@ describe('ProjectDetailPage — header spacing, activity counts, held exam', () 
       t: (key: string, vars?: Record<string, unknown>) =>
         vars && 'count' in vars ? `${key}:${vars.count}` : key,
     })
-    ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false, isHydrated: true })
+    ;(useUIStore as jest.Mock).mockReturnValue({
+      isSidebarHidden: false,
+      isHydrated: true,
+    })
     ;(useModels as jest.Mock).mockReturnValue({
       models: [],
       loading: false,

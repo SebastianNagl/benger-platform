@@ -194,7 +194,10 @@ describe('ProjectDetailPage — 4-card structure', () => {
     ;(useI18n as jest.Mock).mockReturnValue({
       t: (key: string) => key, // identity → keys appear verbatim in DOM
     })
-    ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false, isHydrated: true })
+    ;(useUIStore as jest.Mock).mockReturnValue({
+      isSidebarHidden: false,
+      isHydrated: true,
+    })
     ;(useModels as jest.Mock).mockReturnValue({
       models: [],
       loading: false,

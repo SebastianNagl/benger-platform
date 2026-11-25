@@ -43,7 +43,14 @@ describe('ParticipantCard', () => {
     mockConfirm.mockResolvedValue(true)
     mockLeave.mockResolvedValue(undefined)
     const onLeft = jest.fn()
-    render(<ParticipantCard projectId="p1" via="share" participation={participation} onLeft={onLeft} />)
+    render(
+      <ParticipantCard
+        projectId="p1"
+        via="share"
+        participation={participation}
+        onLeft={onLeft}
+      />,
+    )
     expect(await screen.findByTestId('participant-via')).toHaveTextContent(
       'Über Freigabe-Link beigetreten',
     )
@@ -62,7 +69,14 @@ describe('ParticipantCard', () => {
     }
     mockConfirm.mockResolvedValueOnce(false)
     const onLeft = jest.fn()
-    render(<ParticipantCard projectId="p1" via="share" participation={participation} onLeft={onLeft} />)
+    render(
+      <ParticipantCard
+        projectId="p1"
+        via="share"
+        participation={participation}
+        onLeft={onLeft}
+      />,
+    )
     fireEvent.click(await screen.findByTestId('participant-leave'))
     await waitFor(() => expect(mockConfirm).toHaveBeenCalled())
     expect(mockLeave).not.toHaveBeenCalled()
@@ -87,7 +101,12 @@ describe('ParticipantCard', () => {
     )
     registerSlot('ProjectCohortLeaderboard', Cohort)
     const { unmount } = render(
-      <ParticipantCard projectId="p1" via={null} participation={participation} onLeft={jest.fn()} />,
+      <ParticipantCard
+        projectId="p1"
+        via={null}
+        participation={participation}
+        onLeft={jest.fn()}
+      />,
     )
     expect(
       await screen.findByTestId('participant-cannot-leave'),
@@ -102,7 +121,14 @@ describe('ParticipantCard', () => {
       can_leave: false,
       cannot_leave_reason: 'org_membership',
     }
-    render(<ParticipantCard projectId="p2" via="org_exam" participation={participation} onLeft={jest.fn()} />)
+    render(
+      <ParticipantCard
+        projectId="p2"
+        via="org_exam"
+        participation={participation}
+        onLeft={jest.fn()}
+      />,
+    )
     expect(
       await screen.findByTestId('participant-cannot-leave'),
     ).toHaveTextContent('Organisation')
@@ -121,7 +147,14 @@ describe('ParticipantCard', () => {
       return <div data-testid="cohort-stub" />
     }
     registerSlot('ProjectCohortLeaderboard', LateCohort)
-    render(<ParticipantCard projectId="p1" via="org_exam" participation={participation} onLeft={jest.fn()} />)
+    render(
+      <ParticipantCard
+        projectId="p1"
+        via="org_exam"
+        participation={participation}
+        onLeft={jest.fn()}
+      />,
+    )
     const card = await screen.findByTestId('participant-card')
     // Mounted so the slot can fetch, but not shown while it may vanish.
     expect(card).toHaveClass('hidden')
@@ -140,7 +173,12 @@ describe('ParticipantCard', () => {
     }
     // Community edition: no cohort slot at all.
     const { unmount } = render(
-      <ParticipantCard projectId="p1" via="org_exam" participation={participation} onLeft={jest.fn()} />,
+      <ParticipantCard
+        projectId="p1"
+        via="org_exam"
+        participation={participation}
+        onLeft={jest.fn()}
+      />,
     )
     await waitFor(() =>
       expect(screen.queryByTestId('participant-card')).not.toBeInTheDocument(),
@@ -153,7 +191,14 @@ describe('ParticipantCard', () => {
       return <div data-testid="cohort-stub">empty</div>
     }
     registerSlot('ProjectCohortLeaderboard', EmptyCohort)
-    render(<ParticipantCard projectId="p2" via="org_exam" participation={participation} onLeft={jest.fn()} />)
+    render(
+      <ParticipantCard
+        projectId="p2"
+        via="org_exam"
+        participation={participation}
+        onLeft={jest.fn()}
+      />,
+    )
     await waitFor(() =>
       expect(screen.queryByTestId('participant-card')).not.toBeInTheDocument(),
     )
@@ -176,7 +221,14 @@ describe('ParticipantCard', () => {
       )
     }
     registerSlot('ProjectCohortLeaderboard', Cohort)
-    render(<ParticipantCard projectId="p1" via="share" participation={participation} onLeft={jest.fn()} />)
+    render(
+      <ParticipantCard
+        projectId="p1"
+        via="share"
+        participation={participation}
+        onLeft={jest.fn()}
+      />,
+    )
     expect(await screen.findByTestId('participant-leave')).toBeInTheDocument()
     const box = screen.getByTestId('participant-cohort')
     await waitFor(() => expect(box).toHaveAttribute('data-empty', 'true'))
@@ -200,7 +252,12 @@ describe('ParticipantCard', () => {
     )
     registerSlot('ProjectCohortLeaderboard', Cohort)
     const { unmount } = render(
-      <ParticipantCard projectId="p1" via="attempted" participation={participation} onLeft={jest.fn()} />,
+      <ParticipantCard
+        projectId="p1"
+        via="attempted"
+        participation={participation}
+        onLeft={jest.fn()}
+      />,
     )
     expect(
       await screen.findByTestId('participant-cannot-leave'),
@@ -214,7 +271,12 @@ describe('ParticipantCard', () => {
     // Community edition (no cohort slot): nothing actionable, card hidden.
     registerSlot('ProjectCohortLeaderboard', null as any)
     render(
-      <ParticipantCard projectId="p2" via="attempted" participation={participation} onLeft={jest.fn()} />,
+      <ParticipantCard
+        projectId="p2"
+        via="attempted"
+        participation={participation}
+        onLeft={jest.fn()}
+      />,
     )
     await waitFor(() =>
       expect(screen.queryByTestId('participant-card')).not.toBeInTheDocument(),
@@ -223,7 +285,14 @@ describe('ParticipantCard', () => {
 
   it('falls back to the via prop when the participation could not be read', async () => {
     participation = null
-    render(<ParticipantCard projectId="p1" via="org_exam" participation={participation} onLeft={jest.fn()} />)
+    render(
+      <ParticipantCard
+        projectId="p1"
+        via="org_exam"
+        participation={participation}
+        onLeft={jest.fn()}
+      />,
+    )
     expect(screen.getByTestId('participant-via')).toBeInTheDocument()
     expect(screen.queryByTestId('participant-leave')).not.toBeInTheDocument()
     expect(

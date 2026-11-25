@@ -643,12 +643,8 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
   // button, or nothing at all), so the page reads it before its first frame
   // instead of letting the card appear or vanish later (participationFor).
   // A failed read counts as an answer: the card then falls back to `via`.
-  const [participation, setParticipation] = useState<Participation | null>(
-    null,
-  )
-  const [participationFor, setParticipationFor] = useState<string | null>(
-    null,
-  )
+  const [participation, setParticipation] = useState<Participation | null>(null)
+  const [participationFor, setParticipationFor] = useState<string | null>(null)
   useEffect(() => {
     if (!projectId || !isParticipant) return
     let cancelled = false
