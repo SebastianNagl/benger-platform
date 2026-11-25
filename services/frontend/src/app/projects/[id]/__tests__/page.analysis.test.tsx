@@ -229,7 +229,7 @@ describe('ProjectDetailPage — Evaluations quick action', () => {
     ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
     ;(useAuth as jest.Mock).mockReturnValue({ user, currentOrganization: null })
     ;(useI18n as jest.Mock).mockReturnValue({ t: (key: string) => key })
-    ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false })
+    ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false, isHydrated: true })
     ;(useModels as jest.Mock).mockReturnValue({
       models: [],
       loading: false,
@@ -411,7 +411,7 @@ describe('ProjectDetailPage — Analyses on the Evaluation card', () => {
     ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
     ;(useAuth as jest.Mock).mockReturnValue({ user, currentOrganization: null })
     ;(useI18n as jest.Mock).mockReturnValue({ t })
-    ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false })
+    ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false, isHydrated: true })
     ;(useModels as jest.Mock).mockReturnValue({
       models: [],
       loading: false,
