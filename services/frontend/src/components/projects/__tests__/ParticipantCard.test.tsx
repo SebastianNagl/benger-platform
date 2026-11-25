@@ -15,32 +15,35 @@ jest.mock('@/components/shared/Toast', () => ({
 jest.mock('@/contexts/I18nContext', () =>
   require('@/test-utils/i18nMock').i18nMock('de'),
 )
-const mockGet = jest.fn()
 const mockLeave = jest.fn()
 jest.mock('@/lib/api/shares', () => ({
   sharesAPI: {
-    getParticipation: (...a: any[]) => mockGet(...a),
     leaveProject: (...a: any[]) => mockLeave(...a),
   },
 }))
 
+// The participation the page read and hands to the card (only the fields
+// the card reads).
+let participation: any
+
 beforeEach(() => {
   jest.clearAllMocks()
+  participation = null
   registerSlot('ProjectCohortLeaderboard', null as any)
 })
 
 describe('ParticipantCard', () => {
   it('shows how the user joined, confirms, leaves and calls onLeft', async () => {
-    mockGet.mockResolvedValue({
+    participation = {
       tier: 'participant',
       via: 'share',
       can_leave: true,
       cannot_leave_reason: null,
-    })
+    }
     mockConfirm.mockResolvedValue(true)
     mockLeave.mockResolvedValue(undefined)
     const onLeft = jest.fn()
-    render(<ParticipantCard projectId="p1" via="share" onLeft={onLeft} />)
+    render(<ParticipantCard projectId="p1" via="share" participation={participation} onLeft={onLeft} />)
     expect(await screen.findByTestId('participant-via')).toHaveTextContent(
       'Über Freigabe-Link beigetreten',
     )
@@ -51,15 +54,15 @@ describe('ParticipantCard', () => {
   })
 
   it('cancelled confirm does nothing; leave error toasts', async () => {
-    mockGet.mockResolvedValue({
+    participation = {
       tier: 'participant',
       via: 'share',
       can_leave: true,
       cannot_leave_reason: null,
-    })
+    }
     mockConfirm.mockResolvedValueOnce(false)
     const onLeft = jest.fn()
-    render(<ParticipantCard projectId="p1" via="share" onLeft={onLeft} />)
+    render(<ParticipantCard projectId="p1" via="share" participation={participation} onLeft={onLeft} />)
     fireEvent.click(await screen.findByTestId('participant-leave'))
     await waitFor(() => expect(mockConfirm).toHaveBeenCalled())
     expect(mockLeave).not.toHaveBeenCalled()
@@ -73,18 +76,18 @@ describe('ParticipantCard', () => {
   })
 
   it('explains why leaving is impossible (purchase / org) and hosts the cohort slot', async () => {
-    mockGet.mockResolvedValue({
+    participation = {
       tier: 'participant',
       via: 'entitlement',
       can_leave: false,
       cannot_leave_reason: 'entitlement_not_leavable',
-    })
+    }
     const Cohort = ({ projectId }: any) => (
       <div data-testid="cohort-stub">{projectId}</div>
     )
     registerSlot('ProjectCohortLeaderboard', Cohort)
     const { unmount } = render(
-      <ParticipantCard projectId="p1" via={null} onLeft={jest.fn()} />,
+      <ParticipantCard projectId="p1" via={null} participation={participation} onLeft={jest.fn()} />,
     )
     expect(
       await screen.findByTestId('participant-cannot-leave'),
@@ -93,51 +96,32 @@ describe('ParticipantCard', () => {
     expect(screen.getByTestId('cohort-stub')).toHaveTextContent('p1')
     unmount()
 
-    mockGet.mockResolvedValue({
+    participation = {
       tier: 'participant',
       via: 'org_exam',
       can_leave: false,
       cannot_leave_reason: 'org_membership',
-    })
-    render(<ParticipantCard projectId="p2" via="org_exam" onLeft={jest.fn()} />)
+    }
+    render(<ParticipantCard projectId="p2" via="org_exam" participation={participation} onLeft={jest.fn()} />)
     expect(
       await screen.findByTestId('participant-cannot-leave'),
     ).toHaveTextContent('Organisation')
   })
 
-  it('renders nothing until the participation answered', async () => {
-    let resolve!: (v: unknown) => void
-    mockGet.mockReturnValue(new Promise((r) => (resolve = r)))
-    const { container } = render(
-      <ParticipantCard projectId="p1" via="org_exam" onLeft={jest.fn()} />,
-    )
-    expect(container).toBeEmptyDOMElement()
-    resolve({
-      tier: 'participant',
-      via: 'org_exam',
-      can_leave: false,
-      cannot_leave_reason: 'org_exam',
-    })
-    await waitFor(() => expect(mockGet).toHaveBeenCalled())
-    await new Promise((r) => setTimeout(r, 0))
-    // Not leavable and no cohort: it never appears at all.
-    expect(container).toBeEmptyDOMElement()
-  })
-
   it('org_exam stays hidden until the cohort slot reported rows', async () => {
-    mockGet.mockResolvedValue({
+    participation = {
       tier: 'participant',
       via: 'org_exam',
       can_leave: false,
       cannot_leave_reason: 'org_exam',
-    })
+    }
     const mounted = jest.fn()
     const LateCohort = ({ onEmpty }: any) => {
       useEffect(() => mounted(onEmpty), [onEmpty])
       return <div data-testid="cohort-stub" />
     }
     registerSlot('ProjectCohortLeaderboard', LateCohort)
-    render(<ParticipantCard projectId="p1" via="org_exam" onLeft={jest.fn()} />)
+    render(<ParticipantCard projectId="p1" via="org_exam" participation={participation} onLeft={jest.fn()} />)
     const card = await screen.findByTestId('participant-card')
     // Mounted so the slot can fetch, but not shown while it may vanish.
     expect(card).toHaveClass('hidden')
@@ -148,17 +132,16 @@ describe('ParticipantCard', () => {
   })
 
   it('org_exam with an empty cohort renders nothing', async () => {
-    mockGet.mockResolvedValue({
+    participation = {
       tier: 'participant',
       via: 'org_exam',
       can_leave: false,
       cannot_leave_reason: 'org_membership',
-    })
+    }
     // Community edition: no cohort slot at all.
     const { unmount } = render(
-      <ParticipantCard projectId="p1" via="org_exam" onLeft={jest.fn()} />,
+      <ParticipantCard projectId="p1" via="org_exam" participation={participation} onLeft={jest.fn()} />,
     )
-    await waitFor(() => expect(mockGet).toHaveBeenCalled())
     await waitFor(() =>
       expect(screen.queryByTestId('participant-card')).not.toBeInTheDocument(),
     )
@@ -170,19 +153,19 @@ describe('ParticipantCard', () => {
       return <div data-testid="cohort-stub">empty</div>
     }
     registerSlot('ProjectCohortLeaderboard', EmptyCohort)
-    render(<ParticipantCard projectId="p2" via="org_exam" onLeft={jest.fn()} />)
+    render(<ParticipantCard projectId="p2" via="org_exam" participation={participation} onLeft={jest.fn()} />)
     await waitFor(() =>
       expect(screen.queryByTestId('participant-card')).not.toBeInTheDocument(),
     )
   })
 
   it('share join still renders with an empty cohort and collapses the box', async () => {
-    mockGet.mockResolvedValue({
+    participation = {
       tier: 'participant',
       via: 'share',
       can_leave: true,
       cannot_leave_reason: null,
-    })
+    }
     const Cohort = ({ onEmpty }: any) => {
       const [rows, setRows] = useState(0)
       useEffect(() => onEmpty(rows === 0), [onEmpty, rows])
@@ -193,7 +176,7 @@ describe('ParticipantCard', () => {
       )
     }
     registerSlot('ProjectCohortLeaderboard', Cohort)
-    render(<ParticipantCard projectId="p1" via="share" onLeft={jest.fn()} />)
+    render(<ParticipantCard projectId="p1" via="share" participation={participation} onLeft={jest.fn()} />)
     expect(await screen.findByTestId('participant-leave')).toBeInTheDocument()
     const box = screen.getByTestId('participant-cohort')
     await waitFor(() => expect(box).toHaveAttribute('data-empty', 'true'))
@@ -206,18 +189,18 @@ describe('ParticipantCard', () => {
   })
 
   it('attempted: explains the access, offers no leave button, hides with an empty cohort', async () => {
-    mockGet.mockResolvedValue({
+    participation = {
       tier: 'attempted',
       via: 'attempted',
       can_leave: false,
       cannot_leave_reason: 'attempted',
-    })
+    }
     const Cohort = ({ projectId }: any) => (
       <div data-testid="cohort-stub">{projectId}</div>
     )
     registerSlot('ProjectCohortLeaderboard', Cohort)
     const { unmount } = render(
-      <ParticipantCard projectId="p1" via="attempted" onLeft={jest.fn()} />,
+      <ParticipantCard projectId="p1" via="attempted" participation={participation} onLeft={jest.fn()} />,
     )
     expect(
       await screen.findByTestId('participant-cannot-leave'),
@@ -231,18 +214,16 @@ describe('ParticipantCard', () => {
     // Community edition (no cohort slot): nothing actionable, card hidden.
     registerSlot('ProjectCohortLeaderboard', null as any)
     render(
-      <ParticipantCard projectId="p2" via="attempted" onLeft={jest.fn()} />,
+      <ParticipantCard projectId="p2" via="attempted" participation={participation} onLeft={jest.fn()} />,
     )
-    await waitFor(() => expect(mockGet).toHaveBeenCalledWith('p2'))
     await waitFor(() =>
       expect(screen.queryByTestId('participant-card')).not.toBeInTheDocument(),
     )
   })
 
-  it('falls back to the via prop when the participation fetch fails', async () => {
-    mockGet.mockRejectedValue(new Error('403'))
-    render(<ParticipantCard projectId="p1" via="org_exam" onLeft={jest.fn()} />)
-    await waitFor(() => expect(mockGet).toHaveBeenCalled())
+  it('falls back to the via prop when the participation could not be read', async () => {
+    participation = null
+    render(<ParticipantCard projectId="p1" via="org_exam" participation={participation} onLeft={jest.fn()} />)
     expect(screen.getByTestId('participant-via')).toBeInTheDocument()
     expect(screen.queryByTestId('participant-leave')).not.toBeInTheDocument()
     expect(

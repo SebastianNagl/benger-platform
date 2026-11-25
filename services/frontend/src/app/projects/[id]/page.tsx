@@ -82,6 +82,7 @@ import type {
   AvailableEvaluationFields,
   EvaluationConfig,
 } from '@/lib/api/evaluation-types'
+import { sharesAPI, type Participation } from '@/lib/api/shares'
 import { describeEvaluationConfigWarnings } from '@/lib/evaluation/configWarnings'
 import { refreshEvaluationConfigs } from '@/lib/evaluation/refreshEvaluationConfigs'
 import { useSlot } from '@/lib/extensions/slots'
@@ -636,6 +637,36 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
         if (isLatest()) setNextCheckedFor(projectId)
       })
   }, [projectId, taskCount, annotationCount])
+
+  // The participant card shows only what the participation allows (leave
+  // button, or nothing at all), so the page reads it before its first frame
+  // instead of letting the card appear or vanish later (participationFor).
+  // A failed read counts as an answer: the card then falls back to `via`.
+  const [participation, setParticipation] = useState<Participation | null>(
+    null,
+  )
+  const [participationFor, setParticipationFor] = useState<string | null>(
+    null,
+  )
+  useEffect(() => {
+    if (!projectId || !isParticipant) return
+    let cancelled = false
+    sharesAPI
+      .getParticipation(projectId)
+      .then((p) => {
+        if (cancelled) return
+        setParticipation(p)
+        setParticipationFor(projectId)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setParticipation(null)
+        setParticipationFor(projectId)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [projectId, isParticipant])
 
   // Fetch report status when user or projectId changes (Issue #770)
   useEffect(() => {
@@ -1917,11 +1948,15 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
   }
 
   // One step from loading to the full page: the project of this URL, the
-  // flags and the per-user task check are all known before anything shows.
+  // flags, the per-user task check and (for participants) the participation
+  // are all known before anything shows.
   if (
     !projectId ||
     (!currentProject && !notFound) ||
-    (currentProject && (!flagsReady || nextCheckedFor !== projectId))
+    (currentProject &&
+      (!flagsReady ||
+        nextCheckedFor !== projectId ||
+        (isParticipant && participationFor !== projectId)))
   ) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
@@ -2971,6 +3006,7 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
             <ParticipantCard
               projectId={projectId}
               via={currentProject.participant_via ?? null}
+              participation={participation}
               onLeft={() => router.push('/projects')}
             />
           )}
