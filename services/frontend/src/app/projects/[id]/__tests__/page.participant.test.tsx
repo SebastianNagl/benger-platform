@@ -18,7 +18,7 @@ import { apiClient } from '@/lib/api/client'
 import { useUIStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
 import '@testing-library/jest-dom'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import {
   useParams,
   usePathname,
@@ -47,6 +47,13 @@ jest.mock('@/lib/api/client', () => ({
     evaluations: {
       getProjectEvaluationConfig: jest.fn(),
     },
+  },
+}))
+
+const mockGetParticipation = jest.fn()
+jest.mock('@/lib/api/shares', () => ({
+  sharesAPI: {
+    getParticipation: (...a: any[]) => mockGetParticipation(...a),
   },
 }))
 
@@ -121,8 +128,12 @@ jest.mock('@/components/evaluation/EvaluationBuilder', () => ({
   EvaluationBuilder: () => <div data-testid="evaluation-builder" />,
 }))
 jest.mock('@/components/projects/ParticipantCard', () => ({
-  ParticipantCard: ({ projectId, via, onLeft }: any) => (
-    <div data-testid="participant-card-stub" data-via={String(via)}>
+  ParticipantCard: ({ projectId, via, participation, onLeft }: any) => (
+    <div
+      data-testid="participant-card-stub"
+      data-via={String(via)}
+      data-can-leave={String(participation?.can_leave)}
+    >
       <button onClick={onLeft}>leave</button>
       {projectId}
     </div>
@@ -202,7 +213,10 @@ describe('ProjectDetailPage — participant tier', () => {
     ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
     ;(useAuth as jest.Mock).mockReturnValue({ user, currentOrganization: null })
     ;(useI18n as jest.Mock).mockReturnValue({ t: (key: string) => key })
-    ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false })
+    ;(useUIStore as jest.Mock).mockReturnValue({
+      isSidebarHidden: false,
+      isHydrated: true,
+    })
     ;(useModels as jest.Mock).mockReturnValue({
       models: [],
       loading: false,
@@ -219,6 +233,7 @@ describe('ProjectDetailPage — participant tier', () => {
       deleteProject: jest.fn().mockResolvedValue({}),
     })
     ;(apiClient.get as jest.Mock).mockResolvedValue({ status: 'ok' })
+    mockGetParticipation.mockRejectedValue(new Error('not mocked'))
     jest.spyOn(window, 'addEventListener').mockImplementation(jest.fn())
     jest.spyOn(window, 'removeEventListener').mockImplementation(jest.fn())
   }
@@ -267,6 +282,49 @@ describe('ProjectDetailPage — participant tier', () => {
     fireEvent.click(screen.getByText('leave'))
     expect(mockRouter.push).toHaveBeenCalledWith('/projects')
     registerSlot('project-sharing', null as any)
+  })
+
+  it('waits for the participation before the first render and hands it to the card', async () => {
+    setup({
+      access_tier: 'participant',
+      participant_via: 'share',
+      effective_role: 'ANNOTATOR',
+      can_manage_shares: false,
+      evaluation_config: null,
+      generation_config: null,
+    })
+    let answer!: (v: unknown) => void
+    mockGetParticipation.mockReturnValue(new Promise((r) => (answer = r)))
+    const params = Promise.resolve({ id: 'test-project-123' })
+    render(<ProjectDetailPage params={params} />)
+    await waitFor(() =>
+      expect(mockGetParticipation).toHaveBeenCalledWith('test-project-123'),
+    )
+    // The task check answered too; only the participation is outstanding.
+    await waitFor(() =>
+      expect(apiClient.get).toHaveBeenCalledWith(
+        '/projects/test-project-123/next',
+      ),
+    )
+    await new Promise((r) => setTimeout(r, 0))
+    // Still loading: the card must not arrive after the rest of the page.
+    expect(screen.getByText('project.loading')).toBeInTheDocument()
+    expect(
+      screen.queryByTestId('project-participant-badge'),
+    ).not.toBeInTheDocument()
+    await act(async () =>
+      answer({
+        tier: 'participant',
+        via: 'share',
+        can_leave: true,
+        cannot_leave_reason: null,
+      }),
+    )
+    expect(await screen.findByTestId('participant-card-stub')).toHaveAttribute(
+      'data-can-leave',
+      'true',
+    )
+    expect(screen.getByTestId('project-participant-badge')).toBeInTheDocument()
   })
 
   it('attempted tier: past-submission badge, no start button, my-tasks kept, card via attempted', async () => {
@@ -528,7 +586,10 @@ describe('ProjectDetailPage — header icon editing', () => {
     ;(useI18n as jest.Mock).mockReturnValue({
       t: (k: string, _vars?: Record<string, unknown>) => k,
     })
-    ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false })
+    ;(useUIStore as jest.Mock).mockReturnValue({
+      isSidebarHidden: false,
+      isHydrated: true,
+    })
     ;(useModels as jest.Mock).mockReturnValue({
       models: [],
       loading: false,
@@ -603,7 +664,10 @@ describe('ProjectDetailPage — header spacing, activity counts, held exam', () 
       t: (key: string, vars?: Record<string, unknown>) =>
         vars && 'count' in vars ? `${key}:${vars.count}` : key,
     })
-    ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false })
+    ;(useUIStore as jest.Mock).mockReturnValue({
+      isSidebarHidden: false,
+      isHydrated: true,
+    })
     ;(useModels as jest.Mock).mockReturnValue({
       models: [],
       loading: false,

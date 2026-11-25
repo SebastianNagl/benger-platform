@@ -261,7 +261,10 @@ describe('ProjectDetailPage - grading section refresh', () => {
       currentOrganization: null,
     })
     ;(useI18n as jest.Mock).mockReturnValue({ t: (key: string) => key })
-    ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false })
+    ;(useUIStore as jest.Mock).mockReturnValue({
+      isSidebarHidden: false,
+      isHydrated: true,
+    })
     ;(useModels as jest.Mock).mockReturnValue({
       models: [],
       loading: false,

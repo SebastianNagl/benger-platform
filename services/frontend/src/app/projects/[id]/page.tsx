@@ -58,6 +58,7 @@ import {
 import { SubSection } from '@/components/projects/SubSection'
 import { IconPickerModal } from '@/components/projects/wizard/ProjectTypeAndIcon'
 import { PublicationToggle } from '@/components/reports/PublicationToggle'
+import { AppLoadingScreen } from '@/components/shared/AppLoadingScreen'
 import { useAutoSaveBuffer } from '@/components/shared/AutoSave'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
@@ -82,6 +83,7 @@ import type {
   AvailableEvaluationFields,
   EvaluationConfig,
 } from '@/lib/api/evaluation-types'
+import { sharesAPI, type Participation } from '@/lib/api/shares'
 import { describeEvaluationConfigWarnings } from '@/lib/evaluation/configWarnings'
 import { refreshEvaluationConfigs } from '@/lib/evaluation/refreshEvaluationConfigs'
 import { useSlot } from '@/lib/extensions/slots'
@@ -636,6 +638,32 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
         if (isLatest()) setNextCheckedFor(projectId)
       })
   }, [projectId, taskCount, annotationCount])
+
+  // The participant card shows only what the participation allows (leave
+  // button, or nothing at all), so the page reads it before its first frame
+  // instead of letting the card appear or vanish later (participationFor).
+  // A failed read counts as an answer: the card then falls back to `via`.
+  const [participation, setParticipation] = useState<Participation | null>(null)
+  const [participationFor, setParticipationFor] = useState<string | null>(null)
+  useEffect(() => {
+    if (!projectId || !isParticipant) return
+    let cancelled = false
+    sharesAPI
+      .getParticipation(projectId)
+      .then((p) => {
+        if (cancelled) return
+        setParticipation(p)
+        setParticipationFor(projectId)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setParticipation(null)
+        setParticipationFor(projectId)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [projectId, isParticipant])
 
   // Fetch report status when user or projectId changes (Issue #770)
   useEffect(() => {
@@ -1917,20 +1945,21 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
   }
 
   // One step from loading to the full page: the project of this URL, the
-  // flags and the per-user task check are all known before anything shows.
+  // flags, the per-user task check and (for participants) the participation
+  // are all known before anything shows.
   if (
     !projectId ||
     (!currentProject && !notFound) ||
-    (currentProject && (!flagsReady || nextCheckedFor !== projectId))
+    (currentProject &&
+      (!flagsReady ||
+        nextCheckedFor !== projectId ||
+        (isParticipant && participationFor !== projectId)))
   ) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
-          <p className="mt-4 text-zinc-600 dark:text-zinc-400">
-            {t('project.loading')}
-          </p>
-        </div>
+      // The same spot as the app loading screen it takes over from; the
+      // min-h keeps the footer below the fold meanwhile.
+      <div className="min-h-screen">
+        <AppLoadingScreen label={t('project.loading')} covering={false} />
       </div>
     )
   }
@@ -2971,6 +3000,7 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
             <ParticipantCard
               projectId={projectId}
               via={currentProject.participant_via ?? null}
+              participation={participation}
               onLeft={() => router.push('/projects')}
             />
           )}

@@ -255,7 +255,10 @@ beforeEach(() => {
     t: (key: string, vars?: any) =>
       vars ? `${key}:${JSON.stringify(vars)}` : key,
   })
-  ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false })
+  ;(useUIStore as jest.Mock).mockReturnValue({
+    isSidebarHidden: false,
+    isHydrated: true,
+  })
   ;(useModels as jest.Mock).mockReturnValue({
     models: [],
     loading: false,
