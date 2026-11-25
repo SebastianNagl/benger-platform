@@ -45,6 +45,9 @@ export interface ProjectSettings {
   require_confirm_before_submit: boolean
   // Reveal the full task data (incl. Musterlösung) to the solver after submit.
   annotator_full_visibility_after_submit: boolean
+  // Show the grading steps (Prüfungspunkte) to the solver after submit,
+  // independent of the reveal above. Optional for drafts saved before it.
+  annotator_step_detail_after_submit?: boolean
   annotation_time_limit_enabled: boolean
   annotation_time_limit_seconds: number | null
   strict_timer_enabled: boolean
@@ -194,6 +197,7 @@ export const INITIAL_WIZARD_DATA: WizardData = {
     randomize_task_order: false,
     require_confirm_before_submit: true,
     annotator_full_visibility_after_submit: false,
+    annotator_step_detail_after_submit: true,
     annotation_time_limit_enabled: false,
     annotation_time_limit_seconds: null,
     strict_timer_enabled: false,

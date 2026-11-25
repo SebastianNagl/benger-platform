@@ -538,7 +538,9 @@
           "strictTimerHint": "Annotation automatisch absenden, wenn die Zeit abläuft",
           "advancedNote": "Weitere Einstellungen (Review-Modus, Feedback) sind nach der Erstellung auf der Projektseite verfügbar.",
           "revealSolution": "Musterlösung nach Abgabe anzeigen",
-          "revealSolutionHint": "Nach der Abgabe sehen Bearbeitende alle Aufgabenfelder inkl. Musterlösung."
+          "revealSolutionHint": "Nach der Abgabe sehen Bearbeitende alle Aufgabenfelder inkl. Musterlösung.",
+          "revealStepDetail": "Prüfungspunkte nach Abgabe anzeigen",
+          "revealStepDetailHint": "Nach der Abgabe sehen Bearbeitende die Punkte und Begründungen zu jedem Prüfungspunkt ihrer Bewertung, auch wenn die Musterlösung verborgen bleibt."
         },
         "evalSaveFailed": "Evaluationskonfiguration konnte nicht gespeichert werden",
         "promptStructureSaveFailed": "Prompt-Struktur konnte nicht gespeichert werden (Prompts sind weiterhin in der Generierungskonfiguration gespeichert)",
@@ -1417,7 +1419,7 @@
         "annotatorFullVisibility": "Alle Felder nach Abgabe anzeigen",
         "annotatorFullVisibilityHelp": "Wenn aktiviert, sehen Annotatoren beim Ansehen ihrer eigenen abgegebenen Arbeit alle Aufgabenfelder einschließlich der Musterlösung. Wenn deaktiviert, ist diese Ansicht auf die Felder beschränkt, die sie beim Annotieren gesehen haben, und die Musterlösung bleibt verborgen. Die Schritte der Bewertung steuert die Einstellung darunter.",
         "annotatorStepDetail": "Bewertungsschritte nach Abgabe anzeigen",
-        "annotatorStepDetailHelp": "Wenn aktiviert, sehen Annotatoren nach ihrer Abgabe die Punkte und Begründungen zu jedem Schritt des Bewertungsbogens. Note und Gesamtpunkte sind immer sichtbar. Die Hinweise des Bewertungsbogens bleiben verborgen, solange die Musterlösung nicht angezeigt wird. Solange du sie nicht änderst, übernimmt sie den Wert der Einstellung darüber.",
+        "annotatorStepDetailHelp": "Wenn aktiviert, sehen Annotatoren nach ihrer Abgabe die Punkte und Begründungen zu jedem Schritt des Bewertungsbogens. Note und Gesamtpunkte sind immer sichtbar. Die Hinweise des Bewertungsbogens bleiben verborgen, solange die Musterlösung nicht angezeigt wird. Sie ist unabhängig von der Musterlösung: neue Projekte zeigen die Schritte standardmäßig an. Bei älteren Projekten, in denen sie nie gesetzt wurde, übernimmt sie den Wert der Einstellung darüber.",
         "restorableCheckpoints": "Wiederherstellbare Zwischenstände speichern",
         "restorableCheckpointsHelp": "Speichert regelmäßig (alle 5 Minuten) Zwischenstände der laufenden Bearbeitung, sodass Annotatoren einen früheren Stand wiederherstellen können. Die Zwischenstände bleiben auch nach der Abgabe erhalten.",
         "samplingMethod": "Aufgaben-Sampling-Methode",

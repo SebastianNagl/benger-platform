@@ -387,6 +387,9 @@ async def create_wizard_draft(
         kind=body.kind,
         icon=body.icon,
         is_wizard_draft=True,
+        # Same default as plain project creation: the steps stay visible when
+        # the wizard hides the reference solution.
+        annotator_step_detail_after_submit=True,
     )
     db.add(project)
     await db.flush()

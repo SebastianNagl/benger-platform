@@ -295,6 +295,14 @@ describe('ProjectCreationWizard — synthetic step (extended)', () => {
     expect(payload.kind).toBe('exam')
     expect(payload.icon).toBe('📚')
     expect(payload.label_config).toContain('$sachverhalt')
+    // The grading steps switch is stored explicitly (default on), so hiding
+    // the model solution never hides the steps too.
+    await waitFor(() =>
+      expect(mockProjectUpdate).toHaveBeenCalledWith(
+        'proj-1',
+        expect.objectContaining({ annotator_step_detail_after_submit: true }),
+      ),
+    )
     _resetWizardKindPresets()
   })
 
