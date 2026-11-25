@@ -1416,7 +1416,7 @@ describe('LabelingInterface', () => {
       })
     })
 
-    it('should show Close button instead of Start Annotating when opened manually', async () => {
+    it('should show Close button instead of Start task when opened manually', async () => {
       const storeWithInstructions = {
         ...mockStoreState,
         currentProject: {
@@ -1444,9 +1444,9 @@ describe('LabelingInterface', () => {
         ).toBeInTheDocument()
       })
 
-      // Should show "Close" not "Start Annotating"
+      // Should show "Close" not "Start task"
       expect(screen.getByText('Close')).toBeInTheDocument()
-      expect(screen.queryByText('Start Annotating')).not.toBeInTheDocument()
+      expect(screen.queryByText('Start task')).not.toBeInTheDocument()
     })
 
     it("should hide Don't show again checkbox when opened manually", async () => {
@@ -1509,8 +1509,8 @@ describe('LabelingInterface', () => {
         screen.queryByText("Don't show again for this project"),
       ).not.toBeInTheDocument()
 
-      // Should show "Start Annotating" (auto-shown, not manual)
-      expect(screen.getByText('Start Annotating')).toBeInTheDocument()
+      // Should show "Start task" (auto-shown, not manual)
+      expect(screen.getByText('Start task')).toBeInTheDocument()
     })
   })
 
@@ -2105,7 +2105,7 @@ describe('LabelingInterface', () => {
       fireEvent.click(checkbox)
 
       // Click Start Annotating
-      fireEvent.click(screen.getByText('Start Annotating'))
+      fireEvent.click(screen.getByText('Start task'))
 
       await waitFor(() => {
         expect(localStorage.setItem).toHaveBeenCalledWith(

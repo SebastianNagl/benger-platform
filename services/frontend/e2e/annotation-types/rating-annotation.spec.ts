@@ -45,7 +45,7 @@ test.describe('Rating Annotation', () => {
 
     // Navigate to annotation if possible
     const annotateButton = page.locator(
-      'button:has-text("Annotate"), a:has-text("Start Annotating"), a:has-text("Annotation"), button:has-text("Annotieren")',
+      'button:has-text("Annotate"), button:has-text("Start task"), a:has-text("Annotation"), button:has-text("Annotieren")',
     )
     if (
       await annotateButton
