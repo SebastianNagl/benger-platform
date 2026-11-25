@@ -18,11 +18,24 @@
 
 import {
   AdvancedSettingsCard,
+  InstructionDisplaySettings,
   type AdvancedSettings,
 } from '@/components/projects/AdvancedSettingsCard'
+import { registerProjectSettingRisks } from '@/components/projects/projectSettingRisks'
+import {
+  settingChanges,
+  SettingRiskProvider,
+  useGatedSettingChange,
+} from '@/components/shared/settingRisk'
 import { createMockT } from '@/test-utils/i18nMock'
 import '@testing-library/jest-dom'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState, type ComponentType } from 'react'
 
@@ -70,7 +83,10 @@ interface HarnessProps {
   canEdit?: boolean
   ProjectSettingsExtended?: ComponentType<any> | null
   ProjectSettingsInterfaceExtra?: ComponentType<any> | null
+  ProjectSettingsAnnotationWork?: ComponentType<any> | null
   onChange?: (s: AdvancedSettings) => void
+  onSetOptions?: (options: { deferSave?: boolean } | undefined) => void
+  onTextCommit?: () => void
 }
 
 /**
@@ -84,15 +100,20 @@ function Harness({
   canEdit = true,
   ProjectSettingsExtended = null,
   ProjectSettingsInterfaceExtra = null,
+  ProjectSettingsAnnotationWork = null,
   onChange,
+  onSetOptions,
+  onTextCommit,
 }: HarnessProps) {
   const [settings, setSettings] = useState<AdvancedSettings>(
     makeSettings(initial),
   )
 
-  const set: React.Dispatch<React.SetStateAction<AdvancedSettings>> = (
-    update,
+  const set = (
+    update: React.SetStateAction<AdvancedSettings>,
+    options?: { deferSave?: boolean },
   ) => {
+    onSetOptions?.(options)
     setSettings((prev) => {
       const next =
         typeof update === 'function'
@@ -113,6 +134,43 @@ function Harness({
       editing={editing}
       ProjectSettingsExtended={ProjectSettingsExtended}
       ProjectSettingsInterfaceExtra={ProjectSettingsInterfaceExtra}
+      ProjectSettingsAnnotationWork={ProjectSettingsAnnotationWork}
+      onTextCommit={onTextCommit}
+    />
+  )
+}
+
+/**
+ * Host that gates every change through the shared risk registry, the way
+ * the project page does: a risky change is applied only once confirmed.
+ */
+function GatedCard({ initial }: { initial: Partial<AdvancedSettings> }) {
+  const [settings, setSettings] = useState<AdvancedSettings>(
+    makeSettings(initial),
+  )
+  const gateChange = useGatedSettingChange()
+  const set = (
+    update: React.SetStateAction<AdvancedSettings>,
+    options?: { deferSave?: boolean; onCancel?: () => void },
+  ) => {
+    const next =
+      typeof update === 'function'
+        ? (update as (p: AdvancedSettings) => AdvancedSettings)(settings)
+        : update
+    gateChange(
+      settingChanges(settings, next),
+      () => setSettings(next),
+      options?.onCancel,
+    )
+  }
+  return (
+    <AdvancedSettingsCard
+      t={t}
+      canEditProject={() => true}
+      getReadOnlyMessage={(section) => `read-only: ${section}`}
+      advancedSettings={settings}
+      setAdvancedSettings={set}
+      editing
     />
   )
 }
@@ -139,13 +197,41 @@ describe('AdvancedSettingsCard', () => {
 
     it('renders the full settings form when editing is allowed', () => {
       render(<Harness />)
-      expect(screen.getByText('Annotation Behavior')).toBeInTheDocument()
-      expect(screen.getByText('Interface Settings')).toBeInTheDocument()
-      expect(
-        screen.getByText('Post-Annotation Questionnaire'),
-      ).toBeInTheDocument()
       // 4 base selects when questionnaire collapsed: max, min, assignment, skip
       expect(screen.getAllByRole('combobox')).toHaveLength(4)
+    })
+
+    it("groups the settings in the order of an annotator's way through a project", () => {
+      render(<Harness />)
+      const titles = screen
+        .getAllByRole('heading', { level: 3 })
+        .map((h) => h.textContent)
+      expect(titles).toEqual([
+        'Assignment',
+        'While working',
+        'Skipping',
+        'Submission',
+        'After submission',
+      ])
+    })
+
+    it('puts every setting into exactly one group', () => {
+      render(<Harness />)
+      const inGroup = (testId: string, label: RegExp) =>
+        expect(
+          within(screen.getByTestId(testId)).getByText(label),
+        ).toBeInTheDocument()
+      inGroup('settings-group-assignment', /^Task Assignment Mode$/i)
+      inGroup('settings-group-assignment', /^Randomize Task Order$/i)
+      inGroup('settings-group-work', /Allow pasting text/i)
+      inGroup('settings-group-skipping', /^Show Skip Button$/i)
+      inGroup('settings-group-submission', /^Show Submit Button$/i)
+      inGroup(
+        'settings-group-after-submit',
+        /Reveal all fields after submission/i,
+      )
+      // The instruction switches live with the instructions, not here.
+      expect(screen.queryByText(/^Show Instructions$/i)).not.toBeInTheDocument()
     })
   })
 
@@ -378,11 +464,35 @@ describe('AdvancedSettingsCard', () => {
       )
 
       const minutes = screen.getByRole('spinbutton') as HTMLInputElement
-      // Drive the controlled number input deterministically: value "5" -> 5*60.
+      // Typed digits apply on blur only (a half-typed limit is never set):
+      // value "5" -> 5*60.
       fireEvent.change(minutes, { target: { value: '5' } })
+      expect(onChange).not.toHaveBeenCalled()
+      fireEvent.blur(minutes)
       expect(onChange).toHaveBeenLastCalledWith(
         expect.objectContaining({ annotation_time_limit_seconds: 300 }),
       )
+    })
+
+    it('puts the stored minutes back when the change is cancelled in its confirmation', async () => {
+      registerProjectSettingRisks()
+      render(
+        <SettingRiskProvider
+          context={{ project: null, runningExam: false, submittedCount: 0 }}
+        >
+          <GatedCard
+            initial={{
+              annotation_time_limit_enabled: true,
+              annotation_time_limit_seconds: 1800,
+            }}
+          />
+        </SettingRiskProvider>,
+      )
+      const minutes = screen.getByRole('spinbutton') as HTMLInputElement
+      fireEvent.change(minutes, { target: { value: '45' } })
+      fireEvent.blur(minutes)
+      fireEvent.click(await screen.findByTestId('confirm-dialog-cancel-button'))
+      await waitFor(() => expect(minutes.value).toBe('30'))
     })
 
     it('an empty/NaN minute value falls back to 30 minutes (1800s)', () => {
@@ -400,6 +510,7 @@ describe('AdvancedSettingsCard', () => {
       const minutes = screen.getByRole('spinbutton') as HTMLInputElement
       // empty -> parseInt('') NaN -> (|| 30) -> 30 * 60 = 1800
       fireEvent.change(minutes, { target: { value: '' } })
+      fireEvent.keyDown(minutes, { key: 'Enter' })
       expect(onChange).toHaveBeenLastCalledWith(
         expect.objectContaining({ annotation_time_limit_seconds: 1800 }),
       )
@@ -430,8 +541,6 @@ describe('AdvancedSettingsCard', () => {
 
   describe('Interface settings — toggles', () => {
     const cases: Array<[RegExp, keyof AdvancedSettings, boolean]> = [
-      [/^Show Instructions$/i, 'show_instruction', true],
-      [/Always show instructions/i, 'instructions_always_visible', false],
       [/^Show Skip Button$/i, 'show_skip_button', true],
       [/^Require Comment on Skip$/i, 'require_comment_on_skip', false],
       [/Allow pasting text from other programs/i, 'allow_external_paste', true],
@@ -736,8 +845,11 @@ describe('AdvancedSettingsCard', () => {
 
       const extra = screen.getByTestId('interface-extra')
       const paste = screen.getByTestId('allow-external-paste-checkbox')
-      // Next sibling block of the paste switch's row.
-      expect(paste.closest('div.flex')!.nextElementSibling).toBe(extra)
+      // In the "While working" group, right after the paste switch's row.
+      const work = screen.getByTestId('settings-group-work')
+      expect(work).toContainElement(extra)
+      const pasteRow = paste.closest('[data-setting-row]')!
+      expect(pasteRow.nextElementSibling).toBe(extra)
       expect(extra).toHaveAttribute('data-editing', 'true')
       await user.click(extra)
       expect(onChange).toHaveBeenLastCalledWith(
@@ -772,5 +884,100 @@ describe('AdvancedSettingsCard', () => {
           .querySelector('textarea'),
       ).toBeDisabled()
     })
+  })
+
+  describe('Nach der Abgabe', () => {
+    it('shows the step switch as its own row, never hidden by the field switch', () => {
+      render(
+        <Harness
+          initial={{
+            annotator_full_visibility_after_submit: false,
+            annotator_step_detail_after_submit: true,
+          }}
+        />,
+      )
+      const full = screen.getByLabelText(/Reveal all fields after submission/i)
+      const steps = screen.getByTestId('annotator-step-detail-toggle')
+      expect(full).not.toBeChecked()
+      expect(steps).toBeChecked()
+      // Siblings in the group, not nested under the field switch's row.
+      const fullRow = full.closest('[data-setting-row]')!
+      expect(fullRow).not.toContainElement(steps)
+    })
+  })
+
+  describe('questionnaire config text', () => {
+    it('defers the save while typing and commits on blur', () => {
+      const onSetOptions = jest.fn()
+      const onTextCommit = jest.fn()
+      render(
+        <Harness
+          initial={{ questionnaire_enabled: true }}
+          onSetOptions={onSetOptions}
+          onTextCommit={onTextCommit}
+        />,
+      )
+      const area = screen
+        .getByText('Questionnaire Config (Label Studio XML)')
+        .closest('div')!
+        .querySelector('textarea')!
+      fireEvent.change(area, { target: { value: '<View/>' } })
+      expect(onSetOptions).toHaveBeenLastCalledWith({ deferSave: true })
+      expect(onTextCommit).not.toHaveBeenCalled()
+      fireEvent.blur(area)
+      expect(onTextCommit).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('project-settings-annotation-work slot', () => {
+    it('renders the slot inside the "While working" group', () => {
+      const Work: ComponentType<any> = () => <div data-testid="work-slot" />
+      render(<Harness ProjectSettingsAnnotationWork={Work} />)
+      expect(screen.getByTestId('settings-group-work')).toContainElement(
+        screen.getByTestId('work-slot'),
+      )
+    })
+  })
+})
+
+describe('InstructionDisplaySettings', () => {
+  function DisplayHarness({
+    onChange,
+  }: {
+    onChange: (s: AdvancedSettings) => void
+  }) {
+    const [settings, setSettings] = useState(makeSettings())
+    return (
+      <InstructionDisplaySettings
+        t={t}
+        advancedSettings={settings}
+        setAdvancedSettings={(update) =>
+          setSettings((prev) => {
+            const next =
+              typeof update === 'function'
+                ? (update as (p: AdvancedSettings) => AdvancedSettings)(prev)
+                : update
+            onChange(next)
+            return next
+          })
+        }
+        editing
+      />
+    )
+  }
+
+  it.each([
+    [/^Show Instructions$/i, 'show_instruction', true],
+    [/Always show instructions/i, 'instructions_always_visible', false],
+  ] as const)('flips %s', async (labelRe, key, initial) => {
+    const user = userEvent.setup()
+    const onChange = jest.fn()
+    render(<DisplayHarness onChange={onChange} />)
+    const cb = screen.getByLabelText(labelRe) as HTMLInputElement
+    expect(cb.checked).toBe(initial)
+    await user.click(cb)
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ [key]: !initial }),
+    )
   })
 })

@@ -90,7 +90,7 @@ export function AccessWindowFields({
           {showTitle && (
             <Label>{t('project.settings.accessWindow.title')}</Label>
           )}
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
             {t('project.settings.accessWindow.hint')}
           </p>
         </div>
@@ -112,7 +112,7 @@ export function AccessWindowFields({
       </div>
 
       {enabled && (
-        <div className="ml-4 space-y-2">
+        <div className="mt-3 ml-1 space-y-2 border-l border-zinc-200 pl-4 dark:border-zinc-700">
           <div className="flex items-center gap-2">
             <Label htmlFor="access-window-opens" className="w-16 text-sm">
               {t('project.settings.accessWindow.opens')}

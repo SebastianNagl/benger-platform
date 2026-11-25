@@ -655,7 +655,8 @@ describe('ProjectStore', () => {
       const state = useProjectStore.getState()
       expect(state.projects[0].title).toBe('New Title')
       expect(state.currentProject?.title).toBe('New Title')
-      expect(mockToast.success).toHaveBeenCalledWith('store.project.updated')
+      // The caller confirms the save once; the store adds no second toast.
+      expect(mockToast.success).not.toHaveBeenCalled()
     })
 
     it('should increment label config version when label_config changes', async () => {

@@ -14,7 +14,14 @@
 'use client'
 
 import { DefaultParamInput } from '@/components/projects/DefaultParamInput'
+import {
+  SettingField,
+  SettingsGroup,
+  SettingsGroupStack,
+} from '@/components/projects/SettingsGroup'
 import { SubSection } from '@/components/projects/SubSection'
+import { Input } from '@/components/shared/Input'
+import { Label } from '@/components/shared/Label'
 import { type MutableRefObject } from 'react'
 
 export type DefaultsMode = 'recommended' | 'minimum' | 'custom'
@@ -44,6 +51,10 @@ interface GenerationDefaultsCardProps {
   genRecConsensus: RecommendedConsensus
   cardEditingGeneration: boolean
   beginEditGeneration: () => void
+  /** Default runs per task (group "Läufe"); omit to leave the group out. */
+  runsPerTask?: number
+  setRunsPerTask?: (value: number | undefined) => void
+  maxRunsPerTask?: number
 }
 
 export function GenerationDefaultsCard({
@@ -59,208 +70,242 @@ export function GenerationDefaultsCard({
   genRecConsensus,
   cardEditingGeneration,
   beginEditGeneration,
+  runsPerTask,
+  setRunsPerTask,
+  maxRunsPerTask = 25,
 }: GenerationDefaultsCardProps) {
   return (
-    // No own bottom margin: the ConfigCard's section container gives every
-    // direct child `py-6` and a divider, so an extra `mb-6` here pushed
-    // this section's divider 24px lower than the ones below it.
-    <div>
-      <SubSection title={t('project.generationDefaults.title')}>
-        <p className="-mt-2 mb-3 text-xs text-zinc-500 dark:text-zinc-400">
-          {t('project.generationDefaults.description')}
-        </p>
-        {/* 3-mode picker — controls per-model pre-fill when a
+    <SubSection title={t('project.generationDefaults.title')}>
+      <SettingsGroupStack>
+        <SettingsGroup
+          title={t('project.settings.groups.parameters')}
+          description={t('project.generationDefaults.description')}
+        >
+          {/* 3-mode picker — controls per-model pre-fill when a
             model is added. recommended/minimum read each model's
             catalog metadata; custom uses the inputs below. */}
-        <div className="mb-4 rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
-          <div className="mb-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
-            {t('project.generationDefaults.modeLabel')}
-          </div>
-          <div className="space-y-2">
-            {(
-              [
+          <div className="mb-4 rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
+            <div className="mb-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
+              {t('project.generationDefaults.modeLabel')}
+            </div>
+            <div className="space-y-2">
+              {(
                 [
-                  'recommended',
-                  t('project.generationDefaults.modeRecommended'),
-                  t('project.generationDefaults.modeRecommendedDesc'),
-                ],
-                [
-                  'minimum',
-                  t('project.generationDefaults.modeMinimum'),
-                  t('project.generationDefaults.modeMinimumDesc'),
-                ],
-                [
-                  'custom',
-                  t('project.generationDefaults.modeCustom'),
-                  t('project.generationDefaults.modeCustomDesc'),
-                ],
-              ] as const
-            ).map(([modeKey, label, desc]) => (
-              <label
-                key={modeKey}
-                className="flex cursor-pointer items-start gap-2"
-              >
-                <input
-                  type="radio"
-                  name="gen-defaults-mode"
-                  value={modeKey}
-                  checked={genDefaultsMode === modeKey}
-                  onChange={() => {
-                    // Sync ref + state. handleModelToggle reads
-                    // the ref, so this guarantees a model toggle
-                    // in the same tick sees the new mode without
-                    // waiting for React to re-render.
-                    genDefaultsModeRef.current = modeKey
-                    setGenDefaultsMode(modeKey)
-                    if (!cardEditingGeneration) beginEditGeneration()
-                  }}
-                  className="mt-0.5"
-                />
-                <span className="flex-1">
-                  <span className="block text-xs font-medium text-zinc-900 dark:text-zinc-100">
-                    {label}
+                  [
+                    'recommended',
+                    t('project.generationDefaults.modeRecommended'),
+                    t('project.generationDefaults.modeRecommendedDesc'),
+                  ],
+                  [
+                    'minimum',
+                    t('project.generationDefaults.modeMinimum'),
+                    t('project.generationDefaults.modeMinimumDesc'),
+                  ],
+                  [
+                    'custom',
+                    t('project.generationDefaults.modeCustom'),
+                    t('project.generationDefaults.modeCustomDesc'),
+                  ],
+                ] as const
+              ).map(([modeKey, label, desc]) => (
+                <label
+                  key={modeKey}
+                  className="flex cursor-pointer items-start gap-2"
+                >
+                  <input
+                    type="radio"
+                    name="gen-defaults-mode"
+                    value={modeKey}
+                    checked={genDefaultsMode === modeKey}
+                    onChange={() => {
+                      // Sync ref + state. handleModelToggle reads
+                      // the ref, so this guarantees a model toggle
+                      // in the same tick sees the new mode without
+                      // waiting for React to re-render.
+                      genDefaultsModeRef.current = modeKey
+                      setGenDefaultsMode(modeKey)
+                      if (!cardEditingGeneration) beginEditGeneration()
+                    }}
+                    className="mt-0.5"
+                  />
+                  <span className="flex-1">
+                    <span className="block text-xs font-medium text-zinc-900 dark:text-zinc-100">
+                      {label}
+                    </span>
+                    <span className="block text-xs text-zinc-500 dark:text-zinc-400">
+                      {desc}
+                    </span>
                   </span>
-                  <span className="block text-xs text-zinc-500 dark:text-zinc-400">
-                    {desc}
-                  </span>
-                </span>
-              </label>
-            ))}
+                </label>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-              {t('project.generationDefaults.defaultTemperature')}
-            </label>
-            <DefaultParamInput
-              value={genDefaultTemperature}
-              fallback={0}
-              min={0}
-              max={2}
-              step={0.1}
-              placeholder="0.0"
-              disabled={genDefaultsMode !== 'custom'}
-              onChange={(e) => {
-                if (!cardEditingGeneration) beginEditGeneration()
-                setGenDefaultTemperature(
-                  e.target.value ? parseFloat(e.target.value) : undefined,
-                )
-              }}
-            />
-            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-              {genDefaultsMode === 'custom'
-                ? t('project.generationDefaults.temperatureHelp')
-                : t('project.generationDefaults.temperatureHelpModeOverride')}
-            </p>
-            {/* Recommended-value badge for the project Generation
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <Label>
+                {t('project.generationDefaults.defaultTemperature')}
+              </Label>
+              <DefaultParamInput
+                value={genDefaultTemperature}
+                fallback={0}
+                min={0}
+                max={2}
+                step={0.1}
+                placeholder="0.0"
+                disabled={genDefaultsMode !== 'custom'}
+                onChange={(e) => {
+                  if (!cardEditingGeneration) beginEditGeneration()
+                  setGenDefaultTemperature(
+                    e.target.value ? parseFloat(e.target.value) : undefined,
+                  )
+                }}
+              />
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                {genDefaultsMode === 'custom'
+                  ? t('project.generationDefaults.temperatureHelp')
+                  : t('project.generationDefaults.temperatureHelpModeOverride')}
+              </p>
+              {/* Recommended-value badge for the project Generation
                 Defaults — consensus across the project's selected
                 models. Same UX as the run-trigger modal so the user
                 sees the same signal regardless of where they edit. */}
-            {selectedModelIds.length > 0 && (
-              <div className="mt-1 text-xs">
-                {genRecConsensus.temperature.uniform &&
-                genRecConsensus.temperature.value !== undefined ? (
-                  <span className="text-zinc-600 dark:text-zinc-400">
-                    {t('generation.controlModal.recommended')}:{' '}
-                    {genRecConsensus.temperature.value}
-                    {(genDefaultTemperature ?? 0) !==
-                      genRecConsensus.temperature.value && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setGenDefaultTemperature(
-                            genRecConsensus.temperature.value,
-                          )
-                        }
-                        className="ml-2 text-emerald-600 hover:underline dark:text-emerald-400"
-                      >
-                        {t('generation.controlModal.resetToRecommended')}
-                      </button>
-                    )}
-                  </span>
-                ) : genRecConsensus.temperature.anyRec ? (
-                  <span
-                    className="text-amber-600 dark:text-amber-400"
-                    title={genRecConsensus.temperature.perModel
-                      .map((m) => `${m.model}: ${m.value ?? '—'}`)
-                      .join('\n')}
-                  >
-                    {t('generation.controlModal.divergentRecommendations')}
-                  </span>
-                ) : (
-                  <span className="text-zinc-400 dark:text-zinc-500">
-                    {t('generation.controlModal.noRecommendation')}
-                  </span>
-                )}
-              </div>
-            )}
+              {selectedModelIds.length > 0 && (
+                <div className="mt-1 text-xs">
+                  {genRecConsensus.temperature.uniform &&
+                  genRecConsensus.temperature.value !== undefined ? (
+                    <span className="text-zinc-600 dark:text-zinc-400">
+                      {t('generation.controlModal.recommended')}:{' '}
+                      {genRecConsensus.temperature.value}
+                      {(genDefaultTemperature ?? 0) !==
+                        genRecConsensus.temperature.value && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!cardEditingGeneration) beginEditGeneration()
+                            setGenDefaultTemperature(
+                              genRecConsensus.temperature.value,
+                            )
+                          }}
+                          className="ml-2 text-emerald-600 hover:underline dark:text-emerald-400"
+                        >
+                          {t('generation.controlModal.resetToRecommended')}
+                        </button>
+                      )}
+                    </span>
+                  ) : genRecConsensus.temperature.anyRec ? (
+                    <span
+                      className="text-amber-600 dark:text-amber-400"
+                      title={genRecConsensus.temperature.perModel
+                        .map((m) => `${m.model}: ${m.value ?? '—'}`)
+                        .join('\n')}
+                    >
+                      {t('generation.controlModal.divergentRecommendations')}
+                    </span>
+                  ) : (
+                    <span className="text-zinc-400 dark:text-zinc-500">
+                      {t('generation.controlModal.noRecommendation')}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+            <div>
+              <Label>{t('project.generationDefaults.defaultMaxTokens')}</Label>
+              <DefaultParamInput
+                value={genDefaultMaxTokens}
+                fallback={4000}
+                min={100}
+                max={128000}
+                step={100}
+                placeholder="4000"
+                disabled={genDefaultsMode !== 'custom'}
+                onChange={(e) => {
+                  if (!cardEditingGeneration) beginEditGeneration()
+                  setGenDefaultMaxTokens(
+                    e.target.value ? parseInt(e.target.value) : undefined,
+                  )
+                }}
+              />
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                {genDefaultsMode === 'custom'
+                  ? t('project.generationDefaults.maxTokensHelp')
+                  : t('project.generationDefaults.maxTokensHelpModeOverride')}
+              </p>
+              {selectedModelIds.length > 0 && (
+                <div className="mt-1 text-xs">
+                  {genRecConsensus.max_tokens.uniform &&
+                  genRecConsensus.max_tokens.value !== undefined ? (
+                    <span className="text-zinc-600 dark:text-zinc-400">
+                      {t('generation.controlModal.recommended')}:{' '}
+                      {genRecConsensus.max_tokens.value}
+                      {(genDefaultMaxTokens ?? 4000) !==
+                        genRecConsensus.max_tokens.value && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!cardEditingGeneration) beginEditGeneration()
+                            setGenDefaultMaxTokens(
+                              genRecConsensus.max_tokens.value,
+                            )
+                          }}
+                          className="ml-2 text-emerald-600 hover:underline dark:text-emerald-400"
+                        >
+                          {t('generation.controlModal.resetToRecommended')}
+                        </button>
+                      )}
+                    </span>
+                  ) : genRecConsensus.max_tokens.anyRec ? (
+                    <span
+                      className="text-amber-600 dark:text-amber-400"
+                      title={genRecConsensus.max_tokens.perModel
+                        .map((m) => `${m.model}: ${m.value ?? '—'}`)
+                        .join('\n')}
+                    >
+                      {t('generation.controlModal.divergentRecommendations')}
+                    </span>
+                  ) : (
+                    <span className="text-zinc-400 dark:text-zinc-500">
+                      {t('generation.controlModal.noRecommendation')}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-              {t('project.generationDefaults.defaultMaxTokens')}
-            </label>
-            <DefaultParamInput
-              value={genDefaultMaxTokens}
-              fallback={4000}
-              min={100}
-              max={128000}
-              step={100}
-              placeholder="4000"
-              disabled={genDefaultsMode !== 'custom'}
-              onChange={(e) => {
-                if (!cardEditingGeneration) beginEditGeneration()
-                setGenDefaultMaxTokens(
-                  e.target.value ? parseInt(e.target.value) : undefined,
-                )
-              }}
-            />
-            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-              {genDefaultsMode === 'custom'
-                ? t('project.generationDefaults.maxTokensHelp')
-                : t('project.generationDefaults.maxTokensHelpModeOverride')}
-            </p>
-            {selectedModelIds.length > 0 && (
-              <div className="mt-1 text-xs">
-                {genRecConsensus.max_tokens.uniform &&
-                genRecConsensus.max_tokens.value !== undefined ? (
-                  <span className="text-zinc-600 dark:text-zinc-400">
-                    {t('generation.controlModal.recommended')}:{' '}
-                    {genRecConsensus.max_tokens.value}
-                    {(genDefaultMaxTokens ?? 4000) !==
-                      genRecConsensus.max_tokens.value && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setGenDefaultMaxTokens(
-                            genRecConsensus.max_tokens.value,
-                          )
-                        }
-                        className="ml-2 text-emerald-600 hover:underline dark:text-emerald-400"
-                      >
-                        {t('generation.controlModal.resetToRecommended')}
-                      </button>
-                    )}
-                  </span>
-                ) : genRecConsensus.max_tokens.anyRec ? (
-                  <span
-                    className="text-amber-600 dark:text-amber-400"
-                    title={genRecConsensus.max_tokens.perModel
-                      .map((m) => `${m.model}: ${m.value ?? '—'}`)
-                      .join('\n')}
-                  >
-                    {t('generation.controlModal.divergentRecommendations')}
-                  </span>
-                ) : (
-                  <span className="text-zinc-400 dark:text-zinc-500">
-                    {t('generation.controlModal.noRecommendation')}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </SubSection>
-    </div>
+        </SettingsGroup>
+        {setRunsPerTask ? (
+          <SettingsGroup
+            title={t('project.settings.groups.runs')}
+            description={t('project.generationDefaults.runsDescription')}
+            data-testid="generation-runs-group"
+          >
+            <SettingField
+              label={t('project.generationDefaults.defaultRunsPerTask')}
+              htmlFor="generation-runs-per-task"
+              help={t('project.generationDefaults.runsPerTaskHelp', {
+                max: maxRunsPerTask,
+              })}
+              className="max-w-xs"
+            >
+              <Input
+                id="generation-runs-per-task"
+                type="number"
+                min={1}
+                max={maxRunsPerTask}
+                step={1}
+                value={runsPerTask ?? 1}
+                placeholder="1"
+                onChange={(e) => {
+                  if (!cardEditingGeneration) beginEditGeneration()
+                  setRunsPerTask(
+                    e.target.value ? parseInt(e.target.value) : undefined,
+                  )
+                }}
+              />
+            </SettingField>
+          </SettingsGroup>
+        ) : null}
+      </SettingsGroupStack>
+    </SubSection>
   )
 }

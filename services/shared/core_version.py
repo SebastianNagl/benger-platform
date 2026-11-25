@@ -2082,11 +2082,44 @@ API change).
     into the card, and the card sends ``evaluation_configs_base`` with its
     list writes, so its next save keeps the section's
     ``metric_parameters`` keys in any order of the two writes.
+2.89 (2026-11-25): grouped project page settings, one auto-save and
+  confirmations for risky setting changes (no migration, additive; frontend
+  only).
+  - ``@/components/projects/SettingsGroup``: ``SettingsGroup`` (titled group
+    with optional ``description``; groups after the first get a hairline,
+    a group whose body renders nothing is hidden), ``SettingsGroupStack``,
+    ``SettingRow`` (label and ``help`` left, ``control`` right, dependent
+    settings as indented ``children``) and ``SettingField`` (full-width
+    control under its label), so settings an extension contributes look and
+    group like the platform's own.
+  - ``@/components/shared/settingRisk``: ``registerSettingRisk(key,
+    definition)`` with ``SettingRiskDefinition`` (``label``,
+    ``consequence``, optional ``isRisky``) and ``SettingRiskContext``
+    (``project``, ``runningExam``, ``submittedCount``);
+    ``settingChanges(from, to)`` and ``riskyChanges(changes, ctx)`` with
+    ``SettingChange``; ``useGatedSettingChange()``, which applies a change
+    at once or after the confirmation dialog the project page's
+    ``SettingRiskProvider`` shows (cancel keeps the old value, or runs
+    ``onCancel``). Without a provider every change applies directly.
+  - ``@/components/shared/AutoSave``: ``useAutoSave({ value, save, onUndo,
+    riskChanges?, isValid?, savedValue?, saveOn?, delayMs?, enabled? })``
+    returning ``AutoSaveState`` (``dirty``, ``saving``, ``invalid``,
+    ``commit``), for a section that saves itself the way the project page's
+    cards do: a moment after the last change or on ``commit()``
+    (``saveOn: 'commit'``), never an invalid value, one "Gespeichert" toast
+    with "Rückgängig" per saved batch (``save`` must not toast success),
+    undo of risky changes confirmed first. ``AUTOSAVE_DELAY_MS`` is the
+    standard delay.
+  - Slot ``project-settings-annotation-work``: further settings of the
+    "Bearbeitung" group of the annotation workflow settings, rendered inside
+    that group, with props ``{ settings, onSettingsChange, editing }`` like
+    ``project-settings-interface-extra``; changes go through the card's own
+    auto-save. Rendering nothing leaves no gap.
 """
 
 import os
 
-CORE_API_VERSION = "2.88"
+CORE_API_VERSION = "2.89"
 
 
 def extended_required() -> bool:

@@ -3,11 +3,17 @@
  * on the dedicated Members page and is read-only here).
  */
 
+import { SettingRiskProvider } from '@/components/shared/settingRisk'
+import { organizationsAPI } from '@/lib/api/organizations'
 import { projectsAPI } from '@/lib/api/projects'
 import { mockToast } from '@/test-utils/setupTests'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ProjectPermissionsPanel } from '../ProjectPermissionsPanel'
+import { registerProjectSettingRisks } from '../projectSettingRisks'
+
+/** Past the shared auto-save delay (2 s). */
+const SAVED = { timeout: 4000 }
 
 const toast = { success: mockToast.success, error: mockToast.error }
 
@@ -38,7 +44,6 @@ jest.mock('@/contexts/I18nContext', () => ({
     t: (key: string) => {
       const translations: Record<string, string> = {
         'project.permissions.noPermission': 'No permission to edit',
-        'project.permissions.saveSuccess': 'Permissions saved successfully',
         'project.permissions.viewOnly': 'You can only view these permissions',
         'project.permissions.visibility': 'Visibility',
         'project.permissions.public': 'Public',
@@ -60,8 +65,6 @@ jest.mock('@/contexts/I18nContext', () => ({
         'project.permissions.publicRole.contributor': 'Contributor',
         'project.permissions.publicRole.contributorDescription':
           'Add tasks, annotate, run generation/evaluation',
-        'project.permissions.cancel': 'Cancel',
-        'project.permissions.save': 'Save',
         'project.permissions.saving': 'Saving...',
       }
       return translations[key] || key
@@ -71,7 +74,6 @@ jest.mock('@/contexts/I18nContext', () => ({
 
 describe('ProjectPermissionsPanel', () => {
   const mockOnSave = jest.fn()
-  const mockOnCancel = jest.fn()
 
   beforeEach(() => {
     jest.clearAllMocks()
@@ -83,6 +85,7 @@ describe('ProjectPermissionsPanel', () => {
       },
     })
     ;(projectsAPI.updateVisibility as jest.Mock).mockResolvedValue({})
+    ;(organizationsAPI.getOrganizations as jest.Mock).mockResolvedValue([])
     ;(toast.error as jest.Mock).mockImplementation(() => {})
     ;(toast.success as jest.Mock).mockImplementation(() => {})
   })
@@ -139,7 +142,9 @@ describe('ProjectPermissionsPanel', () => {
       )
 
       expect(screen.getByTestId('private-radio')).toBeEnabled()
-      expect(screen.getByTestId('save-button')).toBeInTheDocument()
+      expect(
+        screen.queryByTestId('project-permissions-readonly'),
+      ).not.toBeInTheDocument()
     })
 
     it('stays read-only for a contributor', () => {
@@ -403,17 +408,17 @@ describe('ProjectPermissionsPanel', () => {
       await user.click(
         await screen.findByTestId('confirm-dialog-confirm-button'),
       )
-      await user.click(screen.getByTestId('save-button'))
 
+      // Saved on its own (no save button), with the one saved toast.
       await waitFor(() => {
         expect(projectsAPI.updateVisibility).toHaveBeenCalledWith('project-1', {
           is_public: true,
           public_role: 'CONTRIBUTOR',
         })
-        expect(toast.success).toHaveBeenCalledWith(
-          'Permissions saved successfully',
-        )
-      })
+        expect(toast.success).toHaveBeenCalledWith('shared.autoSave.saved')
+      }, SAVED)
+      expect(projectsAPI.updateVisibility).toHaveBeenCalledTimes(1)
+      expect(toast.success).toHaveBeenCalledTimes(1)
     })
 
     it('saves private payload', async () => {
@@ -432,13 +437,12 @@ describe('ProjectPermissionsPanel', () => {
       })
 
       await user.click(screen.getByTestId('private-option'))
-      await user.click(screen.getByTestId('save-button'))
 
       await waitFor(() => {
         expect(projectsAPI.updateVisibility).toHaveBeenCalledWith('project-1', {
           is_private: true,
         })
-      })
+      }, SAVED)
     })
 
     it('handles save API error', async () => {
@@ -455,43 +459,229 @@ describe('ProjectPermissionsPanel', () => {
         />,
       )
 
-      await waitFor(() => {
-        expect(screen.getByTestId('save-button')).toBeInTheDocument()
-      })
-
-      await user.click(screen.getByTestId('save-button'))
+      await user.click(screen.getByTestId('private-option'))
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith(errorMessage)
         expect(
           screen.getByTestId('project-permissions-error'),
         ).toBeInTheDocument()
-      })
+      }, SAVED)
+      expect(toast.success).not.toHaveBeenCalled()
     })
   })
 
-  describe('Cancel', () => {
-    it('resets visibility on cancel', async () => {
-      const user = userEvent.setup()
+  describe('Risky change confirmation', () => {
+    beforeAll(() => registerProjectSettingRisks())
+    const renderGated = () =>
       render(
-        <ProjectPermissionsPanel
-          projectId="project-1"
-          initialVisibility="private"
-          onCancel={mockOnCancel}
-        />,
+        <SettingRiskProvider
+          context={{ project: null, runningExam: false, submittedCount: 0 }}
+        >
+          <ProjectPermissionsPanel
+            projectId="project-1"
+            initialVisibility="private"
+          />
+        </SettingRiskProvider>,
       )
 
-      await waitFor(() => {
-        expect(screen.getByTestId('public-option')).toBeInTheDocument()
-      })
-
+    it('asks before widening who sees the project and keeps it on cancel', async () => {
+      const user = userEvent.setup()
+      renderGated()
       await user.click(screen.getByTestId('public-option'))
-      await user.click(screen.getByTestId('cancel-button'))
-
+      await user.click(
+        await screen.findByTestId('confirm-dialog-cancel-button'),
+      )
       expect(
         (screen.getByTestId('private-radio') as HTMLInputElement).checked,
       ).toBe(true)
-      expect(mockOnCancel).toHaveBeenCalled()
+      await new Promise((r) => setTimeout(r, 2500))
+      expect(projectsAPI.updateVisibility).not.toHaveBeenCalled()
+    })
+
+    it('applies and saves the change once confirmed', async () => {
+      const user = userEvent.setup()
+      renderGated()
+      await user.click(screen.getByTestId('public-option'))
+      await user.click(
+        await screen.findByTestId('confirm-dialog-confirm-button'),
+      )
+      await waitFor(() => {
+        expect(projectsAPI.updateVisibility).toHaveBeenCalledWith('project-1', {
+          is_public: true,
+          public_role: 'ANNOTATOR',
+        })
+      }, SAVED)
+    })
+
+    it('asks once for an organization choice, not again while its organizations are picked', async () => {
+      ;(organizationsAPI.getOrganizations as jest.Mock).mockResolvedValue([
+        { id: 'org-a', name: 'Org A', slug: 'org-a', role: 'ORG_ADMIN' },
+        { id: 'org-b', name: 'Org B', slug: 'org-b', role: 'ORG_ADMIN' },
+      ])
+      const user = userEvent.setup()
+      renderGated()
+      await user.click(screen.getByTestId('organization-option'))
+      await user.click(
+        await screen.findByTestId('confirm-dialog-confirm-button'),
+      )
+      await waitFor(() =>
+        expect(
+          screen.queryByTestId('confirm-dialog-confirm-button'),
+        ).not.toBeInTheDocument(),
+      )
+      await user.click(await screen.findByTestId('organization-checkbox-org-a'))
+      await user.click(screen.getByTestId('organization-checkbox-org-b'))
+      expect(
+        screen.queryByTestId('confirm-dialog-confirm-button'),
+      ).not.toBeInTheDocument()
+      await waitFor(() => {
+        expect(projectsAPI.updateVisibility).toHaveBeenCalledWith('project-1', {
+          is_private: false,
+          organization_attachments: [
+            { organization_id: 'org-a', group_id: null },
+            { organization_id: 'org-b', group_id: null },
+          ],
+        })
+      }, SAVED)
+      expect(projectsAPI.updateVisibility).toHaveBeenCalledTimes(1)
+    })
+
+    it('asks again for another visibility while a confirmed one is not saved yet', async () => {
+      const user = userEvent.setup()
+      renderGated()
+      await user.click(screen.getByTestId('organization-option'))
+      await user.click(
+        await screen.findByTestId('confirm-dialog-confirm-button'),
+      )
+      await user.click(screen.getByTestId('public-option'))
+      await user.click(
+        await screen.findByTestId('confirm-dialog-cancel-button'),
+      )
+      expect(
+        (screen.getByTestId('organization-radio') as HTMLInputElement).checked,
+      ).toBe(true)
+    })
+
+    it('asks before an undo gives the public back the contributor role', async () => {
+      const user = userEvent.setup()
+      render(
+        <SettingRiskProvider
+          context={{ project: null, runningExam: false, submittedCount: 0 }}
+        >
+          <ProjectPermissionsPanel
+            projectId="project-1"
+            initialVisibility="public"
+            initialPublicRole="CONTRIBUTOR"
+          />
+        </SettingRiskProvider>,
+      )
+      await user.click(screen.getByTestId('public-role-annotator-radio'))
+      await waitFor(() => {
+        expect(projectsAPI.updateVisibility).toHaveBeenCalledWith('project-1', {
+          is_public: true,
+          public_role: 'ANNOTATOR',
+        })
+      }, SAVED)
+      const savedToast = (mockToast.addToast as jest.Mock).mock.calls.find(
+        ([, type, , options]) => type === 'success' && options?.action,
+      )
+      act(() => savedToast![3].action.onClick())
+      expect(
+        await screen.findByText(
+          /project\.permissions\.publicContributorConfirm\.message/,
+        ),
+      ).toBeInTheDocument()
+      await user.click(screen.getByTestId('confirm-dialog-cancel-button'))
+      expect(
+        (screen.getByTestId('public-role-annotator-radio') as HTMLInputElement)
+          .checked,
+      ).toBe(true)
+      await new Promise((r) => setTimeout(r, 2500))
+      expect(projectsAPI.updateVisibility).toHaveBeenCalledTimes(1)
+    })
+
+    it('asks for the contributor role when switching back to public with it', async () => {
+      const user = userEvent.setup()
+      const { rerender } = render(
+        <SettingRiskProvider
+          context={{ project: null, runningExam: false, submittedCount: 0 }}
+        >
+          <ProjectPermissionsPanel
+            projectId="project-1"
+            initialVisibility="public"
+            initialPublicRole="CONTRIBUTOR"
+          />
+        </SettingRiskProvider>,
+      )
+      await user.click(screen.getByTestId('private-option'))
+      await user.click(
+        await screen.findByTestId('confirm-dialog-confirm-button'),
+      )
+      await waitFor(() => {
+        expect(projectsAPI.updateVisibility).toHaveBeenCalledWith('project-1', {
+          is_private: true,
+        })
+      }, SAVED)
+      // The refetched project is private now.
+      rerender(
+        <SettingRiskProvider
+          context={{ project: null, runningExam: false, submittedCount: 0 }}
+        >
+          <ProjectPermissionsPanel
+            projectId="project-1"
+            initialVisibility="private"
+            initialPublicRole="CONTRIBUTOR"
+          />
+        </SettingRiskProvider>,
+      )
+      await waitFor(() =>
+        expect(
+          screen.queryByTestId('confirm-dialog-confirm-button'),
+        ).not.toBeInTheDocument(),
+      )
+      await user.click(screen.getByTestId('public-option'))
+      expect(
+        await screen.findByText(
+          /project\.permissions\.publicContributorConfirm\.message/,
+        ),
+      ).toBeInTheDocument()
+    })
+
+    it('asks before an undo widens who sees the project and keeps the saved audience on cancel', async () => {
+      const user = userEvent.setup()
+      render(
+        <SettingRiskProvider
+          context={{ project: null, runningExam: false, submittedCount: 0 }}
+        >
+          <ProjectPermissionsPanel
+            projectId="project-1"
+            initialVisibility="public"
+          />
+        </SettingRiskProvider>,
+      )
+      await user.click(screen.getByTestId('private-option'))
+      await user.click(
+        await screen.findByTestId('confirm-dialog-confirm-button'),
+      )
+      await waitFor(() => {
+        expect(projectsAPI.updateVisibility).toHaveBeenCalledWith('project-1', {
+          is_private: true,
+        })
+      }, SAVED)
+      const savedToast = (mockToast.addToast as jest.Mock).mock.calls.find(
+        ([, type, , options]) => type === 'success' && options?.action,
+      )
+      expect(savedToast).toBeDefined()
+      act(() => savedToast![3].action.onClick())
+      await user.click(
+        await screen.findByTestId('confirm-dialog-cancel-button'),
+      )
+      expect(
+        (screen.getByTestId('private-radio') as HTMLInputElement).checked,
+      ).toBe(true)
+      await new Promise((r) => setTimeout(r, 2500))
+      expect(projectsAPI.updateVisibility).toHaveBeenCalledTimes(1)
     })
   })
 })

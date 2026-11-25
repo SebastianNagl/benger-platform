@@ -237,7 +237,9 @@ class TestExtensionLoader:
         # getContrastColor.
         # 2.87 adds the DynamicAnnotationInterface prop hostOwnsSubmit.
         # 2.88 adds SelectionActions and the project-evaluation-grading-section slot.
-        assert CORE_API_VERSION == "2.88"
+        # 2.89 adds SettingsGroup, the settingRisk registry, useAutoSave and
+        # the project-settings-annotation-work slot.
+        assert CORE_API_VERSION == "2.89"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

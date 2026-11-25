@@ -1124,19 +1124,16 @@
     "conditionalInstructions": {
       "title": "Conditional Instructions",
       "description": "Show different instructions to annotators based on randomized assignment per task",
-      "edit": "Edit Variants",
-      "add": "Add Variants",
       "addVariant": "+ Add Variant",
       "variantId": "Variant ID",
       "weight": "Weight (%)",
       "content": "Instruction Content",
-      "save": "Save Variants",
-      "saved": "Conditional instructions saved",
       "saveFailed": "Failed to save",
-      "weightError": "Weights must sum to 100%",
       "weightWarning": "Weights sum to {total}%, must be 100%",
       "aiAllowed": "AI Allowed",
-      "variantIdPlaceholder": "e.g. ai, no_ai"
+      "variantIdPlaceholder": "e.g. ai, no_ai",
+      "removeVariant": "Remove variant",
+      "incomplete": "Every variant needs an ID and a text, otherwise the variants are not saved."
     },
     "modelSelection": {
       "title": "Model Selection",
@@ -1241,7 +1238,6 @@
       "orgAdminOnly": "Only organization administrators and contributors can manage {section}.",
       "creatorOnly": "Only the project creator can manage {section}.",
       "noPermission": "You do not have permission to change project visibility.",
-      "saveSuccess": "Project visibility saved.",
       "viewOnly": "Visibility is read-only. It can be changed by the project creator, organization admins and superadmins.",
       "visibility": "Visibility",
       "visibilityDescription": "Control who can access this project.",
@@ -1271,8 +1267,6 @@
       "lmsBadge": "Learning platform",
       "lmsNote": "This exam is linked to {organizations} through a learning platform connection. Their staff keep access even if you make the exam private. This share cannot be changed here.",
       "lmsConflict": "An organization linked through a learning platform follows its connection. Its group cannot be changed here.",
-      "cancel": "Cancel",
-      "save": "Save",
       "saving": "Saving…",
       "validation": {
         "privateNeedsOrganization": "Organization-scoped projects need at least one organization."
@@ -1299,7 +1293,6 @@
       "runCta": "Start Evaluation"
     },
     "evaluationDefaults": {
-      "title": "Evaluation Defaults",
       "description": "Default settings for all LLM Judge evaluations in this project",
       "save": "Save Defaults",
       "defaultTemperature": "Default Temperature",
@@ -1315,7 +1308,6 @@
       "modeMinimumDesc": "Use the lowest provider-allowed temperature for each newly added judge model.",
       "modeCustom": "Custom",
       "modeCustomDesc": "Use the values entered below uniformly for all newly added judge configurations (min/max constraints still apply).",
-      "runsTitle": "Multi-Run",
       "runsDescription": "How often each task should be evaluated by the judge. Applies when no judge ensemble is configured.",
       "defaultRunsPerTask": "Default judge runs",
       "runsPerTaskHelp": "Default 1. Values > 1 produce multiple ratings for variance / consistency analysis. Cap 25."
@@ -1337,7 +1329,6 @@
       "modeMinimumDesc": "Use the lowest provider-allowed temperature for each newly added model.",
       "modeCustom": "Custom",
       "modeCustomDesc": "Use the values entered below uniformly for all newly added models (min/max constraints still apply).",
-      "runsTitle": "Multi-Run",
       "runsDescription": "How often each task-model combination should be generated. Multiplies costs accordingly.",
       "defaultRunsPerTask": "Default runs per task",
       "runsPerTaskHelp": "Default 1. Values > 1 produce multiple trials for variance analysis. Cap {max}."
@@ -1345,7 +1336,6 @@
     "settings": {
       "title": "Settings",
       "annotationSettingsTitle": "Annotation workflow & behavior",
-      "mode": "{mode} mode",
       "minAnnotations": "{count} min annotations",
       "editSettings": "Edit Settings",
       "saveSettings": "Save Settings",
@@ -1405,7 +1395,6 @@
         "prepareHint": "To prepare a project without anyone seeing it, keep it \"Private\" until it is ready and only then attach it to the organization or group. If it should appear only at a set time, add a timed access window below: until it opens, the data stays hidden and exams and flashcard decks do not appear for students yet."
       },
       "annotationBehavior": {
-        "title": "Annotation Behavior",
         "maxAnnotations": "Maximum Annotations per Task",
         "maxAnnotationsHelp": "How many annotations are needed per task",
         "minAnnotationsForCompletion": "Minimum Annotations for Task Completion",
@@ -1443,10 +1432,14 @@
           "count4": "4 annotations",
           "count5": "5 annotations",
           "unlimited": "Unlimited"
+        },
+        "modesShort": {
+          "open": "Open",
+          "manual": "Manual",
+          "auto": "Automatic"
         }
       },
       "interface": {
-        "title": "Interface Settings",
         "showInstructions": "Show Instructions",
         "showInstructionsHelp": "Display project instructions to annotators",
         "instructionsAlwaysVisible": "Always show instructions",
@@ -1471,7 +1464,6 @@
       "annotationTimeLimitDescription": "Set a maximum time for each annotation task",
       "timeLimitMinutes": "Time limit",
       "minutes": "minutes",
-      "questionnaireTitle": "Post-Annotation Questionnaire",
       "questionnaireEnabled": "Enable Questionnaire",
       "questionnaireEnabledDescription": "Show a feedback form after each annotation submission",
       "questionnaireTemplate": "Template",
@@ -1509,6 +1501,19 @@
         "opens": "Opens",
         "closes": "Closes",
         "invalid": "The close time must be after the open time."
+      },
+      "groups": {
+        "assignment": "Assignment",
+        "work": "While working",
+        "skipping": "Skipping",
+        "submission": "Submission",
+        "afterSubmit": "After submission",
+        "display": "Display",
+        "instructionText": "Instruction text",
+        "parameters": "Parameters",
+        "runs": "Runs",
+        "timing": "Timing",
+        "korrektur": "Grading"
       }
     },
     "quickActions": {
@@ -1710,6 +1715,36 @@
     },
     "rubricReview": {
       "extendedRequired": "The check of grading sheets requires the extended edition."
+    },
+    "settingRisk": {
+      "visibility": {
+        "public": "Every signed-in user of the platform sees the project and its data at once.",
+        "private": "Only you (and superadmins) keep access; everyone else loses it at once, even while working on it.",
+        "organization": "Members of the chosen organizations or groups see the project at once; anyone outside them loses access."
+      },
+      "accessWindow": {
+        "none": "The project is then accessible without a time limit.",
+        "upcoming": "The project only opens at the chosen time; until then it is not accessible.",
+        "open": "The project is accessible from now on.",
+        "closed": "Access ends at once for everyone, including people working right now; the data becomes read-only."
+      },
+      "kind": "Students then find and work on the project as \"{kind}\", with that type's interface.",
+      "enableAnnotationOff": "Annotators can no longer open tasks; \"Start annotating\" disappears.",
+      "fullVisibility": "Everyone who already submitted sees all fields of their tasks at once, including the model solution. Annotations already submitted: {count}.",
+      "stepDetail": "Everyone who already submitted sees points and reasons per grading step at once. Annotations already submitted: {count}.",
+      "timeLimitOn": "Working time becomes limited, also for people working right now.",
+      "timeLimitOff": "The time limit is removed at once, also for people working right now.",
+      "timeLimitMinutes": "Working time becomes {minutes} minutes, also for people working right now.",
+      "strictTimer": "Work is submitted automatically when time runs out, also for people working right now.",
+      "assignmentMode": {
+        "open": "All members then see all tasks.",
+        "manual": "Annotators then only see tasks assigned to them.",
+        "auto": "Annotators then get tasks assigned automatically and only see those."
+      },
+      "maxAnnotations": "Tasks with {count} annotations are no longer available to further annotators.",
+      "pasteOn": "Text from other programs may be pasted while working from now on.",
+      "pasteOff": "From now on only text copied inside the platform can be pasted while working.",
+      "immediateEvaluation": "New submissions are evaluated at once; where results are shown, their authors see them right after submitting."
     }
   },
   "tasks": {
@@ -8265,12 +8300,6 @@
       "deleted": "Project deleted successfully",
       "titleUpdated": "Title updated successfully",
       "descriptionUpdated": "Description updated successfully",
-      "instructionsUpdated": "Instructions updated successfully",
-      "labelConfigSaved": "Label configuration saved successfully",
-      "modelsSaved": "Model selection saved successfully",
-      "settingsSaved": "Settings saved successfully",
-      "evaluationDefaultsSaved": "Evaluation defaults saved successfully",
-      "generationDefaultsSaved": "Generation defaults saved successfully",
       "evaluationStarted": "Multi-field evaluation started successfully",
       "titleEmpty": "Title cannot be empty",
       "deleteFailed": "Failed to delete project: {error}",
@@ -9097,6 +9126,16 @@
     },
     "selectionActions": {
       "actions": "Actions"
+    },
+    "autoSave": {
+      "saved": "Saved",
+      "undo": "Undo"
+    },
+    "settingRisk": {
+      "title": "Confirm change",
+      "confirm": "Apply",
+      "cancel": "Cancel",
+      "runningExam": "The access window is open right now: the change applies to a running exam at once."
     }
   },
   "templates": {
@@ -9564,7 +9603,6 @@
       "fetchOneFailed": "Failed to fetch project",
       "created": "Project created successfully",
       "createFailed": "Failed to create project",
-      "updated": "Project updated successfully",
       "updateFailed": "Failed to update project",
       "deleted": "Project deleted successfully",
       "deleteFailed": "Failed to delete project",

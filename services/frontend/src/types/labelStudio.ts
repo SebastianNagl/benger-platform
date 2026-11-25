@@ -468,8 +468,9 @@ export interface GenerationConfig {
   }
   /** Project-level default trials per task-model combination
    * (multi-run feature, migration 041). Optional — server defaults to 1
-   * when absent. Per-trigger overrides take precedence in the worker. */
-  runs_per_task?: number
+   * when absent. Per-trigger overrides take precedence in the worker. A
+   * null in a PATCH deletes the key (back to the server default). */
+  runs_per_task?: number | null
   /** Strategy used to pre-fill per-model parameters when a model is added
    * to the selection. `recommended` pulls from each model's catalog
    * `recommended_parameters` block; `minimum` uses each model's

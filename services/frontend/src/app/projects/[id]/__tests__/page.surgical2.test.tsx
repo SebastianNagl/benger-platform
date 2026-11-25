@@ -199,6 +199,7 @@ describe('ProjectDetailPage - Surgical Branch Coverage 2', () => {
     })
     ;(useUIStore as jest.Mock).mockReturnValue({
       isSidebarHidden: false,
+      isHydrated: true,
     })
     // Mock popstate
     jest.spyOn(window, 'addEventListener').mockImplementation(jest.fn())

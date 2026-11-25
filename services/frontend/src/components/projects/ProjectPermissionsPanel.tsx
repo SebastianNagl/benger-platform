@@ -17,11 +17,16 @@
  * visibility. The public CONTRIBUTOR role lets visitors read and fully
  * export the project and add their own annotations, generations and
  * evaluation runs; choosing it needs an explicit confirmation.
+ *
+ * Saves on its own through the shared auto-save (no save button): a change
+ * of who may see the project asks first (risk registry key `visibility`),
+ * an organization choice saves once every chosen organization has its group
+ * scope, and the saved toast offers to undo.
  */
 
 'use client'
 
-import { Button } from '@/components/shared/Button'
+import { useAutoSave } from '@/components/shared/AutoSave'
 import { Label } from '@/components/shared/Label'
 import {
   Select,
@@ -30,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/shared/Select'
+import { useGatedSettingChange } from '@/components/shared/settingRisk'
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
@@ -88,7 +94,6 @@ interface ProjectPermissionsPanelProps {
     public_role?: PublicRole
     organization_ids: string[]
   }) => void
-  onCancel?: () => void
 }
 
 export function ProjectPermissionsPanel({
@@ -99,7 +104,6 @@ export function ProjectPermissionsPanel({
   initialPublicRole = 'ANNOTATOR',
   initialOrganizations = [],
   onSave,
-  onCancel,
 }: ProjectPermissionsPanelProps) {
   const { user } = useAuth()
   const { t } = useI18n()
@@ -115,7 +119,6 @@ export function ProjectPermissionsPanel({
     Organization[]
   >([])
   const [loadingOrgs, setLoadingOrgs] = useState(false)
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // The public CONTRIBUTOR role only applies after an explicit confirmation
   // (not needed when the saved setting already is public CONTRIBUTOR).
@@ -271,11 +274,10 @@ export function ProjectPermissionsPanel({
 
   const toggleOrg = (orgId: string) => {
     if (lmsOrgIds.has(orgId)) return
-    setSelectedOrgIds((prev) =>
-      prev.includes(orgId)
-        ? prev.filter((id) => id !== orgId)
-        : [...prev, orgId],
-    )
+    const next = selectedOrgIds.includes(orgId)
+      ? selectedOrgIds.filter((id) => id !== orgId)
+      : [...selectedOrgIds, orgId]
+    changeAudience({ orgIds: next }, () => setSelectedOrgIds(next))
   }
 
   // Groups offered in an org's scope select: org admins (and superadmins)
@@ -297,46 +299,46 @@ export function ProjectPermissionsPanel({
     return options
   }
 
-  const handleSave = async () => {
-    if (!canEditPermissions()) {
-      addToast(t('project.permissions.noPermission'), 'error')
-      return
-    }
+  // The panel's value as one object: what the shared auto-save compares,
+  // saves and restores on undo.
+  const value = {
+    visibility,
+    publicRole,
+    orgIds: selectedOrgIds,
+    groups: selectedGroupByOrg,
+  }
+  const savedValue = {
+    visibility: initialVisibility,
+    publicRole: initialPublicRole,
+    orgIds: initialOrganizations.map((o) => o.id),
+    groups: Object.fromEntries(
+      initialOrganizations.map((o) => [o.id, o.group_id ?? null]),
+    ) as Record<string, string | null>,
+  }
 
-    if (visibility === 'organization' && selectedOrgIds.length === 0) {
-      setError(t('project.permissions.validation.privateNeedsOrganization'))
-      return
-    }
-
+  const saveVisibility = async (next: typeof value) => {
+    const payload =
+      next.visibility === 'private'
+        ? ({ is_private: true } as const)
+        : next.visibility === 'public'
+          ? ({ is_public: true, public_role: next.publicRole } as const)
+          : ({
+              is_private: false,
+              // Each attachment may be scoped to one group of that org
+              // (null = the whole organization).
+              organization_attachments: next.orgIds.map((orgId) => ({
+                organization_id: orgId,
+                group_id: next.groups[orgId] ?? null,
+              })),
+            } as const)
     try {
-      setSaving(true)
       setError(null)
-
-      const payload =
-        visibility === 'private'
-          ? ({ is_private: true } as const)
-          : visibility === 'public'
-            ? ({ is_public: true, public_role: publicRole } as const)
-            : ({
-                is_private: false,
-                // Each attachment may be scoped to one group of that org
-                // (null = the whole organization).
-                organization_attachments: selectedOrgIds.map((orgId) => ({
-                  organization_id: orgId,
-                  group_id: selectedGroupByOrg[orgId] ?? null,
-                })),
-              } as const)
-
       await projectsAPI.updateVisibility(projectId, payload)
-      addToast(t('project.permissions.saveSuccess'), 'success')
-
-      if (onSave) {
-        onSave({
-          visibility,
-          public_role: visibility === 'public' ? publicRole : undefined,
-          organization_ids: selectedOrgIds,
-        })
-      }
+      onSave?.({
+        visibility: next.visibility,
+        public_role: next.visibility === 'public' ? next.publicRole : undefined,
+        organization_ids: next.orgIds,
+      })
     } catch (err) {
       const errorMessage =
         errorCode(err) === 'lti_attachment_conflict'
@@ -346,25 +348,82 @@ export function ProjectPermissionsPanel({
             : t('project.permissions.saveFailed')
       setError(errorMessage)
       addToast(errorMessage, 'error')
-    } finally {
-      setSaving(false)
+      throw err
     }
   }
 
-  const handleCancel = () => {
-    setVisibility(initialVisibility)
-    setPublicRole(initialPublicRole)
-    setSelectedOrgIds(initialOrganizations.map((o) => o.id))
-    setSelectedGroupByOrg(
-      Object.fromEntries(
-        initialOrganizations.map((o) => [o.id, o.group_id ?? null]),
-      ),
-    )
-    setError(null)
-    if (onCancel) {
-      onCancel()
+  // Who may see the project, as it would be saved: the organizations and
+  // their group scopes only count for an organization choice.
+  const audience = (v: typeof value) =>
+    v.visibility === 'organization'
+      ? {
+          visibility: v.visibility,
+          organizations: [...v.orgIds]
+            .sort()
+            .map((orgId) => [orgId, v.groups[orgId] ?? null]),
+        }
+      : { visibility: v.visibility }
+  const publicRoleOf = (v: typeof value) =>
+    v.visibility === 'public' ? v.publicRole : null
+
+  const autoSave = useAutoSave({
+    value,
+    savedValue,
+    save: saveVisibility,
+    // An organization choice needs at least one organization, and every
+    // chosen one needs its group scope resolved, before it is saved.
+    isValid: (next) =>
+      next.visibility !== 'organization' ||
+      (next.orgIds.length > 0 &&
+        next.orgIds.every((orgId) => next.groups[orgId] !== undefined)),
+    onUndo: (previous) => {
+      setVisibility(previous.visibility)
+      setPublicRole(previous.publicRole)
+      setSelectedOrgIds(previous.orgIds)
+      setSelectedGroupByOrg(previous.groups)
+    },
+    riskChanges: (from, to) => [
+      { key: 'visibility', from: audience(from), to: audience(to) },
+      { key: 'public_role', from: publicRoleOf(from), to: publicRoleOf(to) },
+    ],
+    enabled: !readOnly,
+  })
+
+  // Who may see the project is high-impact: ask before applying, once per
+  // change of the saved audience. Completing a confirmed change (choosing
+  // the organizations and group scopes of a confirmed organization choice)
+  // does not ask again; another visibility, or the next change after the
+  // confirmed one was saved, does.
+  const gateChange = useGatedSettingChange()
+  const confirmedRef = useRef<ProjectVisibility | null>(null)
+  useEffect(() => {
+    if (!autoSave.dirty) confirmedRef.current = null
+  }, [autoSave.dirty])
+  const changeAudience = (next: Partial<typeof value>, apply: () => void) => {
+    const from = audience(savedValue)
+    const to = audience({ ...value, ...next })
+    const roleChange = {
+      key: 'public_role',
+      from: publicRoleOf(savedValue),
+      to: publicRoleOf({ ...value, ...next }),
     }
+    if (
+      (autoSave.dirty && confirmedRef.current === to.visibility) ||
+      JSON.stringify(from) === JSON.stringify(to)
+    ) {
+      apply()
+      return
+    }
+    gateChange([{ key: 'visibility', from, to }, roleChange], () => {
+      confirmedRef.current = to.visibility
+      apply()
+    })
   }
+  const chooseVisibility = (next: ProjectVisibility) =>
+    changeAudience({ visibility: next }, () => setVisibility(next))
+
+  const orgMissing =
+    visibility === 'organization' && selectedOrgIds.length === 0
 
   return (
     <div className="space-y-6" data-testid="project-permissions-panel">
@@ -410,7 +469,7 @@ export function ProjectPermissionsPanel({
                 type="radio"
                 name="visibility"
                 checked={visibility === 'private'}
-                onChange={() => setVisibility('private')}
+                onChange={() => chooseVisibility('private')}
                 className="mt-0.5 h-4 w-4 border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                 data-testid="private-radio"
               />
@@ -434,7 +493,7 @@ export function ProjectPermissionsPanel({
                 type="radio"
                 name="visibility"
                 checked={visibility === 'organization'}
-                onChange={() => setVisibility('organization')}
+                onChange={() => chooseVisibility('organization')}
                 className="mt-0.5 h-4 w-4 border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                 data-testid="organization-radio"
               />
@@ -456,7 +515,7 @@ export function ProjectPermissionsPanel({
                 type="radio"
                 name="visibility"
                 checked={visibility === 'public'}
-                onChange={() => setVisibility('public')}
+                onChange={() => chooseVisibility('public')}
                 className="mt-0.5 h-4 w-4 border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                 data-testid="public-radio"
               />
@@ -567,12 +626,15 @@ export function ProjectPermissionsPanel({
                               selectedGroupByOrg[org.id] ||
                               (orgWideAllowed ? ORG_WIDE : '')
                             }
-                            onValueChange={(v) =>
-                              setSelectedGroupByOrg((prev) => ({
-                                ...prev,
+                            onValueChange={(v) => {
+                              const groups = {
+                                ...selectedGroupByOrg,
                                 [org.id]: v === ORG_WIDE ? null : v,
-                              }))
-                            }
+                              }
+                              changeAudience({ groups }, () =>
+                                setSelectedGroupByOrg(groups),
+                              )
+                            }}
                           >
                             <SelectTrigger
                               id={`organization-group-${org.id}`}
@@ -667,27 +729,20 @@ export function ProjectPermissionsPanel({
         onConfirm={() => setPublicRole('CONTRIBUTOR')}
       />
 
-      {!readOnly && (
-        <div className="flex items-center justify-end space-x-3 border-t border-zinc-200 pt-4 dark:border-zinc-700">
-          <Button
-            onClick={handleCancel}
-            variant="outline"
-            disabled={saving}
-            data-testid="cancel-button"
-          >
-            {t('project.permissions.cancel')}
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-            data-testid="save-button"
-          >
-            {saving
-              ? t('project.permissions.saving')
-              : t('project.permissions.save')}
-          </Button>
-        </div>
-      )}
+      {!readOnly && orgMissing ? (
+        <p
+          className="text-xs text-red-600 dark:text-red-400"
+          role="alert"
+          data-testid="project-permissions-org-required"
+        >
+          {t('project.permissions.validation.privateNeedsOrganization')}
+        </p>
+      ) : null}
+      {autoSave.saving ? (
+        <p className="sr-only" role="status">
+          {t('project.permissions.saving')}
+        </p>
+      ) : null}
     </div>
   )
 }

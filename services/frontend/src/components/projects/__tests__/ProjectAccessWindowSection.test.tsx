@@ -13,8 +13,10 @@
 import '@testing-library/jest-dom'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 
+import { SettingRiskProvider } from '@/components/shared/settingRisk'
 import { AccessWindowFields, isAccessWindowValid } from '../AccessWindowFields'
 import { ProjectAccessWindowSection } from '../ProjectAccessWindowSection'
+import { registerProjectSettingRisks } from '../projectSettingRisks'
 
 const mockAddToast = jest.fn()
 jest.mock('@/components/shared/Toast', () => ({
@@ -457,6 +459,67 @@ describe('ProjectAccessWindowSection', () => {
     expand()
     expect(opensInput().value).toBe(local(START))
     fireEvent.blur(opensInput())
+    expect(onSave).not.toHaveBeenCalled()
+  })
+
+  it('never saves a window that was typed but not committed when the section unmounts', async () => {
+    const onSave = jest.fn().mockResolvedValue(undefined)
+    const { unmount } = render(
+      <ProjectAccessWindowSection
+        windowStartAt={START}
+        windowEndAt={END}
+        onSave={onSave}
+      />,
+    )
+    expand()
+    fireEvent.change(opensInput(), {
+      target: { value: local('2030-03-01T07:00:00.000Z') },
+    })
+    // Leaving the page (or closing the card) without a blur.
+    unmount()
+    await act(async () => {
+      jest.advanceTimersByTime(WAIT_MS)
+    })
+    expect(onSave).not.toHaveBeenCalled()
+  })
+
+  // Regression: the switch lives in AccessWindowFields' own state, so a
+  // cancelled confirmation used to leave it on while nothing was saved, and
+  // the next click switched the window "off" without asking.
+  it('puts the switch and the times back when the confirmation is cancelled', async () => {
+    registerProjectSettingRisks()
+    const onSave = jest.fn().mockResolvedValue(undefined)
+    render(
+      <SettingRiskProvider
+        context={{ project: null, runningExam: false, submittedCount: 0 }}
+      >
+        <ProjectAccessWindowSection
+          windowStartAt={null}
+          windowEndAt={null}
+          onSave={onSave}
+        />
+      </SettingRiskProvider>,
+    )
+    expand()
+    const toggle = screen.getByTestId('access-window-toggle')
+    expect(toggle).not.toBeChecked()
+    await act(async () => {
+      fireEvent.click(toggle)
+    })
+    await act(async () => {
+      fireEvent.click(await screen.findByTestId('confirm-dialog-cancel-button'))
+    })
+    expect(onSave).not.toHaveBeenCalled()
+    expect(screen.getByTestId('access-window-toggle')).not.toBeChecked()
+    expect(screen.queryByLabelText('Öffnet')).not.toBeInTheDocument()
+
+    // The next click switches it on again and asks again.
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('access-window-toggle'))
+    })
+    expect(
+      await screen.findByTestId('confirm-dialog-cancel-button'),
+    ).toBeInTheDocument()
     expect(onSave).not.toHaveBeenCalled()
   })
 
