@@ -382,7 +382,9 @@ describe('ProjectDetailPage — 4-card structure', () => {
     const params = Promise.resolve({ id: 'test-project-123' })
     render(<ProjectDetailPage params={params} />)
     await waitFor(() => {
-      expect(fetchProject).toHaveBeenCalledWith('test-project-123')
+      expect(fetchProject).toHaveBeenCalledWith('test-project-123', {
+        shared: true,
+      })
     })
   })
 

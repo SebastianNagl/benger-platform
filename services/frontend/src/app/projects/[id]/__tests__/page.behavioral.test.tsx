@@ -338,7 +338,9 @@ describe('ProjectDetailPage — render-state branches', () => {
     const store = setStore()
     render(<ProjectDetailPage params={params()} />)
     await waitFor(() => {
-      expect(store.fetchProject).toHaveBeenCalledWith('proj-1')
+      expect(store.fetchProject).toHaveBeenCalledWith('proj-1', {
+        shared: true,
+      })
     })
   })
 })

@@ -47,7 +47,7 @@ export function ProjectBreadcrumb({
   const needsFetch = projectTitle === undefined && storeTitle === undefined
 
   useEffect(() => {
-    if (projectId && needsFetch) void fetchProject(projectId)
+    if (projectId && needsFetch) void fetchProject(projectId, { shared: true })
   }, [projectId, needsFetch, fetchProject])
 
   return (

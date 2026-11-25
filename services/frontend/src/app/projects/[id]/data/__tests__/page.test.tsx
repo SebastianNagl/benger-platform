@@ -356,7 +356,9 @@ describe('ProjectDataPage', () => {
       render(<ProjectDataPage params={params} />)
 
       await waitFor(() => {
-        expect(mockFetchProject).toHaveBeenCalledWith('test-project-id')
+        expect(mockFetchProject).toHaveBeenCalledWith('test-project-id', {
+          shared: true,
+        })
       })
     })
 
@@ -371,7 +373,9 @@ describe('ProjectDataPage', () => {
       render(<ProjectDataPage params={params} />)
 
       await waitFor(() => {
-        expect(mockFetchProject).toHaveBeenCalledWith('test-project-id')
+        expect(mockFetchProject).toHaveBeenCalledWith('test-project-id', {
+          shared: true,
+        })
       })
     })
 
@@ -712,7 +716,9 @@ describe('ProjectDataPage', () => {
       rerender(<ProjectDataPage params={params2} />)
 
       await waitFor(() => {
-        expect(mockFetchProject2).toHaveBeenCalledWith('project-2')
+        expect(mockFetchProject2).toHaveBeenCalledWith('project-2', {
+          shared: true,
+        })
       })
     })
   })

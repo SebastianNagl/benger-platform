@@ -18,12 +18,25 @@ describe('getContrastColor', () => {
     expect(getContrastColor('#123')).toBe('#ffffff')
   })
 
-  it('falls back to black text for anything that is not a hex colour', () => {
-    expect(getContrastColor('')).toBe('#000000')
-    expect(getContrastColor('red')).toBe('#000000')
-    expect(getContrastColor('#12')).toBe('#000000')
-    expect(getContrastColor('#gggggg')).toBe('#000000')
-    expect(getContrastColor(undefined as unknown as string)).toBe('#000000')
+  it('reads any other CSS colour the way the browser does', () => {
+    // CSS Color 4 named colours: blue = #0000ff, red = #ff0000,
+    // yellow = #ffff00, white = #ffffff.
+    expect(getContrastColor('blue')).toBe('#ffffff')
+    expect(getContrastColor('red')).toBe('#ffffff')
+    expect(getContrastColor('yellow')).toBe('#000000')
+    expect(getContrastColor('White')).toBe('#000000')
+    expect(getContrastColor('rgb(255, 255, 255)')).toBe('#000000')
+    expect(getContrastColor('rgba(0, 0, 0, 0.3)')).toBe('#ffffff')
+    expect(getContrastColor('hsl(60, 100%, 50%)')).toBe('#000000')
+    expect(getContrastColor('hsl(240, 100%, 50%)')).toBe('#ffffff')
+  })
+
+  it('falls back to white text for anything that is not a colour', () => {
+    expect(getContrastColor('')).toBe('#ffffff')
+    expect(getContrastColor('not-a-colour')).toBe('#ffffff')
+    expect(getContrastColor('#12')).toBe('#ffffff')
+    expect(getContrastColor('#gggggg')).toBe('#ffffff')
+    expect(getContrastColor(undefined as unknown as string)).toBe('#ffffff')
   })
 
   it('splits at mid brightness', () => {

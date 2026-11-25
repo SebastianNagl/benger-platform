@@ -315,7 +315,9 @@ describe('TaskMetadataPage', () => {
       render(<TaskMetadataPage params={Promise.resolve(params)} />)
 
       await waitFor(() => {
-        expect(mockFetchProject).toHaveBeenCalledWith('project-123')
+        expect(mockFetchProject).toHaveBeenCalledWith('project-123', {
+          shared: true,
+        })
       })
     })
 
@@ -756,7 +758,7 @@ describe('TaskMetadataPage', () => {
         const breadcrumb = screen.getByTestId('breadcrumb')
         expect(breadcrumb).toHaveTextContent('project-123')
       })
-      expect(fetchProject).toHaveBeenCalledWith('project-123')
+      expect(fetchProject).toHaveBeenCalledWith('project-123', { shared: true })
     })
 
     it('never shows the title of another project in the breadcrumb', async () => {
@@ -776,7 +778,7 @@ describe('TaskMetadataPage', () => {
       expect(screen.getByTestId('breadcrumb')).not.toHaveTextContent(
         'Other Project',
       )
-      expect(fetchProject).toHaveBeenCalledWith('project-123')
+      expect(fetchProject).toHaveBeenCalledWith('project-123', { shared: true })
     })
   })
 

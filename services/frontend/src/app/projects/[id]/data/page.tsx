@@ -66,9 +66,11 @@ export default function ProjectDataPage({ params }: ProjectDataPageProps) {
     if (!currentProject || currentProject.id !== projectId) {
       let cancelled = false
       // fetchProject resolves to null when the API refused the project.
-      Promise.resolve(fetchProject(projectId)).then((project) => {
-        if (!cancelled && project === null) setFailedId(projectId)
-      })
+      Promise.resolve(fetchProject(projectId, { shared: true })).then(
+        (project) => {
+          if (!cancelled && project === null) setFailedId(projectId)
+        },
+      )
       return () => {
         cancelled = true
       }

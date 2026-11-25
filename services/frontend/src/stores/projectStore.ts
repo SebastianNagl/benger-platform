@@ -23,10 +23,15 @@ const toastUpdateFailure = (error: unknown) => {
   toast(message, 'error')
 }
 
-// One request per project at a time: a page and a component inside it (the
-// project breadcrumb) that both read a project they do not hold yet share
-// the request instead of sending it twice.
-const projectFetchesInFlight = new Map<string, Promise<Project | null>>()
+// The latest request per project. A plain read (`shared`), such as a page
+// and its breadcrumb loading a project they do not hold yet, joins it instead
+// of sending a second one; any other call reads anew, so a refresh after a
+// write never resolves with data read before it, and an older response that
+// lands after a newer one is dropped.
+const projectFetchesInFlight = new Map<
+  string,
+  { promise?: Promise<Project | null> }
+>()
 
 interface ProjectStore {
   // State
@@ -68,7 +73,10 @@ interface ProjectStore {
     includeAllPrivate?: boolean,
     onlyDeleted?: boolean,
   ) => Promise<void>
-  fetchProject: (projectId: string) => Promise<Project | null>
+  fetchProject: (
+    projectId: string,
+    options?: { shared?: boolean },
+  ) => Promise<Project | null>
   createProject: (data: {
     title: string
     description?: string
@@ -221,13 +229,17 @@ export const useProjectStore = create<ProjectStore>()(
         }
       },
 
-      fetchProject: (projectId: string) => {
-        const pending = projectFetchesInFlight.get(projectId)
-        if (pending) return pending
-        const request = (async (): Promise<Project | null> => {
+      fetchProject: (projectId: string, options?: { shared?: boolean }) => {
+        const pending = projectFetchesInFlight.get(projectId)?.promise
+        if (pending && options?.shared) return pending
+        const entry: { promise?: Promise<Project | null> } = {}
+        projectFetchesInFlight.set(projectId, entry)
+        const isLatest = () => projectFetchesInFlight.get(projectId) === entry
+        entry.promise = (async (): Promise<Project | null> => {
           set({ loading: true, error: null })
           try {
             const project = await projectsAPI.get(projectId)
+            if (!isLatest()) return project
             set((state) => {
               // Check if project exists in the list, if not add it
               const existingIndex = state.projects.findIndex(
@@ -260,15 +272,15 @@ export const useProjectStore = create<ProjectStore>()(
               error instanceof Error
                 ? error.message
                 : t('store.project.fetchOneFailed')
+            if (!isLatest()) return null
             set({ error: message, loading: false })
             toast(message, 'error')
             return null
           }
         })().finally(() => {
-          projectFetchesInFlight.delete(projectId)
+          if (isLatest()) projectFetchesInFlight.delete(projectId)
         })
-        projectFetchesInFlight.set(projectId, request)
-        return request
+        return entry.promise
       },
 
       createProject: async (data: {

@@ -523,7 +523,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     if (projectId) {
       // Always fetch the project data to ensure we have the latest information
       // This handles both initial load and navigation back from other pages
-      fetchProject(projectId)
+      fetchProject(projectId, { shared: true })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchProject is stable, only re-run when projectId changes
   }, [projectId])
@@ -684,7 +684,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         projectId &&
         window.location.pathname.includes(`/projects/${projectId}`)
       ) {
-        setTimeout(() => fetchProject(projectId), 100) // Small delay to ensure page is ready
+        setTimeout(() => fetchProject(projectId, { shared: true }), 100) // Small delay to ensure page is ready
       }
     }
 

@@ -73,7 +73,7 @@ describe('ProjectBreadcrumb', () => {
       '/projects/p1',
     )
     expect(mockFetchProject).toHaveBeenCalledTimes(1)
-    expect(mockFetchProject).toHaveBeenCalledWith('p1')
+    expect(mockFetchProject).toHaveBeenCalledWith('p1', { shared: true })
   })
 
   it('never shows the title of another project', () => {
@@ -81,7 +81,7 @@ describe('ProjectBreadcrumb', () => {
     render(<ProjectBreadcrumb projectId="p1" items={[{ label: 'Seite' }]} />)
     expect(trail().queryByText('Anderes Projekt')).not.toBeInTheDocument()
     expect(trail().getByRole('link', { name: 'p1' })).toBeInTheDocument()
-    expect(mockFetchProject).toHaveBeenCalledWith('p1')
+    expect(mockFetchProject).toHaveBeenCalledWith('p1', { shared: true })
   })
 
   it('takes a title the page already knows and leaves the store alone', () => {

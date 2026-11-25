@@ -104,7 +104,7 @@ export default function MyTasksPage() {
   // Load project if not already loaded
   useEffect(() => {
     if (!currentProject || currentProject.id !== projectId) {
-      fetchProject(projectId)
+      fetchProject(projectId, { shared: true })
     }
   }, [projectId, currentProject, fetchProject])
 
