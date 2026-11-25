@@ -172,6 +172,9 @@ jest.mock('@/components/projects/LabelConfigEditor', () => {
 // "extended build mounts it" and the "community build renders nothing extra"
 // halves of the contract are pinned. `mock` prefix = hoist-safe.
 let mockGradeScaleSlotRegistered = false
+// The extended slot is registered but renders nothing (e.g. every method of
+// the exam grades on its own scale).
+let mockGradeScaleSlotRendersNothing = false
 // Evaluation-settings section slot: the stub shows the config list it
 // received and, on click, hands back a list with one parameter changed on the
 // first config, the way an extension row edits a config.
@@ -217,6 +220,11 @@ jest.mock('@/lib/extensions/slots', () => ({
     }
     if (name !== 'project-evaluation-grade-scale') return null
     if (!mockGradeScaleSlotRegistered) return null
+    if (mockGradeScaleSlotRendersNothing) {
+      const EmptyGradeScaleStub = () => null
+      EmptyGradeScaleStub.displayName = 'EmptyGradeScaleStub'
+      return EmptyGradeScaleStub
+    }
     const GradeScaleStub = ({ projectId, evaluationConfig }: any) => (
       <div
         data-testid="grade-scale-slot"
@@ -1070,6 +1078,7 @@ describe('Evaluation card', () => {
 describe('Evaluation card — grade-scale slot', () => {
   afterEach(() => {
     mockGradeScaleSlotRegistered = false
+    mockGradeScaleSlotRendersNothing = false
   })
 
   it('mounts the slot in the eval card with the project id + evaluation_config', async () => {
@@ -1103,6 +1112,25 @@ describe('Evaluation card — grade-scale slot', () => {
     // Node.compareDocumentPosition: 4 = the argument FOLLOWS the receiver.
     expect(runs.compareDocumentPosition(slot) & 4).toBeTruthy()
     expect(slot.compareDocumentPosition(builder) & 4).toBeTruthy()
+  })
+
+  it('leaves no empty row when the registered slot renders nothing', async () => {
+    mockGradeScaleSlotRegistered = true
+    mockGradeScaleSlotRendersNothing = true
+    setStore()
+    render(<ProjectDetailPage params={params()} />)
+    const card = await screen.findByTestId(
+      'config-card-project.evaluation.title',
+    )
+    await screen.findByTestId('evaluation-builder')
+    // The real ConfigCard pads every direct child and draws a divider
+    // between them, so an empty child shows as an empty divided row. Any
+    // empty child must collapse itself (empty:hidden).
+    const emptyRows = Array.from(card.children).filter(
+      (el) =>
+        el.childNodes.length === 0 && !el.classList.contains('empty:hidden'),
+    )
+    expect(emptyRows).toEqual([])
   })
 
   it('renders nothing extra in a community build (slot unregistered)', async () => {
