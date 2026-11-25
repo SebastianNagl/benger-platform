@@ -42,6 +42,9 @@ interface DynamicAnnotationInterfaceProps {
   onChange?: (annotations: AnnotationResult[]) => void // Notify parent of changes
   taskId?: string | number // Add taskId to properly track task changes
   showSubmitButton?: boolean // Control submit button visibility (defaults to true)
+  // A host that submits through its own controls: no field submit buttons,
+  // no Ctrl/Cmd+Enter submit, no shortcut tip and no empty action bar.
+  hostOwnsSubmit?: boolean
   requireConfirmBeforeSubmit?: boolean // Require confirmation checkbox before submit
   startTime?: number // Start time for lead_time tracking (defaults to now)
   enableAutoSave?: boolean // Enable auto-save functionality (defaults to true)
@@ -66,6 +69,7 @@ export function DynamicAnnotationInterface({
   onChange,
   taskId,
   showSubmitButton = true, // Default to true for backwards compatibility
+  hostOwnsSubmit = false,
   requireConfirmBeforeSubmit = false,
   startTime,
   enableAutoSave = true,
@@ -404,9 +408,8 @@ export function DynamicAnnotationInterface({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Submit on Ctrl/Cmd + Enter (blocked if confirmation required but not
-      // checked). Only where this form offers a submit: a host that hides the
-      // submit button submits through its own controls.
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && showSubmitButton) {
+      // checked), unless the host submits through its own controls.
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !hostOwnsSubmit) {
         if (requireConfirmBeforeSubmit && !confirmedDone) return
         e.preventDefault()
         handleSubmit()
@@ -426,7 +429,7 @@ export function DynamicAnnotationInterface({
     onSkip,
     requireConfirmBeforeSubmit,
     confirmedDone,
-    showSubmitButton,
+    hostOwnsSubmit,
   ])
 
   // Render component tree recursively
@@ -471,9 +474,7 @@ export function DynamicAnnotationInterface({
               : (val) => handleComponentChange(componentName, val)
           }
           onAnnotation={readOnly ? () => {} : handleAnnotation}
-          // A field's own submit button only rebuilds that field's result and
-          // saves nothing; this form or its host submits, so never show it.
-          hideSubmitButton
+          hideSubmitButton={showSubmitButton || hostOwnsSubmit} // Hide individual submit buttons when main button is shown (Issue #251, #1030) or the host submits
           onSaveToDb={enableAutoSave && !readOnly ? handleSaveToDb : undefined} // Pass immediate save handler for Ctrl+S
           readOnly={readOnly}
         />
@@ -572,7 +573,8 @@ export function DynamicAnnotationInterface({
           that submits, skips and saves on its own leaves the bar empty, so
           it is omitted too. */}
       {!useStateRender &&
-        (showSubmitButton ||
+        (!hostOwnsSubmit ||
+          showSubmitButton ||
           onSkip ||
           enableAutoSave ||
           requireConfirmBeforeSubmit) && (
@@ -637,7 +639,7 @@ export function DynamicAnnotationInterface({
             </div>
             {/* The tip advertises the submit and skip shortcuts, so only show
               it while one of them does something. */}
-            {(showSubmitButton || onSkip) && (
+            {(!hostOwnsSubmit || onSkip) && (
               <div className="mt-2 text-center text-xs text-zinc-500 dark:text-zinc-400">
                 {t('annotation.interface.tip')}
               </div>

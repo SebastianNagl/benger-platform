@@ -1,11 +1,13 @@
 /**
  * @jest-environment jsdom
  *
- * A host that hides the form's submit button (showSubmitButton={false})
- * submits through its own controls, such as the review page's action bar.
- * The real form and TextArea field must then not offer a submit of their
- * own: no per-field submit button (it only rebuilt the field's result and
- * saved nothing), no keyboard shortcut tip, and no Ctrl+Enter submit.
+ * A host that submits through its own controls (hostOwnsSubmit), such as a
+ * review page's action bar, gets no submit from the real form and TextArea
+ * field: no per-field submit button (it only rebuilds the field's result and
+ * saves nothing), no keyboard shortcut tip, no Ctrl+Enter submit and no empty
+ * action bar. A host that only hides the main button (the labeling page with
+ * the project's submit button turned off) keeps Ctrl+Enter and the tip, as
+ * the project setting promises.
  */
 import '@testing-library/jest-dom'
 import { fireEvent, render, screen } from '@testing-library/react'
@@ -45,9 +47,9 @@ function renderForm(
   return onSubmit
 }
 
-describe('DynamicAnnotationInterface: host without the submit button', () => {
+describe('DynamicAnnotationInterface: host that owns the submit', () => {
   it('shows no per-field submit button', async () => {
-    renderForm({ showSubmitButton: false })
+    renderForm({ showSubmitButton: false, hostOwnsSubmit: true })
     await screen.findByRole('textbox')
 
     expect(screen.queryByText('common.submit')).not.toBeInTheDocument()
@@ -55,7 +57,10 @@ describe('DynamicAnnotationInterface: host without the submit button', () => {
   })
 
   it('shows no keyboard shortcut tip and ignores Ctrl+Enter', async () => {
-    const onSubmit = renderForm({ showSubmitButton: false })
+    const onSubmit = renderForm({
+      showSubmitButton: false,
+      hostOwnsSubmit: true,
+    })
     await screen.findByRole('textbox')
 
     expect(
@@ -67,7 +72,7 @@ describe('DynamicAnnotationInterface: host without the submit button', () => {
   })
 
   it('renders no empty action bar', async () => {
-    renderForm({ showSubmitButton: false })
+    renderForm({ showSubmitButton: false, hostOwnsSubmit: true })
     await screen.findByRole('textbox')
 
     expect(
@@ -75,11 +80,32 @@ describe('DynamicAnnotationInterface: host without the submit button', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('keeps the tip while the skip shortcut works', async () => {
-    renderForm({ showSubmitButton: false, onSkip: jest.fn() })
+  it('keeps the action bar and the tip while the skip shortcut works', async () => {
+    renderForm({
+      showSubmitButton: false,
+      hostOwnsSubmit: true,
+      onSkip: jest.fn(),
+    })
     await screen.findByRole('textbox')
 
+    expect(screen.getByTestId('annotation-action-bar')).toBeInTheDocument()
     expect(screen.getByText('annotation.interface.tip')).toBeInTheDocument()
+  })
+})
+
+describe('DynamicAnnotationInterface: labeling page without the submit button', () => {
+  it('still submits on Ctrl+Enter and shows the tip', async () => {
+    const onSubmit = renderForm({ showSubmitButton: false })
+    await screen.findByRole('textbox')
+
+    expect(
+      screen.queryByRole('button', { name: /annotation.interface.submit/ }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByText('annotation.interface.tip')).toBeInTheDocument()
+
+    fireEvent.keyDown(window, { key: 'Enter', ctrlKey: true })
+    await screen.findByRole('textbox')
+    expect(onSubmit).toHaveBeenCalledTimes(1)
   })
 })
 
