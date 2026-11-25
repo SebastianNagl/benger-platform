@@ -2062,11 +2062,27 @@ API change).
   not shown and the action bar is left out when nothing would be in it.
   Hosts without it keep the earlier behaviour, including Ctrl/Cmd+Enter
   with ``showSubmitButton={false}``.
+2.88 (2026-11-25): one actions menu for selected table rows and a grading
+  section slot in the evaluation card (no migration, additive; frontend
+  only).
+  - ``@/components/shared/SelectionActions``: ``SelectionActions`` (also
+    exported from ``@/components/shared``) with the types ``SelectionAction``
+    and ``SelectionActionsProps``. The "Actions" button with the number of
+    selected rows and a menu of actions passed as data (``id``, ``label``,
+    optional ``icon``, ``onSelect``, ``danger``, ``disabled``,
+    ``separatorBefore``, ``testId``), with an optional ``selectedLabel``
+    header, ``label``, ``disabled`` and ``testId`` prefix (``-button``,
+    ``-menu``). The project data table, the projects list and the global
+    data tab render their actions through it.
+  - Slot ``project-evaluation-grading-section``: a section of its own inside
+    the project page's evaluation card, after the methods, for editors only,
+    with props ``{ project, projectId, onRefresh }``. It saves itself and is
+    not part of the card's auto-save; rendering nothing leaves no gap.
 """
 
 import os
 
-CORE_API_VERSION = "2.87"
+CORE_API_VERSION = "2.88"
 
 
 def extended_required() -> bool:

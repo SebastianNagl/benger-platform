@@ -637,6 +637,31 @@ describe('ProjectDetailPage — sidebar quick actions', () => {
       screen.queryByText('project.quickActions.myTasks'),
     ).not.toBeInTheDocument()
   })
+  it('draws an icon only on the start button among the quick actions', async () => {
+    ;(useAuth as jest.Mock).mockReturnValue({
+      user: { ...superadmin, is_superadmin: false },
+      currentOrganization: null,
+    })
+    setStore({
+      currentProject: {
+        ...baseProject,
+        review_enabled: true,
+        korrektur_enabled: true,
+      },
+    })
+    render(<ProjectDetailPage params={params()} />)
+    await screen.findByText('proj-1')
+    const panel = screen
+      .getByText('project.quickActions.title')
+      .closest('div') as HTMLElement
+    const buttons = Array.from(panel.querySelectorAll('a, button'))
+    // start + My Tasks at least (the other actions depend on the role)
+    expect(buttons.length).toBeGreaterThanOrEqual(2)
+    const withIcon = buttons.filter((b) => b.querySelector('svg'))
+    expect(withIcon.map((b) => b.textContent)).toEqual([
+      'project.quickActions.startLabeling',
+    ])
+  })
 })
 
 describe('ProjectDetailPage — statistics + completion rate', () => {

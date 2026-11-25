@@ -39,3 +39,5 @@ export { default as UserApiKeys } from './UserApiKeys'
 
 export { GradeInput } from './GradeInput'
 export { ItemStepper } from './ItemStepper'
+export { SelectionActions } from './SelectionActions'
+export type { SelectionAction, SelectionActionsProps } from './SelectionActions'

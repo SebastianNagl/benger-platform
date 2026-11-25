@@ -399,6 +399,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const ProjectEvaluationSettingsSection = useSlot(
     'project-evaluation-settings-section',
   )
+  // A section of its own inside the evaluation card, after the methods, for
+  // how people grade (e.g. the human grading settings). It saves itself like
+  // the grade scale slot and is not part of the card's auto-save. Community
+  // builds register nothing → the card is unchanged.
+  const ProjectEvaluationGradingSection = useSlot(
+    'project-evaluation-grading-section',
+  )
   // Student access (share links, participants, discoverability) — sub-sections
   // of the Project settings card, filled by the extended edition.
   const ProjectSharing = useSlot('project-sharing')
@@ -2758,6 +2765,23 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                         </div>
                       </SubSection>
 
+                      {/* Grading section (extended slot): its own titled
+                      sub-section after the methods. */}
+                      {ProjectEvaluationGradingSection && currentProject && (
+                        // The slot renders nothing for projects without
+                        // such grading: no empty divided row in the card.
+                        <div
+                          data-testid="project-evaluation-grading-section"
+                          className="empty:hidden"
+                        >
+                          <ProjectEvaluationGradingSection
+                            project={currentProject}
+                            projectId={projectId || ''}
+                            onRefresh={() => fetchProject(projectId)}
+                          />
+                        </div>
+                      )}
+
                       {/* Analyses of variant experiments: designs, saved
                       plans and the start dialog the evaluations page
                       shares. Saves itself. */}
@@ -3075,7 +3099,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   variant="outline"
                   className="w-full"
                 >
-                  <DocumentTextIcon className="mr-2 h-4 w-4" />
                   {t('project.quickActions.myTasks')}
                 </Button>
               )}

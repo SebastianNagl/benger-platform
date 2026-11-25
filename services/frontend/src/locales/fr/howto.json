@@ -34,7 +34,7 @@
         "**Clé API** : si votre organisation fournit des clés, vous n'avez rien à faire. Sinon, enregistrez sous [Profil](/profile) → *Gestion des clés API* une clé du fournisseur d'IA que vous voulez utiliser.",
         "**Créer un projet** : [Projets](/projects) → *Nouveau projet*, choisir le type de projet et les fonctions.",
         "**Téléverser des données** : dans l'assistant ou plus tard via *Données du projet* (JSON, CSV, TSV, TXT).",
-        "**Annoter** : *Commencer l'annotation* sur la page du projet. **Générer** et **évaluer** via la carte de configuration correspondante.",
+        "**Annoter** : *Commencer la tâche* sur la page du projet. **Générer** et **évaluer** via la carte de configuration correspondante.",
         "**Résultats** : [Évaluation](/evaluations), [Rapports](/reports) et [Classements](/leaderboards)."
       ],
       "keywords": [
@@ -246,14 +246,14 @@
     },
     "project-page": {
       "title": "Comment la page du projet est-elle organisée et où trouver quoi ?",
-      "summary": "La page du projet se compose de cartes dépliables. À gauche, la configuration (détails du projet, configuration de l'annotation, génération, évaluation, paramètres, partage) ; à droite, les actions rapides, la facturation, les statistiques et le rapport de projet. Les données, Mes tâches, la correction et la relecture ont leurs propres pages.",
+      "summary": "La page du projet se compose de cartes dépliables. À gauche, la configuration (détails du projet, configuration de l'annotation, génération, évaluation, paramètres, partage) ; à droite, les actions rapides, la facturation, les statistiques et le rapport de projet. Les données, Mes tâches, la correction humaine et la relecture ont leurs propres pages.",
       "steps": [
         "**Détails du projet** : statut, créateur, ID du projet, organisations. Vous modifiez le titre et la description directement dans l'en-tête de la page (crayon au survol).",
         "**Configuration de l'annotation** : instructions pour les annotateurs, variantes pour les tests A/B, la configuration des étiquettes (XML) et *Déroulement et comportement de l'annotation* (mode d'attribution, limite de temps, phase de relecture et de correction).",
         "**Configuration de la génération** et **Configuration de l'évaluation** : modèles, prompts, méthodes d'évaluation, chacune avec un bouton de lancement.",
         "**Paramètres** : type de projet, visibilité des sections (quelles cartes existent), visibilité du projet (privé, organisation, public) et fenêtre d'accès.",
         "**Partage** : visibilité sous *Découvrir*, liens de partage et participants.",
-        "**Actions rapides** à droite : *Commencer l'annotation*, *Données du projet* (tâches, import, export), *Mes tâches*, *Génération*, *Évaluations*, *Processus de relecture*, *Correction*, *Supprimer le projet*."
+        "**Actions rapides** à droite : *Commencer la tâche*, *Données du projet* (tâches, import, export), *Mes tâches*, *Génération*, *Évaluations*, *Processus de relecture*, *Correction humaine*, *Supprimer le projet*."
       ],
       "tips": [
         "S'il manque une carte, la section est désactivée sous **Paramètres → Visibilité des sections**. Ces interrupteurs pilotent aussi l'indicateur de progression.",
@@ -509,7 +509,7 @@
         "**Afficher** : `<Text name=\"fall\" value=\"$sachverhalt\"/>` affiche un champ de données. `<Header value=\"Frage\"/>` est un titre. `<Image>` affiche des images.",
         "**Saisir** : `<TextArea name=\"antwort\" toName=\"fall\" rows=\"6\"/>` (texte libre), `<Choices name=\"wahl\" toName=\"fall\"><Choice value=\"A\"/><Choice value=\"B\"/></Choices>` (choix), `<Labels name=\"marken\" toName=\"fall\"><Label value=\"Norm\"/></Labels>` (marquer des passages), `<Rating>`, `<Likert>`, `<Number>`.",
         "Chaque balise de saisie a besoin d'un `name` unique (qui devient la clé de l'annotation) et d'un `toName` qui pointe vers une balise d'affichage.",
-        "**Enregistrer la configuration**. Vérifiez le résultat via **Commencer l'annotation** : il n'y a pas d'aperçu en direct."
+        "**Enregistrer la configuration**. Vérifiez le résultat via **Commencer la tâche** : il n'y a pas d'aperçu en direct."
       ],
       "tips": [
         "Balises d'examen de l'édition étendue : `<Angabe value=\"$sachverhalt\" bearbeitervermerk=\"$bearbeitervermerk\" zusatzmaterial=\"$zusatzmaterial\">` avec des enfants `<Label>` comme couleurs de surlignage, `<Notizen>`, `<Gliederung>` et `<Loesung linkedTo=\"gliederung\">`. Le modèle *Copie d'examen* montre l'exemple complet.",
@@ -542,7 +542,7 @@
     },
     "annotation-instructions": {
       "title": "Comment donner des instructions aux annotateurs et comment fonctionne l'annotation ?",
-      "summary": "Vous rédigez les instructions dans l'assistant (étape *Instructions*) ou sur la page du projet sous **Configuration de l'annotation → Instructions d'annotation**. Les annotateurs commencent via **Commencer l'annotation** ou **Mes tâches**, traitent les tâches l'une après l'autre et les remettent avec *Soumettre*.",
+      "summary": "Vous rédigez les instructions dans l'assistant (étape *Instructions*) ou sur la page du projet sous **Configuration de l'annotation → Instructions d'annotation**. Les annotateurs commencent via **Commencer la tâche** ou **Mes tâches**, traitent les tâches l'une après l'autre et les remettent avec *Soumettre*.",
       "steps": [
         "Les **Instructions d'annotation** (Markdown) sont affichées aux annotateurs au-dessus de la tâche.",
         "**Variantes d'instructions conditionnelles** pour les tests A/B : plusieurs variantes avec des pondérations en pourcentage, dont la somme doit faire 100.",
@@ -739,7 +739,7 @@
         "**Sémantiques** : Semantic Similarity, BERTScore, MoverScore. Elles comparent le sens à l'aide d'embeddings et ne s'exécutent que dans l'évaluation par lot.",
         "**Classification** : Accuracy, Precision, Recall, F1 pour les tâches à choix.",
         "**LLM-as-Judge** : *Classic* (dimensions prédéfinies), *Custom* (prompt et critères propres), *Résolution de cas* (10 dimensions juridiques avec des points de note de 0 à 18), *LLM Custom Rubric* (grille d'évaluation générée automatiquement pour chaque tâche).",
-        "**Correction humaine** : *Correction (Classic)* avec commentaires et annotations, *Correction (résolution de cas)* et *Correction (Custom Rubric)* selon le même schéma que le juge correspondant. Elles activent la page **Correction** dans le projet.",
+        "**Correction humaine** : *Correction (Classic)* avec commentaires et annotations, *Correction (résolution de cas)* et *Correction (Custom Rubric)* selon le même schéma que le juge correspondant. Elles activent la page **Correction humaine** dans le projet.",
         "Pour chaque méthode : **Champ de prédiction** (par ex. `loesung` ou *Toutes les sorties des modèles*) et **Champ de référence** (par ex. `task.musterloesung`). En cas de plusieurs références, la meilleure correspondance compte."
       ],
       "tips": [
@@ -813,11 +813,11 @@
       ]
     },
     "korrektur-review": {
-      "title": "Comment des personnes corrigent-elles les remises (correction) et qu'est-ce que le processus de relecture ?",
-      "summary": "La **Correction** est la notation humaine des remises selon le schéma de résolution de cas, une grille propre ou avec des commentaires. Elle s'active via les méthodes *Correction (…)* et s'utilise via l'action rapide **Correction**. La **Relecture** est une phase de vérification au cours de laquelle les annotations sont contrôlées avant leur finalisation.",
+      "title": "Comment des personnes corrigent-elles les remises (correction humaine) et qu'est-ce que le processus de relecture ?",
+      "summary": "La **Correction humaine** est la notation des remises par des personnes selon le schéma de résolution de cas, une grille propre ou avec des commentaires. Elle s'active via les méthodes *Correction (…)* et s'utilise via l'action rapide **Correction humaine**. La **Relecture** est une phase de vérification au cours de laquelle les annotations sont contrôlées avant leur finalisation.",
       "steps": [
         "Activer la correction : sélectionnez la méthode *Correction (résolution de cas)*, *Correction (Custom Rubric)* ou *Correction (Classic)*. Dans la méthode, vous réglez la file d'attente (qui corrige quoi), la correction à l'aveugle (masquer les notes des autres) et la limite de temps.",
-        "Corriger : page du projet → **Correction** → remise suivante. Points par dimension, appréciation globale et conseils d'amélioration, éventuellement des annotations en marge.",
+        "Corriger : page du projet → **Correction humaine** → remise suivante. Points par dimension, appréciation globale et conseils d'amélioration, éventuellement des annotations en marge.",
         "Les annotateurs voient leur correction sous **Mes tâches**, les étudiants sous *Retour* dans l'examen. Une note humaine remplace la note IA dans le classement et dans la plateforme d'apprentissage.",
         "Relecture : page du projet → *Déroulement et comportement de l'annotation* → **Activer la phase de relecture**, mode *Correction directe*, *Relecture indépendante* ou *Les deux*. Utilisation via l'action rapide **Processus de relecture**."
       ],

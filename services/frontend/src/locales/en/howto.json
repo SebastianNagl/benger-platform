@@ -72,7 +72,7 @@
         "**API key**: if your organization provides keys, nothing to do. Otherwise store a key of the AI provider you want to use under [Profile](/profile) → *API key management*.",
         "**Create a project**: [Projects](/projects) → *New project*, pick type and functions.",
         "**Upload data**: in the wizard or later via *Project data* (JSON, CSV, TSV, TXT).",
-        "**Annotate**: *Start annotation* on the project page. **Generate** and **evaluate** via the respective configuration card.",
+        "**Annotate**: *Start task* on the project page. **Generate** and **evaluate** via the respective configuration card.",
         "**Results**: [Evaluation](/evaluations), [Reports](/reports) and [Leaderboards](/leaderboards)."
       ],
       "keywords": ["getting started", "checklist", "onboarding"]
@@ -243,14 +243,14 @@
     },
     "project-page": {
       "title": "How is the project page organized and where do I find what?",
-      "summary": "The project page is made of collapsible cards. Configuration on the left (project details, annotation, generation, evaluation, settings, sharing), quick actions, billing, statistics and the project report on the right. Data, My tasks, Korrektur and Review are separate pages.",
+      "summary": "The project page is made of collapsible cards. Configuration on the left (project details, annotation, generation, evaluation, settings, sharing), quick actions, billing, statistics and the project report on the right. Data, My tasks, Human grading and Review are separate pages.",
       "steps": [
         "**Project details**: status, creator, project ID, organizations. Change title and description right in the page header (pencil on hover).",
         "**Annotation configuration**: instructions for annotators, A/B variants, the label configuration (XML) and *Annotation workflow & behavior* (assignment mode, time limit, review and grading phase).",
         "**Generation configuration** and **Evaluation configuration**: models, prompts, evaluation methods, each with a start button.",
         "**Settings**: project type, visibility of sections (which cards exist), project visibility (Private, Organization, Public) and the timed access window.",
         "**Sharing**: discoverability under *Entdecken*, share links and participants.",
-        "**Quick actions** on the right: *Start annotation*, *Project data* (tasks, import, export), *My tasks*, *Generation*, *Evaluations*, *Review workflow*, *Korrektur*, *Delete project*."
+        "**Quick actions** on the right: *Start task*, *Project data* (tasks, import, export), *My tasks*, *Generation*, *Evaluations*, *Review workflow*, *Human grading*, *Delete project*."
       ],
       "tips": [
         "If a card is missing, that section is switched off under **Settings → Section visibility**. These switches also drive the progress display.",
@@ -452,7 +452,7 @@
         "**Display**: `<Text name=\"fall\" value=\"$sachverhalt\"/>` shows a data field. `<Header value=\"Frage\"/>` is a heading. `<Image>` shows images.",
         "**Input**: `<TextArea name=\"antwort\" toName=\"fall\" rows=\"6\"/>` (free text), `<Choices name=\"wahl\" toName=\"fall\"><Choice value=\"A\"/><Choice value=\"B\"/></Choices>` (selection), `<Labels name=\"marken\" toName=\"fall\"><Label value=\"Norm\"/></Labels>` (mark spans), `<Rating>`, `<Likert>`, `<Number>`.",
         "Every input tag needs a unique `name` (becomes the annotation key) and a `toName` pointing at a display tag.",
-        "**Save configuration**. Check the result via **Start annotation**, there is no live preview."
+        "**Save configuration**. Check the result via **Start task**, there is no live preview."
       ],
       "tips": [
         "Exam tags of the extended edition: `<Angabe value=\"$sachverhalt\" bearbeitervermerk=\"$bearbeitervermerk\" zusatzmaterial=\"$zusatzmaterial\">` with `<Label>` children as highlight colors, `<Notizen>`, `<Gliederung>` and `<Loesung linkedTo=\"gliederung\">`. The *Klausurlösung* template shows the complete example.",
@@ -480,7 +480,7 @@
     },
     "annotation-instructions": {
       "title": "How do I give annotators instructions and how does annotating work?",
-      "summary": "Write instructions in the wizard (step *Instructions*) or on the project page under **Annotation configuration → Annotation instructions**. Annotators start via **Start annotation** or **My tasks**, work task by task and submit with *Submit*.",
+      "summary": "Write instructions in the wizard (step *Instructions*) or on the project page under **Annotation configuration → Annotation instructions**. Annotators start via **Start task** or **My tasks**, work task by task and submit with *Submit*.",
       "steps": [
         "**Annotation instructions** (Markdown) are shown to annotators above the task.",
         "**Conditional instruction variants** for A/B tests: several variants with percentage weights that must add up to 100.",
@@ -656,7 +656,7 @@
         "**Semantic**: Semantic Similarity, BERTScore, MoverScore. Compare meaning via embeddings, batch evaluation only.",
         "**Classification**: Accuracy, Precision, Recall, F1 for choice tasks.",
         "**LLM-as-Judge**: *Classic* (predefined dimensions), *Custom* (your own prompt and criteria), *Falllösung* (10 legal dimensions with grade points 0 to 18), *LLM Custom Rubric* (a per-task auto-generated grading sheet).",
-        "**Human grading**: *Korrektur (Classic)* with comments and highlights, *Korrektur (Falllösung)* and *Korrektur (Custom Rubric)* on the same scheme as the respective judge. They unlock the **Korrektur** page in the project.",
+        "**Human grading**: *Korrektur (Classic)* with comments and highlights, *Korrektur (Falllösung)* and *Korrektur (Custom Rubric)* on the same scheme as the respective judge. They unlock the **Human grading** page in the project.",
         "For every method: **prediction field** (e.g. `loesung` or *All model outputs*) and **reference field** (e.g. `task.musterloesung`). With several references the best match counts."
       ],
       "tips": [
@@ -717,11 +717,11 @@
       ]
     },
     "korrektur-review": {
-      "title": "How do humans grade submissions (Korrektur) and what is the review workflow?",
-      "summary": "**Korrektur** is human grading of submissions on the case-solution scheme, a custom rubric or with comments. It is enabled via the *Korrektur (…)* methods and used via the quick action **Korrektur**. **Review** is a checking phase in which annotations are reviewed before finalization.",
+      "title": "How do humans grade submissions (human grading) and what is the review workflow?",
+      "summary": "**Human grading** is the grading of submissions by people on the case-solution scheme, a custom rubric or with comments. It is enabled via the *Korrektur (…)* methods and used via the quick action **Human grading**. **Review** is a checking phase in which annotations are reviewed before finalization.",
       "steps": [
         "Enable grading: pick the method *Korrektur (Falllösung)*, *Korrektur (Custom Rubric)* or *Korrektur (Classic)*. Inside the method you set the queue (who grades what), blind grading (hide other assessments) and a time limit.",
-        "Grade: project page → **Korrektur** → next submission. Points per dimension, overall assessment and improvement tips, optional margin notes.",
+        "Grade: project page → **Human grading** → next submission. Points per dimension, overall assessment and improvement tips, optional margin notes.",
         "Annotators see their grading under **My tasks**, students under *Feedback* in the exam. A human grade overrides the AI grade on the leaderboard and in the learning platform.",
         "Review: project page → *Annotation workflow & behavior* → **Enable review phase**, mode *Direct correction*, *Independent review* or *Both*. Used via the quick action **Review workflow**."
       ],
