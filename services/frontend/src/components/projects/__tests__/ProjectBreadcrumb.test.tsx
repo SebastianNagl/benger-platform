@@ -6,7 +6,7 @@
  * store holds none or another one.
  */
 import '@testing-library/jest-dom'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 
 import { ProjectBreadcrumb } from '../ProjectBreadcrumb'
 
@@ -65,22 +65,38 @@ describe('ProjectBreadcrumb', () => {
     expect(trail().getByText('Projekt Eins').closest('a')).toBeNull()
   })
 
-  it('reads the project when the store holds none, showing its id meanwhile', () => {
+  it('reads the project when the store holds none, with a placeholder meanwhile', () => {
     mockCurrentProject = null
+    mockFetchProject.mockReturnValue(new Promise(() => {}))
     render(<ProjectBreadcrumb projectId="p1" items={[{ label: 'Seite' }]} />)
-    expect(trail().getByRole('link', { name: 'p1' })).toHaveAttribute(
-      'href',
-      '/projects/p1',
-    )
+    // Not the id: a long id wraps the trail, which the title then undoes.
+    expect(trail().queryByText('p1')).not.toBeInTheDocument()
+    expect(
+      trail().getByRole('link', { name: 'Projekt wird geladen...' }),
+    ).toHaveAttribute('href', '/projects/p1')
+    expect(screen.getByTestId('project-breadcrumb-pending')).toBeInTheDocument()
     expect(mockFetchProject).toHaveBeenCalledTimes(1)
     expect(mockFetchProject).toHaveBeenCalledWith('p1', { shared: true })
   })
 
+  it('falls back to the id when the read fails', async () => {
+    mockCurrentProject = null
+    mockFetchProject.mockResolvedValue(null)
+    render(<ProjectBreadcrumb projectId="p1" items={[{ label: 'Seite' }]} />)
+    await waitFor(() =>
+      expect(trail().getByRole('link', { name: 'p1' })).toHaveAttribute(
+        'href',
+        '/projects/p1',
+      ),
+    )
+  })
+
   it('never shows the title of another project', () => {
     mockCurrentProject = { id: 'p2', title: 'Anderes Projekt' }
+    mockFetchProject.mockReturnValue(new Promise(() => {}))
     render(<ProjectBreadcrumb projectId="p1" items={[{ label: 'Seite' }]} />)
     expect(trail().queryByText('Anderes Projekt')).not.toBeInTheDocument()
-    expect(trail().getByRole('link', { name: 'p1' })).toBeInTheDocument()
+    expect(screen.getByTestId('project-breadcrumb-pending')).toBeInTheDocument()
     expect(mockFetchProject).toHaveBeenCalledWith('p1', { shared: true })
   })
 

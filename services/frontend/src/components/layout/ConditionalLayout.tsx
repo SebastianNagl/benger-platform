@@ -3,6 +3,7 @@
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { Layout } from '@/components/layout/Layout'
 import { type Section } from '@/components/layout/SectionProvider'
+import { AppLoadingScreen } from '@/components/shared/AppLoadingScreen'
 import { StudentModeRedirect } from '@/components/student/StudentModeRedirect'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
@@ -88,16 +89,7 @@ export function ConditionalLayout({
   // without any layout constraints to ensure proper centering
   // Only show after delay to avoid flash for fast loads
   if (isLoading && showLoadingDelay && !isStandalonePage) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white dark:bg-zinc-900">
-        <div className="text-center">
-          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
-          <p className="text-zinc-600 dark:text-zinc-400">
-            {t('common.checkingAuth')}
-          </p>
-        </div>
-      </div>
-    )
+    return <AppLoadingScreen label={t('common.checkingAuth')} />
   }
 
   return (

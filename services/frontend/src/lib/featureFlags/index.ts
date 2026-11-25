@@ -295,6 +295,20 @@ export function useFeatureFlagStatus(name: FeatureFlagName): FeatureFlagStatus {
   return snapshot.flags?.[name] === true ? 'on' : 'off'
 }
 
+/**
+ * Whether the current viewer's flags have answered (or failed, which reads
+ * every flag off). A page whose first frame shows flag-gated parts waits
+ * for it, so those parts never appear a moment after the rest.
+ */
+export function useFeatureFlagsReady(): boolean {
+  const { user, isLoading } = useAuth()
+  const subject = user?.id != null ? String(user.id) : ANONYMOUS
+  useFeatureFlagsSync()
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, () => INITIAL)
+  if (isLoading || snapshot.subject !== subject) return false
+  return snapshot.status === 'ready' || snapshot.status === 'error'
+}
+
 /** Whether `name` is on for the current viewer (false while loading). */
 export function useFeatureFlag(name: FeatureFlagName): boolean {
   return useFeatureFlagStatus(name) === 'on'

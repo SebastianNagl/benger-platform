@@ -23,9 +23,9 @@ import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { useRouteProject } from '@/hooks/useRouteProject'
 import { useSlot } from '@/lib/extensions/slots'
 import { dateFnsLocale } from '@/lib/i18n/locales'
-import { useProjectStore } from '@/stores/projectStore'
 import { Task, TaskAssignment } from '@/types/labelStudio'
 import {
   CalendarIcon,
@@ -66,11 +66,9 @@ export default function MyTasksPage() {
   const { user } = useAuth()
   const { addToast } = useToast()
   const { t, locale } = useI18n()
-  const {
-    currentProject,
-    fetchProject,
-    loading: projectLoading,
-  } = useProjectStore()
+  // Only this URL's project, never the one the store still holds from
+  // before (its title would show until the answer replaces it).
+  const { project: currentProject, notFound } = useRouteProject(projectId)
 
   // State
   const [tasks, setTasks] = useState<MyTask[]>([])
@@ -100,13 +98,6 @@ export default function MyTasksPage() {
   // Search is applied server-side via `?search=` now — the page renders
   // exactly what the API returned without a second client-side filter pass.
   const filteredTasks = tasks
-
-  // Load project if not already loaded
-  useEffect(() => {
-    if (!currentProject || currentProject.id !== projectId) {
-      fetchProject(projectId, { shared: true })
-    }
-  }, [projectId, currentProject, fetchProject])
 
   const loadMyTasks = useCallback(async () => {
     try {
@@ -200,7 +191,17 @@ export default function MyTasksPage() {
     return null
   }
 
-  if (projectLoading || !currentProject) {
+  if (notFound) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center px-4">
+        <p className="text-zinc-600 dark:text-zinc-400">
+          {t('project.notFound')}
+        </p>
+      </div>
+    )
+  }
+
+  if (!currentProject) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">

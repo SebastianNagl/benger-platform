@@ -28,6 +28,16 @@ export interface AnnotationComponent {
   // Component to render
   component: React.ComponentType<AnnotationComponentProps>
 
+  /**
+   * Starts loading the component's code (see preloadableLazy). The form
+   * preloads every component of its config and shows itself once they are
+   * in, instead of building up field by field.
+   */
+  preload?: () => Promise<unknown>
+
+  /** Whether the component's code is loaded (see preloadableLazy). */
+  isLoaded?: () => boolean
+
   // Extract annotation value from component state
   extractValue?: (state: any) => any
 
@@ -39,19 +49,64 @@ export interface AnnotationComponent {
 }
 
 /**
+ * A lazily loaded annotation component that can be preloaded. Rendered
+ * before its code is in, it suspends like React.lazy; rendered after
+ * `preload()` settled, it renders the loaded component directly, without a
+ * Suspense fallback frame. Which of the two a mounted instance uses is fixed
+ * at mount, so it never remounts (and loses its state) when the code
+ * arrives.
+ */
+export function preloadableLazy(
+  loader: () => Promise<{
+    default: React.ComponentType<AnnotationComponentProps>
+  }>,
+): Pick<AnnotationComponent, 'component' | 'preload' | 'isLoaded'> {
+  let loaded: React.ComponentType<AnnotationComponentProps> | null = null
+  let pending: Promise<{
+    default: React.ComponentType<AnnotationComponentProps>
+  }> | null = null
+  const load = () => {
+    pending ??= loader().then(
+      (module) => {
+        loaded = module.default
+        return module
+      },
+      (error) => {
+        // A failed load may be retried by the next render or preload.
+        pending = null
+        throw error
+      },
+    )
+    return pending
+  }
+  const Lazy = React.lazy(load)
+  function PreloadableComponent(props: AnnotationComponentProps) {
+    const [Impl] = React.useState<
+      React.ComponentType<AnnotationComponentProps>
+    >(() => loaded ?? Lazy)
+    return React.createElement(Impl, props)
+  }
+  return {
+    component: PreloadableComponent,
+    preload: load,
+    isLoaded: () => loaded !== null,
+  }
+}
+
+/**
  * Component registry mapping tag names to components
  */
 export const componentRegistry: Record<string, AnnotationComponent> = {
   // Object tags (display data)
   Text: {
-    component: React.lazy(
+    ...preloadableLazy(
       () => import('@/components/labeling/annotations/TextDisplay'),
     ),
     category: 'object',
   },
 
   Image: {
-    component: React.lazy(
+    ...preloadableLazy(
       () => import('@/components/labeling/annotations/ImageDisplay'),
     ),
     category: 'object',
@@ -59,7 +114,7 @@ export const componentRegistry: Record<string, AnnotationComponent> = {
 
   // Control tags (annotation tools)
   TextArea: {
-    component: React.lazy(
+    ...preloadableLazy(
       () => import('@/components/labeling/annotations/TextAreaInput'),
     ),
     extractValue: (value: string) => ({ text: [value] }),
@@ -67,7 +122,7 @@ export const componentRegistry: Record<string, AnnotationComponent> = {
   },
 
   Choices: {
-    component: React.lazy(
+    ...preloadableLazy(
       () => import('@/components/labeling/annotations/ChoicesInput'),
     ),
     extractValue: (value: string | string[]) => ({
@@ -80,7 +135,7 @@ export const componentRegistry: Record<string, AnnotationComponent> = {
     // SpanLabelsInput handles NER-style span annotation (Issue #964)
     // When used with toName pointing to a Text element, enables text selection + labeling
     // Otherwise falls back to simple label selection mode
-    component: React.lazy(
+    ...preloadableLazy(
       () => import('@/components/labeling/annotations/SpanLabelsInput'),
     ),
     extractValue: (value: any) => value,
@@ -88,7 +143,7 @@ export const componentRegistry: Record<string, AnnotationComponent> = {
   },
 
   Rating: {
-    component: React.lazy(
+    ...preloadableLazy(
       () => import('@/components/labeling/annotations/RatingInput'),
     ),
     extractValue: (value: number) => ({ rating: value }),
@@ -96,7 +151,7 @@ export const componentRegistry: Record<string, AnnotationComponent> = {
   },
 
   Likert: {
-    component: React.lazy(
+    ...preloadableLazy(
       () => import('@/components/labeling/annotations/LikertInput'),
     ),
     extractValue: (value: number) => ({ likert: value }),
@@ -104,7 +159,7 @@ export const componentRegistry: Record<string, AnnotationComponent> = {
   },
 
   Number: {
-    component: React.lazy(
+    ...preloadableLazy(
       () => import('@/components/labeling/annotations/NumberInput'),
     ),
     extractValue: (value: number) => ({ number: value }),
@@ -113,21 +168,21 @@ export const componentRegistry: Record<string, AnnotationComponent> = {
 
   // Visual tags (layout and styling)
   View: {
-    component: React.lazy(
+    ...preloadableLazy(
       () => import('@/components/labeling/annotations/ViewContainer'),
     ),
     category: 'visual',
   },
 
   Header: {
-    component: React.lazy(
+    ...preloadableLazy(
       () => import('@/components/labeling/annotations/HeaderDisplay'),
     ),
     category: 'visual',
   },
 
   Style: {
-    component: React.lazy(
+    ...preloadableLazy(
       () => import('@/components/labeling/annotations/StyleContainer'),
     ),
     category: 'visual',
