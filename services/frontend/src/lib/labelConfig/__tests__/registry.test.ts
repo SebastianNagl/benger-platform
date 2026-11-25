@@ -543,11 +543,13 @@ describe('registry', () => {
   })
 
   describe('component lazy loading', () => {
-    it('should have lazy-loaded components', () => {
+    it('should have lazy-loaded components that can be preloaded', () => {
       Object.entries(componentRegistry).forEach(([tagName, component]) => {
         expect(component.component).toBeDefined()
-        // Lazy components have $$typeof symbol
-        expect(component.component.$$typeof).toBeDefined()
+        // Built-in components load lazily and say when their code is in,
+        // so the form can preload them and show in one step.
+        expect(typeof component.preload).toBe('function')
+        expect(typeof component.isLoaded).toBe('function')
       })
     })
   })
@@ -685,7 +687,7 @@ describe('registry', () => {
     it('should have lazy components that are React components', () => {
       Object.entries(componentRegistry).forEach(([tagName, component]) => {
         expect(component.component).toBeDefined()
-        expect(typeof component.component).toBe('object')
+        expect(typeof component.component).toBe('function')
       })
     })
   })

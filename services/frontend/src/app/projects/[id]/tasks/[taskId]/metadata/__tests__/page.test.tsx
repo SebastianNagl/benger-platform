@@ -744,8 +744,8 @@ describe('TaskMetadataPage', () => {
       })
     })
 
-    it('shows the project id in the breadcrumb and reads the project when not loaded', async () => {
-      const fetchProject = jest.fn()
+    it('reads the project when not loaded, with a placeholder instead of the id meanwhile', async () => {
+      const fetchProject = jest.fn(() => new Promise(() => {}))
       ;(useProjectStore as jest.Mock).mockReturnValue({
         currentProject: null,
         fetchProject,
@@ -755,14 +755,35 @@ describe('TaskMetadataPage', () => {
       render(<TaskMetadataPage params={Promise.resolve(params)} />)
 
       await waitFor(() => {
-        const breadcrumb = screen.getByTestId('breadcrumb')
-        expect(breadcrumb).toHaveTextContent('project-123')
+        expect(
+          screen.getByTestId('project-breadcrumb-pending'),
+        ).toBeInTheDocument()
       })
+      expect(screen.getByTestId('breadcrumb')).not.toHaveTextContent(
+        'project-123',
+      )
       expect(fetchProject).toHaveBeenCalledWith('project-123', { shared: true })
     })
 
+    it('shows the project id in the breadcrumb when the read fails', async () => {
+      const fetchProject = jest.fn().mockResolvedValue(null)
+      ;(useProjectStore as jest.Mock).mockReturnValue({
+        currentProject: null,
+        fetchProject,
+      })
+
+      const params = { id: 'project-123', taskId: 'task-456' }
+      render(<TaskMetadataPage params={Promise.resolve(params)} />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('breadcrumb')).toHaveTextContent(
+          'project-123',
+        )
+      })
+    })
+
     it('never shows the title of another project in the breadcrumb', async () => {
-      const fetchProject = jest.fn()
+      const fetchProject = jest.fn(() => new Promise(() => {}))
       ;(useProjectStore as jest.Mock).mockReturnValue({
         currentProject: { id: 'other-project', title: 'Other Project' },
         fetchProject,
@@ -772,8 +793,9 @@ describe('TaskMetadataPage', () => {
       render(<TaskMetadataPage params={Promise.resolve(params)} />)
 
       await waitFor(() => {
-        const breadcrumb = screen.getByTestId('breadcrumb')
-        expect(breadcrumb).toHaveTextContent('project-123')
+        expect(
+          screen.getByTestId('project-breadcrumb-pending'),
+        ).toBeInTheDocument()
       })
       expect(screen.getByTestId('breadcrumb')).not.toHaveTextContent(
         'Other Project',

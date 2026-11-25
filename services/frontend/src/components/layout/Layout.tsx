@@ -3,6 +3,7 @@
 import { useAuth } from '@/contexts/AuthContext'
 import { useHydration } from '@/hooks/useHydration'
 import { isExtendedEdition, useResolvedUiMode } from '@/hooks/useResolvedUiMode'
+import { useExtensionsSettled } from '@/lib/extensions'
 import { useSlot } from '@/lib/extensions/slots'
 import { useActiveExtensionsReady } from '@/lib/featureFlags'
 import { sebNavigationTarget } from '@/lib/seb'
@@ -27,6 +28,7 @@ import {
   useSidebarPeekStore,
   type ShellVariant,
 } from '@/components/layout/ShellVariant'
+import { AppLoadingScreen } from '@/components/shared/AppLoadingScreen'
 import clsx from 'clsx'
 
 export function Layout({
@@ -69,6 +71,11 @@ function ShellLayout({
   // Whether the runtime switch of the extended overlay is known for this
   // viewer (server answer or the last known value of this browser).
   const extensionsReady = useActiveExtensionsReady()
+  // Whether the enabled overlays have registered their slots. Pages render
+  // their slots (quick actions, cards, whole pages) in their first frame;
+  // before this they would show the platform part first and the overlay
+  // part a moment later.
+  const overlaysSettled = useExtensionsSettled()
   const StudentShell = useSlot('StudentShell')
   // First-visit setup modal + role tour (extended). Mounted in both shells;
   // the slot decides itself whether there is anything to show.
@@ -99,21 +106,19 @@ function ShellLayout({
   // render the student shell — short-circuit entirely in community so the
   // expert layout never pays for the resolution dance. The visitor shell has
   // no session and therefore no mode to resolve.
+  // The app shell waits for the enabled overlays in every edition: their
+  // slots fill pages the moment the shell lets them render.
+  if (!isPublic && !overlaysSettled) {
+    return <AppLoadingScreen testId="ui-shell-skeleton" />
+  }
   if (!isPublic && isExtendedEdition()) {
     // Until hydration completes or auth resolves, the resolved mode is not yet
-    // trustworthy. Render a neutral skeleton rather than flashing the expert
-    // layout to a student on first paint. The same holds until this viewer's
-    // runtime extension switch is known (lib/featureFlags).
+    // trustworthy. Render a neutral loading screen rather than flashing the
+    // expert layout to a student on first paint. The same holds until this
+    // viewer's runtime extension switch is known (lib/featureFlags). It is
+    // the auth check's screen, so the spinner does not jump between the two.
     if (!isHydrated || isLoading || !extensionsReady) {
-      return (
-        <div
-          className="flex h-full w-full items-center justify-center"
-          data-testid="ui-shell-skeleton"
-          aria-hidden="true"
-        >
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400" />
-        </div>
-      )
+      return <AppLoadingScreen testId="ui-shell-skeleton" />
     }
 
     // Student mode + a registered StudentShell slot → hand the whole app shell

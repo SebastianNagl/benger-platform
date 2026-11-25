@@ -109,6 +109,11 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   const [initializationError, setInitializationError] = useState<string | null>(
     null,
   )
+  // The project whose first load has answered (a task, or none left). Until
+  // then a missing task means "not there yet", not "all tasks completed":
+  // the store's loading flag drops between the steps of that load, and the
+  // completion screen flashed up in those gaps before the task arrived.
+  const [initializedFor, setInitializedFor] = useState<string | null>(null)
   const [showSkipModal, setShowSkipModal] = useState(false)
   const [skipComment, setSkipComment] = useState('')
 
@@ -453,7 +458,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
       }
     }
 
-    initializeAnnotationInterface()
+    initializeAnnotationInterface().finally(() => setInitializedFor(projectId))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, searchParams]) // Include searchParams to react to URL changes
 
@@ -801,7 +806,16 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     )
   }
 
-  if (loading && !currentTask) {
+  // A task held from another project (the store keeps the last one) is
+  // not this project's task: wait for this project's answer instead.
+  const taskOfOtherProject =
+    currentTask != null &&
+    currentTask.project_id != null &&
+    String(currentTask.project_id) !== String(projectId)
+  if (
+    taskOfOtherProject ||
+    (!currentTask && (loading || initializedFor !== projectId))
+  ) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
