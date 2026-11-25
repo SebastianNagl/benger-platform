@@ -130,18 +130,21 @@ jest.mock('@/components/projects/GenerationStructureEditor', () => ({
 jest.mock('@/components/evaluation/EvaluationBuilder', () => ({
   // A method edit: rename the first config's metric.
   EvaluationBuilder: ({ evaluations, onEvaluationsChange }: any) => (
-    <button
-      data-testid="edit-method"
-      onClick={() =>
-        onEvaluationsChange(
-          evaluations.map((e: any, i: number) =>
-            i === 0 ? { ...e, display_name: 'Edited method' } : e,
-          ),
-        )
-      }
-    >
-      edit method
-    </button>
+    <>
+      <button
+        data-testid="edit-method"
+        onClick={() =>
+          onEvaluationsChange(
+            evaluations.map((e: any, i: number) =>
+              i === 0 ? { ...e, display_name: 'Edited method' } : e,
+            ),
+          )
+        }
+      >
+        edit method
+      </button>
+      <pre data-testid="card-configs">{JSON.stringify(evaluations)}</pre>
+    </>
   ),
 }))
 jest.mock('@/components/projects/ParticipantCard', () => ({
@@ -392,5 +395,90 @@ describe('ProjectDetailPage - grading section refresh', () => {
     expect(calls[calls.length - 1][1].evaluation_configs_base).toEqual(
       initialConfigs(),
     )
+  })
+
+  it('does not apply a refresh read that a card save overtook', async () => {
+    // The server answers a read with the list it holds when the read
+    // arrives, and commits a write when it answers it, rebasing the
+    // metric_parameters keys the write did not change, like the API does.
+    let holdGets = false
+    const heldGets: Array<() => void> = []
+    const releaseGets = async () => {
+      while (heldGets.length > 0) {
+        heldGets.splice(0).forEach((release) => release())
+        await new Promise((r) => setTimeout(r, 50))
+      }
+    }
+    ;(apiClient.get as jest.Mock).mockImplementation((url: string) => {
+      if (!url.includes('/evaluation-config')) {
+        return Promise.resolve({ status: 'ok' })
+      }
+      const snapshot = JSON.parse(JSON.stringify(server))
+      if (!holdGets) return Promise.resolve(snapshot)
+      return new Promise((resolve) => heldGets.push(() => resolve(snapshot)))
+    })
+    let releasePut: (() => void) | null = null
+    ;(apiClient.put as jest.Mock).mockImplementation(
+      (url: string, body: any) =>
+        new Promise((resolve) => {
+          releasePut = () => {
+            if (url.includes('/evaluation-config') && body.evaluation_configs) {
+              server.evaluation_configs = body.evaluation_configs.map(
+                (cfg: any) => {
+                  const base = body.evaluation_configs_base.find(
+                    (b: any) => b.id === cfg.id,
+                  )
+                  const stored = server.evaluation_configs.find(
+                    (c: any) => c.id === cfg.id,
+                  )
+                  const params = { ...cfg.metric_parameters }
+                  for (const [key, value] of Object.entries(
+                    stored?.metric_parameters ?? {},
+                  )) {
+                    if (
+                      JSON.stringify(cfg.metric_parameters?.[key]) ===
+                      JSON.stringify(base?.metric_parameters?.[key])
+                    ) {
+                      params[key] = value
+                    }
+                  }
+                  return JSON.parse(
+                    JSON.stringify({ ...cfg, metric_parameters: params }),
+                  )
+                },
+              )
+            }
+            resolve({ warnings: [] })
+          }
+        }),
+    )
+
+    await openEvaluationCard()
+    fireEvent.click(await screen.findByTestId('edit-method'))
+    await waitFor(() => expect(lastConfigPut()).toBeDefined(), {
+      timeout: 5000,
+    })
+
+    // The grading section saves while the card's PUT is still open; the
+    // refresh read is held until after that PUT has been answered.
+    holdGets = true
+    fireEvent.click(await screen.findByTestId('save-grading-policy'))
+    await new Promise((r) => setTimeout(r, 50))
+    releasePut!()
+    await new Promise((r) => setTimeout(r, 50))
+    await releaseGets()
+
+    const expected = {
+      display_name: 'Edited method',
+      metric_parameters: {
+        rubric: 'r1',
+        blind_policy: 'blind',
+        peer_policy: { enabled: true, reviews_per_submission: 2 },
+      },
+    }
+    expect(server.evaluation_configs[0]).toMatchObject(expected)
+    expect(
+      JSON.parse(screen.getByTestId('card-configs').textContent!)[0],
+    ).toMatchObject(expected)
   })
 })
