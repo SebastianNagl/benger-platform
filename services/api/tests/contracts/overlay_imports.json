@@ -1,5 +1,5 @@
 {
-  "generated_from": "81d4f31f8e1ecf101aa8279e61304fe4601a1764",
+  "generated_from": "b76e7f1342f27c035251a73071f608584c483f6f",
   "api_shared": [
     {
       "module": "account_activation",
@@ -226,6 +226,7 @@
         "benger_extended/api/routers/judge_prompts.py",
         "benger_extended/api/routers/korrektur.py",
         "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/korrektur_peer.py",
         "benger_extended/api/routers/leaderboards_human.py",
         "benger_extended/api/routers/live_activity.py",
         "benger_extended/api/routers/lti.py",
@@ -287,6 +288,7 @@
         "benger_extended/api/routers/judge_prompts.py",
         "benger_extended/api/routers/korrektur.py",
         "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/korrektur_peer.py",
         "benger_extended/api/routers/live_activity.py",
         "benger_extended/api/routers/lti.py",
         "benger_extended/api/routers/marketplace.py",
@@ -388,6 +390,13 @@
       ]
     },
     {
+      "module": "current_scores",
+      "name": "sql_is_feedback_only",
+      "importers": [
+        "benger_extended/lti/grade_sync.py"
+      ]
+    },
+    {
       "module": "database",
       "name": "SessionLocal",
       "importers": [
@@ -442,6 +451,7 @@
         "benger_extended/api/routers/immediate_evaluation.py",
         "benger_extended/api/routers/korrektur.py",
         "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/korrektur_peer.py",
         "benger_extended/api/routers/leaderboards_human.py",
         "benger_extended/api/routers/lti.py",
         "benger_extended/api/routers/lti_pending.py",
@@ -465,7 +475,8 @@
       "name": "bare_field_name",
       "importers": [
         "benger_extended/api/routers/bewertungsbogen.py",
-        "benger_extended/api/routers/korrektur.py"
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/korrektur_grading.py"
       ]
     },
     {
@@ -774,6 +785,20 @@
       ]
     },
     {
+      "module": "human_graded_metrics",
+      "name": "FEEDBACK_ONLY_HUMAN_METRICS",
+      "importers": [
+        "benger_extended/lti/grade_sync.py"
+      ]
+    },
+    {
+      "module": "human_graded_metrics",
+      "name": "PEER_REVIEW_METRIC",
+      "importers": [
+        "benger_extended/korrektur_peer.py"
+      ]
+    },
+    {
       "module": "immediate_eval_dispatch",
       "name": "BILLING_BLOCK_KEY",
       "importers": [
@@ -966,6 +991,7 @@
       "importers": [
         "benger_extended/api/routers/grading_feedback.py",
         "benger_extended/api/routers/korrektur.py",
+        "benger_extended/korrektur_grading.py",
         "benger_extended/workers/billing_tasks.py",
         "benger_extended/workers/falloesung_tasks.py"
       ]
@@ -1005,7 +1031,8 @@
       "name": "Generation",
       "importers": [
         "benger_extended/api/routers/korrektur.py",
-        "benger_extended/api/routers/korrektur_items.py"
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/korrektur_grading.py"
       ]
     },
     {
@@ -1152,6 +1179,7 @@
         "benger_extended/lti/nrps.py",
         "benger_extended/lti/provisioning.py",
         "benger_extended/lti/teacher_access.py",
+        "benger_extended/uploads/people.py",
         "benger_extended/workers/__init__.py",
         "benger_extended/workers/lti_grade_push.py"
       ]
@@ -1210,7 +1238,8 @@
         "benger_extended/api/routers/live_activity.py",
         "benger_extended/api/routers/submission_uploads.py",
         "benger_extended/lti/dynamic_registration.py",
-        "benger_extended/lti/teacher_access.py"
+        "benger_extended/lti/teacher_access.py",
+        "benger_extended/uploads/scope.py"
       ]
     },
     {
@@ -1223,7 +1252,8 @@
         "benger_extended/live_activity/presence.py",
         "benger_extended/lti/dynamic_registration.py",
         "benger_extended/lti/provisioning.py",
-        "benger_extended/lti/teacher_access.py"
+        "benger_extended/lti/teacher_access.py",
+        "benger_extended/uploads/scope.py"
       ]
     },
     {
@@ -1248,7 +1278,8 @@
         "benger_extended/lti/project_linking.py",
         "benger_extended/lti/provisioning.py",
         "benger_extended/lti/teacher_access.py",
-        "benger_extended/marketplace/service.py"
+        "benger_extended/marketplace/service.py",
+        "benger_extended/uploads/scope.py"
       ]
     },
     {
@@ -1264,7 +1295,8 @@
         "benger_extended/lti/dynamic_registration.py",
         "benger_extended/lti/provisioning.py",
         "benger_extended/lti/teacher_access.py",
-        "benger_extended/marketplace/service.py"
+        "benger_extended/marketplace/service.py",
+        "benger_extended/uploads/scope.py"
       ]
     },
     {
@@ -1286,12 +1318,15 @@
         "benger_extended/api/routers/immediate_evaluation.py",
         "benger_extended/api/routers/korrektur.py",
         "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/korrektur_peer.py",
         "benger_extended/api/routers/leaderboards_human.py",
         "benger_extended/api/routers/student_exams.py",
         "benger_extended/billing/method_selection.py",
+        "benger_extended/korrektur_grading.py",
         "benger_extended/lti/grade_enqueue.py",
         "benger_extended/lti/grade_sync.py",
         "benger_extended/marketplace/service.py",
+        "benger_extended/peer_grading.py",
         "benger_extended/withdrawal.py",
         "benger_extended/workers/falloesung_tasks.py",
         "benger_extended/workers/feedback_judge.py",
@@ -1349,6 +1384,7 @@
         "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/korrektur.py",
         "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/korrektur_peer.py",
         "benger_extended/api/routers/leaderboards_human.py",
         "benger_extended/api/routers/live_activity.py",
         "benger_extended/api/routers/lti.py",
@@ -1365,6 +1401,8 @@
         "benger_extended/lti/name_visibility.py",
         "benger_extended/lti/provisioning.py",
         "benger_extended/marketplace/service.py",
+        "benger_extended/uploads/people.py",
+        "benger_extended/uploads/scope.py",
         "benger_extended/workers/lti_grade_push.py"
       ]
     },
@@ -1396,7 +1434,8 @@
       "module": "notification_service",
       "name": "annotator_ids_for_annotations",
       "importers": [
-        "benger_extended/api/routers/korrektur.py"
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/korrektur_grading.py"
       ]
     },
     {
@@ -1404,7 +1443,8 @@
       "name": "notify_evaluation_received",
       "importers": [
         "benger_extended/api/routers/feedback_review.py",
-        "benger_extended/api/routers/korrektur.py"
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/korrektur_grading.py"
       ]
     },
     {
@@ -1412,7 +1452,8 @@
       "name": "object_storage",
       "importers": [
         "benger_extended/api/routers/handwriting_ocr.py",
-        "benger_extended/api/routers/submission_uploads.py"
+        "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/uploads/files.py"
       ]
     },
     {
@@ -1443,7 +1484,8 @@
       "module": "org_groups",
       "name": "build_select_admin_group_ids",
       "importers": [
-        "benger_extended/api/routers/submission_uploads.py"
+        "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/uploads/scope.py"
       ]
     },
     {
@@ -1606,6 +1648,7 @@
         "benger_extended/api/routers/immediate_evaluation.py",
         "benger_extended/api/routers/korrektur.py",
         "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/korrektur_peer.py",
         "benger_extended/api/routers/leaderboards_human.py",
         "benger_extended/api/routers/live_activity.py",
         "benger_extended/api/routers/lti.py",
@@ -1614,11 +1657,14 @@
         "benger_extended/api/routers/student_exams.py",
         "benger_extended/api/routers/submission_uploads.py",
         "benger_extended/billing/method_selection.py",
+        "benger_extended/korrektur_grading.py",
         "benger_extended/lti/grade_sync.py",
         "benger_extended/lti/gradebook.py",
         "benger_extended/lti/name_visibility.py",
         "benger_extended/marketplace/service.py",
         "benger_extended/ocr_submission.py",
+        "benger_extended/peer_grading.py",
+        "benger_extended/uploads/submissions.py",
         "benger_extended/workers/auto_submit_timer.py",
         "benger_extended/workers/lti_grade_push.py"
       ]
@@ -1750,6 +1796,7 @@
         "benger_extended/api/routers/immediate_evaluation.py",
         "benger_extended/api/routers/korrektur.py",
         "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/korrektur_peer.py",
         "benger_extended/api/routers/leaderboards_human.py",
         "benger_extended/api/routers/live_activity.py",
         "benger_extended/api/routers/lti.py",
@@ -1762,6 +1809,7 @@
         "benger_extended/api/routers/timer.py",
         "benger_extended/billing/policy.py",
         "benger_extended/exam_tools/exam_lock.py",
+        "benger_extended/korrektur_grading.py",
         "benger_extended/live_activity/presence.py",
         "benger_extended/lti/billing.py",
         "benger_extended/lti/consent.py",
@@ -1770,7 +1818,10 @@
         "benger_extended/lti/gradebook.py",
         "benger_extended/lti/teacher_access.py",
         "benger_extended/marketplace/service.py",
+        "benger_extended/peer_grading.py",
         "benger_extended/student_creation.py",
+        "benger_extended/uploads/files.py",
+        "benger_extended/uploads/scope.py",
         "benger_extended/workers/auto_submit_timer.py",
         "benger_extended/workers/bewertungsbogen_tasks.py",
         "benger_extended/workers/falloesung_tasks.py",
@@ -1794,6 +1845,7 @@
         "benger_extended/lti/billing.py",
         "benger_extended/lti/project_linking.py",
         "benger_extended/marketplace/service.py",
+        "benger_extended/uploads/scope.py",
         "benger_extended/workers/ocr_tasks.py"
       ]
     },
@@ -1834,7 +1886,8 @@
       "importers": [
         "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/submission_uploads.py",
-        "benger_extended/ocr_submission.py"
+        "benger_extended/ocr_submission.py",
+        "benger_extended/uploads/files.py"
       ]
     },
     {
@@ -1861,6 +1914,7 @@
         "benger_extended/api/routers/immediate_evaluation.py",
         "benger_extended/api/routers/korrektur.py",
         "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/korrektur_peer.py",
         "benger_extended/api/routers/live_activity.py",
         "benger_extended/api/routers/lti.py",
         "benger_extended/api/routers/reviews.py",
@@ -1874,12 +1928,16 @@
         "benger_extended/billing/method_selection.py",
         "benger_extended/exam_readiness.py",
         "benger_extended/exam_tools/access.py",
+        "benger_extended/korrektur_grading.py",
         "benger_extended/lti/exam_gate.py",
         "benger_extended/lti/grade_sync.py",
         "benger_extended/lti/gradebook.py",
         "benger_extended/lti/name_visibility.py",
         "benger_extended/lti/teacher_access.py",
+        "benger_extended/peer_grading.py",
         "benger_extended/student_creation.py",
+        "benger_extended/uploads/files.py",
+        "benger_extended/uploads/scope.py",
         "benger_extended/workers/auto_submit_timer.py",
         "benger_extended/workers/bewertungsbogen_tasks.py",
         "benger_extended/workers/flashcard_tasks.py",
@@ -1893,10 +1951,12 @@
       "importers": [
         "benger_extended/api/routers/exam_tools.py",
         "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/korrektur_peer.py",
         "benger_extended/api/routers/live_activity.py",
         "benger_extended/api/routers/seb.py",
         "benger_extended/api/routers/submission_uploads.py",
-        "benger_extended/lti/name_visibility.py"
+        "benger_extended/lti/name_visibility.py",
+        "benger_extended/peer_grading.py"
       ]
     },
     {
@@ -1920,6 +1980,7 @@
         "benger_extended/api/routers/rubric_review.py",
         "benger_extended/api/routers/student_exams.py",
         "benger_extended/exam_readiness.py",
+        "benger_extended/korrektur_grading.py",
         "benger_extended/lti/exam_gate.py",
         "benger_extended/rubric_jobs.py",
         "benger_extended/workers/__init__.py",
@@ -2279,7 +2340,8 @@
       "importers": [
         "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/submission_uploads.py",
-        "benger_extended/api/routers/timer.py"
+        "benger_extended/api/routers/timer.py",
+        "benger_extended/uploads/scope.py"
       ]
     },
     {
@@ -2376,7 +2438,8 @@
       "module": "routers.projects.helpers",
       "name": "get_effective_project_role",
       "importers": [
-        "benger_extended/api/routers/korrektur_items.py"
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/korrektur_peer.py"
       ]
     },
     {
@@ -2392,9 +2455,11 @@
       "importers": [
         "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/korrektur_peer.py",
         "benger_extended/api/routers/lti.py",
         "benger_extended/api/routers/submission_uploads.py",
-        "benger_extended/api/routers/timer.py"
+        "benger_extended/api/routers/timer.py",
+        "benger_extended/uploads/scope.py"
       ]
     },
     {
@@ -2456,7 +2521,8 @@
         "benger_extended/api/routers/flashcards.py",
         "benger_extended/api/routers/student_exams.py",
         "benger_extended/api/routers/submission_uploads.py",
-        "benger_extended/api/routers/timer.py"
+        "benger_extended/api/routers/timer.py",
+        "benger_extended/uploads/scope.py"
       ]
     },
     {
@@ -2506,7 +2572,8 @@
       "module": "rubric_structure",
       "name": "grade_for_rubric",
       "importers": [
-        "benger_extended/api/routers/korrektur.py"
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/korrektur_grading.py"
       ]
     },
     {
@@ -2548,7 +2615,8 @@
       "module": "rubric_structure",
       "name": "order_criteria_keys",
       "importers": [
-        "benger_extended/api/routers/korrektur.py"
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/korrektur_grading.py"
       ]
     },
     {
@@ -2563,6 +2631,7 @@
       "name": "resolve_grade_scale",
       "importers": [
         "benger_extended/api/routers/korrektur.py",
+        "benger_extended/korrektur_grading.py",
         "benger_extended/workers/falloesung_tasks.py"
       ]
     },
@@ -2731,7 +2800,8 @@
       "name": "human_user_clause",
       "importers": [
         "benger_extended/api/routers/leaderboards_human.py",
-        "benger_extended/api/routers/submission_uploads.py"
+        "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/uploads/scope.py"
       ]
     },
     {
@@ -2745,7 +2815,8 @@
       "module": "services.evaluation.human_eval_runs",
       "name": "get_or_create_human_eval_run",
       "importers": [
-        "benger_extended/api/routers/korrektur.py"
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/korrektur_grading.py"
       ]
     },
     {
@@ -2753,6 +2824,28 @@
       "name": "project_name_mask",
       "importers": [
         "benger_extended/api/routers/live_activity.py"
+      ]
+    },
+    {
+      "module": "services.peer_review",
+      "name": "REVIEW_ROLE_PEER",
+      "importers": [
+        "benger_extended/peer_grading.py"
+      ]
+    },
+    {
+      "module": "services.peer_review",
+      "name": "peer_candidate_ids",
+      "importers": [
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/peer_grading.py"
+      ]
+    },
+    {
+      "module": "services.peer_review",
+      "name": "review_role",
+      "importers": [
+        "benger_extended/peer_grading.py"
       ]
     },
     {
@@ -2818,6 +2911,7 @@
         "benger_extended/api/hooks.py",
         "benger_extended/api/routers/immediate_evaluation.py",
         "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/korrektur_peer.py",
         "benger_extended/api/routers/student_exams.py",
         "benger_extended/withdrawal.py"
       ]
@@ -2877,7 +2971,8 @@
       "module": "task_rubric_resolution",
       "name": "resolve_grading_rubric",
       "importers": [
-        "benger_extended/api/routers/korrektur.py"
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/korrektur_grading.py"
       ]
     },
     {
@@ -3013,14 +3108,16 @@
       "module": "utils.assignment_helpers",
       "name": "mark_assignment_completed",
       "importers": [
-        "benger_extended/api/routers/korrektur.py"
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/korrektur_grading.py"
       ]
     },
     {
       "module": "utils.assignment_helpers",
       "name": "user_assignment_exists",
       "importers": [
-        "benger_extended/api/routers/korrektur.py"
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/korrektur_grading.py"
       ]
     },
     {
