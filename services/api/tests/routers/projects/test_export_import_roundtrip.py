@@ -831,8 +831,10 @@ class TestRoundtripExtensions:
         ann.auto_submitted = True
         ann.ai_assisted = True
         ann.reviewed_by = user.id
-        ann.review_result = "approved"
+        ann.review_result = "fixed"
         ann.review_comment = "Looks good"
+        # A review fixed the answer in place: the author's original stays.
+        ann.original_result = [{"type": "textarea", "value": {"text": ["Original"]}}]
         db_session.commit()
         # A withdrawn answer keeps its record (who, when, why) across the trip.
         withdrawn = data["annotations"][1]
@@ -861,8 +863,11 @@ class TestRoundtripExtensions:
         )
         assert imported.auto_submitted == True  # noqa: E712
         assert imported.ai_assisted == True  # noqa: E712
-        assert imported.review_result == "approved"
+        assert imported.review_result == "fixed"
         assert imported.review_comment == "Looks good"
+        assert imported.original_result == [
+            {"type": "textarea", "value": {"text": ["Original"]}}
+        ]
         returned = (
             db_session.query(Annotation)
             .filter(Annotation.project_id == target.id)

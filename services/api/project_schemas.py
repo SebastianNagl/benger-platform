@@ -840,6 +840,9 @@ class AnnotationResponse(AnnotationBase):
     review_result: Optional[str] = None
     review_annotation: Optional[List[Dict[str, Any]]] = None
     review_comment: Optional[str] = None
+    # The author's result before a review replaced ``result`` in place;
+    # null while ``result`` is still the author's own answer.
+    original_result: Optional[List[Dict[str, Any]]] = None
     # Withdrawal record: set when the author withdrew the submission or a
     # project editor returned it (``was_cancelled`` is then true as well).
     withdrawn_at: Optional[datetime] = None
