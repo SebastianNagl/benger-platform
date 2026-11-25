@@ -9089,6 +9089,11 @@
     "breadcrumb": {
       "ariaLabel": "Breadcrumb"
     },
+    "itemStepper": {
+      "previous": "Previous item",
+      "next": "Next item",
+      "position": "{current} of {total}"
+    },
     "pagination": {
       "goToPage": "Go to page {page}"
     }

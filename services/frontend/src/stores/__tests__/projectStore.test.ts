@@ -498,6 +498,59 @@ describe('ProjectStore', () => {
       expect(state.error).toBe('Project not found')
       expect(mockToast.error).toHaveBeenCalledWith('Project not found')
     })
+
+    it('shares one request per project while it is in flight', async () => {
+      const project = createMockProject({ id: '5', title: 'Shared' })
+      let resolve: (p: Project) => void = () => {}
+      mockProjectsAPI.get.mockClear()
+      mockProjectsAPI.get.mockReturnValue(
+        new Promise<Project>((r) => {
+          resolve = r
+        }),
+      )
+
+      const store = useProjectStore.getState()
+      const first = store.fetchProject('5')
+      const second = store.fetchProject('5')
+      expect(second).toBe(first)
+      expect(mockProjectsAPI.get).toHaveBeenCalledTimes(1)
+
+      await act(async () => {
+        resolve(project)
+        await first
+      })
+      await expect(second).resolves.toEqual(project)
+
+      // Once settled, the next read goes to the server again.
+      mockProjectsAPI.get.mockResolvedValue(project)
+      await act(async () => {
+        await useProjectStore.getState().fetchProject('5')
+      })
+      expect(mockProjectsAPI.get).toHaveBeenCalledTimes(2)
+    })
+
+    it('keeps requests for different projects apart and frees a failed one', async () => {
+      mockProjectsAPI.get.mockClear()
+      mockProjectsAPI.get.mockRejectedValueOnce(new Error('boom'))
+      mockProjectsAPI.get.mockResolvedValueOnce(createMockProject({ id: '7' }))
+
+      const store = useProjectStore.getState()
+      const failed = store.fetchProject('6')
+      const other = store.fetchProject('7')
+      expect(other).not.toBe(failed)
+
+      await act(async () => {
+        await expect(failed).resolves.toBeNull()
+        await other
+      })
+      expect(mockProjectsAPI.get).toHaveBeenCalledTimes(2)
+
+      mockProjectsAPI.get.mockResolvedValue(createMockProject({ id: '6' }))
+      await act(async () => {
+        await useProjectStore.getState().fetchProject('6')
+      })
+      expect(mockProjectsAPI.get).toHaveBeenCalledTimes(3)
+    })
   })
 
   describe('createProject', () => {

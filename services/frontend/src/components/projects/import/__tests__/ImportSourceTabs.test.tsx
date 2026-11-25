@@ -163,7 +163,7 @@ describe('ImportSourceTabs — rendering', () => {
     expect(structuredTrigger).toHaveTextContent('Enter exam')
     // Exam kind: structured is the default tab, ordered first.
     expect(screen.getByTestId('structured-content')).toBeInTheDocument()
-    const triggers = screen.getAllByRole('button', {
+    const triggers = screen.getAllByRole('tab', {
       name: /Enter exam|Upload file|Paste table\/JSON|Cloud storage/,
     })
     expect(triggers[0]).toHaveTextContent('Enter exam')

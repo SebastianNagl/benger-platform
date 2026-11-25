@@ -4,8 +4,8 @@
 
 'use client'
 
+import { ProjectPageHeader } from '@/components/projects/ProjectPageHeader'
 import { ProjectDataTab } from '@/components/projects/tabs/ProjectDataTab'
-import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
@@ -162,34 +162,17 @@ export default function ProjectDataPage({ params }: ProjectDataPageProps) {
 
   return (
     <ResponsiveContainer size="full" className="pt-8 pb-10">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="mb-4">
-          <Breadcrumb
-            items={[
-              {
-                label: t('navigation.dashboard') || 'Dashboard',
-                href: '/dashboard',
-              },
-              {
-                label: t('navigation.projects') || 'Projects',
-                href: '/projects',
-              },
-              { label: currentProject.title, href: `/projects/${projectId}` },
-              {
-                label: t('navigation.projectData') || 'Data',
-                href: `/projects/${projectId}/data`,
-              },
-            ]}
-          />
-        </div>
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
-          {t('project.quickActions.projectData')}
-        </h1>
-        <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-          {currentProject.title}
-        </p>
-      </div>
+      <ProjectPageHeader
+        projectId={projectId}
+        breadcrumbs={[
+          {
+            label: t('navigation.projectData'),
+            href: `/projects/${projectId}/data`,
+          },
+        ]}
+        title={t('project.quickActions.projectData')}
+        description={currentProject.title}
+      />
 
       <ProjectDataTab projectId={projectId} />
     </ResponsiveContainer>

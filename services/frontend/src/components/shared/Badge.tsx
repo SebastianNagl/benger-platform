@@ -7,7 +7,13 @@ interface BadgeProps extends Omit<
 > {
   children: ReactNode
   variant?:
-    'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning'
+    | 'default'
+    | 'secondary'
+    | 'destructive'
+    | 'outline'
+    | 'success'
+    | 'warning'
+    | 'info'
   className?: string
   onClick?: () => void
   'aria-label'?: string
@@ -45,6 +51,8 @@ export function Badge({
             variant === 'success',
           'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300':
             variant === 'warning',
+          'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300':
+            variant === 'info',
         },
         interactiveClasses,
         className,

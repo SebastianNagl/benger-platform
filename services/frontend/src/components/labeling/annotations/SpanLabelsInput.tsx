@@ -20,6 +20,7 @@
 import { useI18n } from '@/contexts/I18nContext'
 import { buildSpanAnnotationResult } from '@/lib/labelConfig/dataBinding'
 import { AnnotationComponentProps } from '@/lib/labelConfig/registry'
+import { getContrastColor } from '@/lib/utils/color'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -312,7 +313,6 @@ export default function SpanLabelsInput({
   }, [labels, pendingSelection, spans, applyLabelToSelection, removeSpan])
 
   // Render highlighted text with spans
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const renderHighlightedText = useMemo(() => {
     if (!sourceText) {
       return (
@@ -373,7 +373,7 @@ export default function SpanLabelsInput({
     }
 
     return elements
-  }, [sourceText, spans, labels, removeSpan])
+  }, [sourceText, spans, labels, removeSpan, t])
 
   return (
     <div className="span-labels-input space-y-4">
@@ -565,20 +565,4 @@ function getHotkeyColor(hotkey: string): string {
     o: '#FFB347', // orange
   }
   return hotkeyColors[hotkey.toLowerCase()] || getDefaultColor(hotkey)
-}
-
-/**
- * Get contrasting text color for background
- */
-function getContrastColor(bgColor: string): string {
-  // Convert hex to RGB
-  const hex = bgColor.replace('#', '')
-  const r = parseInt(hex.substr(0, 2), 16)
-  const g = parseInt(hex.substr(2, 2), 16)
-  const b = parseInt(hex.substr(4, 2), 16)
-
-  // Calculate luminance
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-
-  return luminance > 0.5 ? '#000000' : '#ffffff'
 }

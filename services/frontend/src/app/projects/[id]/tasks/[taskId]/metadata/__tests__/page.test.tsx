@@ -742,10 +742,11 @@ describe('TaskMetadataPage', () => {
       })
     })
 
-    it('uses fallback text in breadcrumb when project not loaded', async () => {
+    it('shows the project id in the breadcrumb and reads the project when not loaded', async () => {
+      const fetchProject = jest.fn()
       ;(useProjectStore as jest.Mock).mockReturnValue({
         currentProject: null,
-        fetchProject: jest.fn(),
+        fetchProject,
       })
 
       const params = { id: 'project-123', taskId: 'task-456' }
@@ -753,8 +754,29 @@ describe('TaskMetadataPage', () => {
 
       await waitFor(() => {
         const breadcrumb = screen.getByTestId('breadcrumb')
-        expect(breadcrumb).toHaveTextContent('Project')
+        expect(breadcrumb).toHaveTextContent('project-123')
       })
+      expect(fetchProject).toHaveBeenCalledWith('project-123')
+    })
+
+    it('never shows the title of another project in the breadcrumb', async () => {
+      const fetchProject = jest.fn()
+      ;(useProjectStore as jest.Mock).mockReturnValue({
+        currentProject: { id: 'other-project', title: 'Other Project' },
+        fetchProject,
+      })
+
+      const params = { id: 'project-123', taskId: 'task-456' }
+      render(<TaskMetadataPage params={Promise.resolve(params)} />)
+
+      await waitFor(() => {
+        const breadcrumb = screen.getByTestId('breadcrumb')
+        expect(breadcrumb).toHaveTextContent('project-123')
+      })
+      expect(screen.getByTestId('breadcrumb')).not.toHaveTextContent(
+        'Other Project',
+      )
+      expect(fetchProject).toHaveBeenCalledWith('project-123')
     })
   })
 

@@ -95,6 +95,19 @@ describe('Badge', () => {
         'dark:text-zinc-400',
       )
     })
+
+    it('applies info variant styling, distinct from success', () => {
+      render(<Badge variant="info">Info Badge</Badge>)
+
+      const badge = screen.getByText('Info Badge')
+      expect(badge).toHaveClass(
+        'bg-sky-100',
+        'text-sky-800',
+        'dark:bg-sky-900/30',
+        'dark:text-sky-300',
+      )
+      expect(badge).not.toHaveClass('bg-emerald-100')
+    })
   })
 
   describe('custom styling', () => {

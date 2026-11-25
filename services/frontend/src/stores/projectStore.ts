@@ -23,6 +23,11 @@ const toastUpdateFailure = (error: unknown) => {
   toast(message, 'error')
 }
 
+// One request per project at a time: a page and a component inside it (the
+// project breadcrumb) that both read a project they do not hold yet share
+// the request instead of sending it twice.
+const projectFetchesInFlight = new Map<string, Promise<Project | null>>()
+
 interface ProjectStore {
   // State
   projects: Project[]
@@ -216,46 +221,54 @@ export const useProjectStore = create<ProjectStore>()(
         }
       },
 
-      fetchProject: async (projectId: string) => {
-        set({ loading: true, error: null })
-        try {
-          const project = await projectsAPI.get(projectId)
-          set((state) => {
-            // Check if project exists in the list, if not add it
-            const existingIndex = state.projects.findIndex(
-              (p) => p.id === projectId,
-            )
-            let updatedProjects = state.projects
-
-            if (existingIndex >= 0) {
-              // Update existing project
-              updatedProjects = state.projects.map((p) =>
-                p.id === projectId ? project : p,
+      fetchProject: (projectId: string) => {
+        const pending = projectFetchesInFlight.get(projectId)
+        if (pending) return pending
+        const request = (async (): Promise<Project | null> => {
+          set({ loading: true, error: null })
+          try {
+            const project = await projectsAPI.get(projectId)
+            set((state) => {
+              // Check if project exists in the list, if not add it
+              const existingIndex = state.projects.findIndex(
+                (p) => p.id === projectId,
               )
-            } else {
-              // Add new project to the list
-              updatedProjects = [...state.projects, project]
-            }
+              let updatedProjects = state.projects
 
-            return {
-              projects: updatedProjects,
-              currentProject: project,
-              loading: false,
-              // Clear task cycle when switching projects
-              taskCycle: [],
-              currentTaskIndex: 0,
-            }
-          })
-          return project
-        } catch (error) {
-          const message =
-            error instanceof Error
-              ? error.message
-              : t('store.project.fetchOneFailed')
-          set({ error: message, loading: false })
-          toast(message, 'error')
-          return null
-        }
+              if (existingIndex >= 0) {
+                // Update existing project
+                updatedProjects = state.projects.map((p) =>
+                  p.id === projectId ? project : p,
+                )
+              } else {
+                // Add new project to the list
+                updatedProjects = [...state.projects, project]
+              }
+
+              return {
+                projects: updatedProjects,
+                currentProject: project,
+                loading: false,
+                // Clear task cycle when switching projects
+                taskCycle: [],
+                currentTaskIndex: 0,
+              }
+            })
+            return project
+          } catch (error) {
+            const message =
+              error instanceof Error
+                ? error.message
+                : t('store.project.fetchOneFailed')
+            set({ error: message, loading: false })
+            toast(message, 'error')
+            return null
+          }
+        })().finally(() => {
+          projectFetchesInFlight.delete(projectId)
+        })
+        projectFetchesInFlight.set(projectId, request)
+        return request
       },
 
       createProject: async (data: {

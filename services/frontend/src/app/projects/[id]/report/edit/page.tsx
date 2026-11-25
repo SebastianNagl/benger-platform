@@ -21,9 +21,9 @@
 
 'use client'
 
+import { ProjectPageHeader } from '@/components/projects/ProjectPageHeader'
 import { AnalysesEditor } from '@/components/reports/editor/AnalysesEditor'
 import { hasHumanEvaluations } from '@/components/reports/view'
-import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { Input } from '@/components/shared/Input'
 import { Label } from '@/components/shared/Label'
@@ -697,42 +697,19 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
   return (
     <div className="mx-auto max-w-5xl px-4 pt-16 pb-10 sm:px-6 lg:px-8">
       {/* Header */}
-      <div className="mb-8">
-        <Breadcrumb
-          items={[
-            {
-              label: t('navigation.dashboard') || 'Dashboard',
-              href: '/dashboard',
-            },
-            {
-              label: t('navigation.projects') || 'Projects',
-              href: '/projects',
-            },
-            { label: report.project_title, href: `/projects/${projectId}` },
-            {
-              label: t('project.report.editor.title'),
-              href: `/projects/${projectId}/report/edit`,
-            },
-          ]}
-        />
-
-        <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
-              {t('project.report.editor.title')}
-            </h1>
-            <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-              {t('project.report.editor.subtitle')}
-            </p>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-500">
-              {snapshotDate
-                ? t('reports.editor.snapshotGeneratedAt', {
-                    date: snapshotDate,
-                  })
-                : t('reports.editor.noSnapshot')}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+      <ProjectPageHeader
+        projectId={projectId}
+        projectTitle={report.project_title}
+        breadcrumbs={[
+          {
+            label: t('project.report.editor.title'),
+            href: `/projects/${projectId}/report/edit`,
+          },
+        ]}
+        title={t('project.report.editor.title')}
+        description={t('project.report.editor.subtitle')}
+        actions={
+          <>
             <Button
               onClick={handleRefresh}
               disabled={refreshing || saving}
@@ -761,9 +738,17 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
               <ArrowLeftIcon className="mr-2 h-4 w-4" />
               {t('project.report.editor.backToProject')}
             </Button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      >
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-500">
+          {snapshotDate
+            ? t('reports.editor.snapshotGeneratedAt', {
+                date: snapshotDate,
+              })
+            : t('reports.editor.noSnapshot')}
+        </p>
+      </ProjectPageHeader>
 
       {/* Editor Form */}
       <div className="space-y-8">

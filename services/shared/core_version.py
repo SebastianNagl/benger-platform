@@ -2016,11 +2016,38 @@ API change).
     them (also in a flat ``<metric>_details`` sibling), the batch grading
     notice counts such a row only when the judge released it, and the
     attempt scores of the dashboards and shares skip it.
+
+2.85 (2026-11-25): shared frontend pieces for the pages under a project and
+  for review surfaces (no migration, additive; frontend only).
+  - ``@/components/projects/ProjectBreadcrumb`` (``ProjectBreadcrumb``,
+    ``ProjectBreadcrumbItem``): dashboard, projects, the project by its
+    title (only when the store holds this very project, else its id while
+    the project is read; ``projectTitle`` when the page knows it), then the
+    page's crumbs. The platform's project, data, my-tasks, task metadata
+    and report editor pages use it.
+  - ``@/components/projects/ProjectPageHeader``: that breadcrumb, the ``h1``
+    in the app's standard style, ``description``, ``badge``, ``actions`` and
+    ``children`` under the description.
+  - ``@/components/shared/ItemStepper``: previous / next icon buttons with
+    accessible names (``labels`` override them), an "x of y" counter
+    (``shared.itemStepper.*``), disabled at the ends or while ``disabled``,
+    ``variant="compact"`` with bare chevrons, ``children`` in place of the
+    counter, ``testId`` prefix for ``-previous`` / ``-position`` / ``-next``.
+  - ``@/components/shared/Tabs``: the WAI-ARIA tabs pattern (``tablist``,
+    ``tab`` with ``aria-selected``, ``tabpanel`` labelled by its tab; arrow
+    keys, Home and End move between the tabs and select). ``TabsList``
+    passes other div props such as ``aria-label`` through.
+  - ``@/components/shared/Badge``: variant ``info``.
+  - ``@/lib/utils/color``: ``getContrastColor(hex)``, black or white text
+    for a ``#rgb`` / ``#rrggbb`` / ``#rrggbbaa`` background, black for
+    anything else.
+  - ``projectStore.fetchProject`` shares one request per project while it
+    is in flight.
 """
 
 import os
 
-CORE_API_VERSION = "2.84"
+CORE_API_VERSION = "2.85"
 
 
 def extended_required() -> bool:
