@@ -219,7 +219,7 @@ describe('ProjectDetailPage — participant tier', () => {
     ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
     ;(useAuth as jest.Mock).mockReturnValue({ user, currentOrganization: null })
     ;(useI18n as jest.Mock).mockReturnValue({ t: (key: string) => key })
-    ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false })
+    ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false, isHydrated: true })
     ;(useModels as jest.Mock).mockReturnValue({
       models: [],
       loading: false,
@@ -588,7 +588,7 @@ describe('ProjectDetailPage — header icon editing', () => {
     ;(useI18n as jest.Mock).mockReturnValue({
       t: (k: string, _vars?: Record<string, unknown>) => k,
     })
-    ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false })
+    ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false, isHydrated: true })
     ;(useModels as jest.Mock).mockReturnValue({
       models: [],
       loading: false,
@@ -663,7 +663,7 @@ describe('ProjectDetailPage — header spacing, activity counts, held exam', () 
       t: (key: string, vars?: Record<string, unknown>) =>
         vars && 'count' in vars ? `${key}:${vars.count}` : key,
     })
-    ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false })
+    ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false, isHydrated: true })
     ;(useModels as jest.Mock).mockReturnValue({
       models: [],
       loading: false,

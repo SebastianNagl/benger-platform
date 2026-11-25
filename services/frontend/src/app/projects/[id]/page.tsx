@@ -58,6 +58,7 @@ import {
 import { SubSection } from '@/components/projects/SubSection'
 import { IconPickerModal } from '@/components/projects/wizard/ProjectTypeAndIcon'
 import { PublicationToggle } from '@/components/reports/PublicationToggle'
+import { AppLoadingScreen } from '@/components/shared/AppLoadingScreen'
 import { useAutoSaveBuffer } from '@/components/shared/AutoSave'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
@@ -1959,13 +1960,10 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
         (isParticipant && participationFor !== projectId)))
   ) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
-          <p className="mt-4 text-zinc-600 dark:text-zinc-400">
-            {t('project.loading')}
-          </p>
-        </div>
+      // The same spot as the app loading screen it takes over from; the
+      // min-h keeps the footer below the fold meanwhile.
+      <div className="min-h-screen">
+        <AppLoadingScreen label={t('project.loading')} covering={false} />
       </div>
     )
   }

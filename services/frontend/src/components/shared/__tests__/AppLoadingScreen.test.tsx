@@ -39,3 +39,26 @@ describe('AppLoadingScreen', () => {
     )
   })
 })
+
+describe('AppLoadingScreen in a page', () => {
+  afterEach(() => {
+    act(() => useUIStore.setState({ isSidebarHidden: false }))
+  })
+
+  it('leaves the shell visible and usable', () => {
+    render(<AppLoadingScreen testId="screen" covering={false} label="x" />)
+    const el = screen.getByTestId('screen')
+    expect(el.className).toContain('pointer-events-none')
+    expect(el.className).not.toContain('z-50')
+    expect(el.className).not.toContain('bg-white')
+  })
+
+  it('centers on the same box as the covering screen', () => {
+    const { rerender } = render(<AppLoadingScreen testId="screen" />)
+    const box = (c: string) =>
+      c.split(' ').filter((k) => /^(fixed|inset-|.*pl-)/.test(k))
+    const covering = box(screen.getByTestId('screen').className)
+    rerender(<AppLoadingScreen testId="screen" covering={false} />)
+    expect(box(screen.getByTestId('screen').className)).toEqual(covering)
+  })
+})
