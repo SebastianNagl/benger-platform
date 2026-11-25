@@ -538,7 +538,9 @@
           "strictTimerHint": "Soumettre automatiquement l'annotation à l'expiration du temps",
           "advancedNote": "D'autres paramètres (mode relecture, retour) sont disponibles sur la page du projet après sa création.",
           "revealSolution": "Afficher le corrigé type après la remise",
-          "revealSolutionHint": "Après la remise, les participants voient tous les champs de la tâche, corrigé type compris."
+          "revealSolutionHint": "Après la remise, les participants voient tous les champs de la tâche, corrigé type compris.",
+          "revealStepDetail": "Afficher les étapes de notation après la remise",
+          "revealStepDetailHint": "Après la remise, les participants voient les points et les justifications de chaque étape de leur notation, même si le corrigé type reste masqué."
         },
         "evalSaveFailed": "Impossible d'enregistrer la configuration d'évaluation",
         "promptStructureSaveFailed": "Impossible d'enregistrer la structure des prompts (les prompts restent enregistrés dans la configuration de génération)",
@@ -1417,7 +1419,7 @@
         "annotatorFullVisibility": "Afficher tous les champs après la remise",
         "annotatorFullVisibilityHelp": "Si activé, les annotateurs voient tous les champs de la tâche, y compris le corrigé type, lorsqu'ils consultent leur propre travail remis. Si désactivé, cette vue se limite aux champs qu'ils ont vus pendant l'annotation et le corrigé type reste masqué. Les étapes de la notation sont régies par le paramètre ci-dessous.",
         "annotatorStepDetail": "Afficher les étapes de notation après la remise",
-        "annotatorStepDetailHelp": "Si activé, les annotateurs voient après leur remise les points et les justifications de chaque étape de la grille d'évaluation. La note et le total des points sont toujours visibles. Les indications de la grille d'évaluation restent masquées tant que le corrigé type n'est pas affiché. Tant que vous ne le modifiez pas, ce paramètre reprend la valeur du paramètre ci-dessus.",
+        "annotatorStepDetailHelp": "Si activé, les annotateurs voient après leur remise les points et les justifications de chaque étape de la grille d'évaluation. La note et le total des points sont toujours visibles. Les indications de la grille d'évaluation restent masquées tant que le corrigé type n'est pas affiché. Il est indépendant du corrigé type : les nouveaux projets affichent les étapes par défaut. Les projets plus anciens où il n'a jamais été défini reprennent la valeur du paramètre ci-dessus.",
         "restorableCheckpoints": "Enregistrer des états intermédiaires restaurables",
         "restorableCheckpointsHelp": "Enregistre régulièrement (toutes les 5 minutes) des états intermédiaires du travail en cours, afin que les annotateurs puissent restaurer une version antérieure. Les états intermédiaires sont conservés même après la remise.",
         "samplingMethod": "Méthode d'échantillonnage des tâches",

@@ -951,6 +951,8 @@ export function ProjectCreationWizard() {
       s.require_confirm_before_submit
     updatePayload.annotator_full_visibility_after_submit =
       s.annotator_full_visibility_after_submit
+    updatePayload.annotator_step_detail_after_submit =
+      s.annotator_step_detail_after_submit ?? true
     updatePayload.annotation_time_limit_enabled =
       s.annotation_time_limit_enabled
     updatePayload.annotation_time_limit_seconds =

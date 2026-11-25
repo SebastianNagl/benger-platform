@@ -1436,6 +1436,7 @@ class TestRoundtripExtensions:
         proj.pop("handwriting_ocr_model")
         proj.pop("exam_tools", None)
         proj.pop("peer_review_enabled")
+        proj.pop("annotator_step_detail_after_submit")
 
         result = run_full_project_import(
             db_session, io.BytesIO(json.dumps(export).encode("utf-8")), user.id
@@ -1455,6 +1456,30 @@ class TestRoundtripExtensions:
         assert imported.handwriting_ocr_enabled is True
         assert imported.handwriting_ocr_model is None
         assert imported.peer_review_enabled is False
+        # An export without the steps switch keeps following the reference
+        # switch, as its source project did.
+        assert imported.annotator_step_detail_after_submit is None
+
+    def test_exported_null_steps_switch_is_kept(
+        self, db_session, user, project_with_full_data
+    ):
+        """A project that never set the steps switch exports null and its
+        copy keeps following the reference switch, as the source does."""
+        from routers.projects._import_stream import run_full_project_import
+
+        project = project_with_full_data["project"]
+        project.annotator_step_detail_after_submit = None
+        db_session.commit()
+
+        export = _export_project_dict(db_session, project.id)
+        assert export["project"]["annotator_step_detail_after_submit"] is None
+        result = run_full_project_import(
+            db_session, io.BytesIO(json.dumps(export).encode("utf-8")), user.id
+        )
+        imported = (
+            db_session.query(Project).filter(Project.id == result["project_id"]).one()
+        )
+        assert imported.annotator_step_detail_after_submit is None
 
 
 class TestTaskRubricRoundtrip:

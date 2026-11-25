@@ -538,7 +538,9 @@
           "strictTimerHint": "Auto-submit annotation when time expires",
           "advancedNote": "Additional settings (review mode, feedback) are available on the project page after creation.",
           "revealSolution": "Reveal model solution after submit",
-          "revealSolutionHint": "After submitting, solvers see all task fields including the model solution."
+          "revealSolutionHint": "After submitting, solvers see all task fields including the model solution.",
+          "revealStepDetail": "Show grading steps after submit",
+          "revealStepDetailHint": "After submitting, solvers see the points and reasons for each step of their grading, even when the model solution stays hidden."
         },
         "evalSaveFailed": "Failed to save evaluation configuration",
         "promptStructureSaveFailed": "Failed to save prompt structure (prompts are still saved in generation config)",
@@ -1417,7 +1419,7 @@
         "annotatorFullVisibility": "Reveal all fields after submission",
         "annotatorFullVisibilityHelp": "When on, annotators reviewing their own submitted work see all task fields including the reference solution. When off, that view is filtered to only the fields they saw while labeling, keeping the reference hidden. The grading steps are controlled by the setting below.",
         "annotatorStepDetail": "Show grading steps after submission",
-        "annotatorStepDetailHelp": "When on, annotators see the points and reasons for each step of the grading sheet after submitting. The grade and the total points always show. The sheet's hints stay hidden unless the reference solution is shown. Until you change it, this follows the setting above.",
+        "annotatorStepDetailHelp": "When on, annotators see the points and reasons for each step of the grading sheet after submitting. The grade and the total points always show. The sheet's hints stay hidden unless the reference solution is shown. It is independent of the reference solution: new projects show the steps by default. Older projects that never set it follow the setting above.",
         "restorableCheckpoints": "Save restorable draft checkpoints",
         "restorableCheckpointsHelp": "Keep periodic snapshots (every 5 min) of in-progress work so annotators can restore an earlier checkpoint. Snapshots are kept after submission.",
         "samplingMethod": "Task Sampling Method",
