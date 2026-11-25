@@ -23,6 +23,7 @@ export default function TextAreaInput({
   onChange,
   onAnnotation,
   hideSubmitButton = false,
+  readOnly = false,
 }: AnnotationComponentProps) {
   const { t } = useI18n()
   const [value, setValue] = useState(externalValue || '')
@@ -64,6 +65,7 @@ export default function TextAreaInput({
 
   // Handle value change
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (readOnly) return
     const newValue = e.target.value
     setValue(newValue)
     onChange(newValue)
@@ -110,10 +112,12 @@ export default function TextAreaInput({
         placeholder={placeholder}
         rows={rows}
         required={required}
+        readOnly={readOnly}
+        aria-readonly={readOnly || undefined}
         className="w-full"
       />
 
-      {showSubmitButton && !hideSubmitButton && (
+      {showSubmitButton && !hideSubmitButton && !readOnly && (
         <button
           type="button"
           onClick={handleSubmit}
