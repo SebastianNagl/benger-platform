@@ -61,6 +61,7 @@ import type {
   EvaluationConfig,
 } from '@/lib/api/evaluation-types'
 import { describeEvaluationConfigWarnings } from '@/lib/evaluation/configWarnings'
+import { refreshEvaluationConfigs } from '@/lib/evaluation/refreshEvaluationConfigs'
 import { useSlot } from '@/lib/extensions/slots'
 import { useFeatureFlag, useFeatureFlagsReady } from '@/lib/featureFlags'
 import {
@@ -591,6 +592,30 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchReportStatus is stable, only re-run when projectId or user changes
   }, [projectId, user, accessTierKnown, isParticipant, reportPaper])
 
+  // The configs as the card last read or saved them: the base of the
+  // three-way merge when another writer changed them (see
+  // refreshEvaluationConfigs).
+  const evaluationConfigsBaselineRef = useRef<EvaluationConfig[]>([])
+  // The card's buffer as of the latest change, kept in step with the
+  // baseline so a save always sends a buffer and the base it started from.
+  const evaluationConfigsRef = useRef<EvaluationConfig[]>([])
+  // A refresh read that overlaps a card save may return the list from before
+  // that save; it is only applied when no save started or finished meanwhile.
+  const evaluationConfigsSaveSeqRef = useRef(0)
+  const evaluationConfigsSaveInFlightRef = useRef<Promise<void> | null>(null)
+
+  const readEvaluationConfig = async () => {
+    const configResponse = await apiClient.get(
+      `/evaluations/projects/${projectId}/evaluation-config`,
+    )
+    // Support current key (evaluation_configs) and legacy key (multi_field_evaluations)
+    const configs: EvaluationConfig[] =
+      configResponse?.evaluation_configs ||
+      configResponse?.multi_field_evaluations ||
+      []
+    return { configResponse, configs }
+  }
+
   // Fetch existing multi-field evaluations on page load (for badge display)
   useEffect(() => {
     const fetchEvaluationConfig = async () => {
@@ -599,17 +624,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       if (!accessTierKnown || isParticipant) return
 
       try {
-        // Fetch existing evaluation config to load evaluation configs
-        const configResponse = await apiClient.get(
-          `/evaluations/projects/${projectId}/evaluation-config`,
-        )
-        // Support current key (evaluation_configs) and legacy key (multi_field_evaluations)
-        const existingConfigs =
-          configResponse?.evaluation_configs ||
-          configResponse?.multi_field_evaluations ||
-          []
-        if (existingConfigs.length > 0) {
-          setEvaluationConfigs(existingConfigs)
+        const { configResponse, configs } = await readEvaluationConfig()
+        if (configs.length > 0) {
+          evaluationConfigsBaselineRef.current = configs
+          evaluationConfigsRef.current = configs
+          setEvaluationConfigs(configs)
         }
         setAnalysisPlanCount(
           Array.isArray(configResponse?.analysis_plans)
@@ -622,7 +641,35 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     }
 
     fetchEvaluationConfig()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- readEvaluationConfig only reads projectId
   }, [projectId, accessTierKnown, isParticipant])
+
+  // Re-read the configs after a section that saves into them on its own
+  // (the grading section slot). The card's auto-save PUTs the whole list,
+  // which the server replaces, so a buffer that missed that write would
+  // revert it on the next card save. Unsaved card edits are kept.
+  const refreshEvaluationConfigsFromServer = async () => {
+    if (!projectId || !accessTierKnown || isParticipant) return
+    try {
+      for (;;) {
+        await evaluationConfigsSaveInFlightRef.current
+        const saveSeq = evaluationConfigsSaveSeqRef.current
+        const { configs } = await readEvaluationConfig()
+        if (evaluationConfigsSaveSeqRef.current !== saveSeq) continue
+        const merged = refreshEvaluationConfigs(
+          evaluationConfigsBaselineRef.current,
+          evaluationConfigsRef.current,
+          configs,
+        )
+        evaluationConfigsBaselineRef.current = configs
+        evaluationConfigsRef.current = merged
+        setEvaluationConfigs(merged)
+        return
+      }
+    } catch (error) {
+      console.error('Failed to refresh evaluation config:', error)
+    }
+  }
 
   useEffect(() => {
     const fetchAvailableFields = async () => {
@@ -654,6 +701,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const lastEvaluationConfigWarningsRef = useRef('')
   const saveEvaluationConfigsToProject = async (
     evaluations: EvaluationConfig[],
+    base: EvaluationConfig[],
   ) => {
     if (!projectId) return
 
@@ -661,8 +709,14 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     try {
       response = await apiClient.put(
         `/evaluations/projects/${projectId}/evaluation-config`,
-        { evaluation_configs: evaluations },
+        {
+          evaluation_configs: evaluations,
+          // The list this buffer started from: keys another writer changed
+          // since then and this save did not touch keep the server's value.
+          evaluation_configs_base: base,
+        },
       )
+      evaluationConfigsBaselineRef.current = evaluations
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : t('toasts.error.saveFailed')
@@ -700,6 +754,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // (saveEvaluationCard).
   const handleEvaluationConfigsChange = (evaluations: EvaluationConfig[]) => {
     markEvaluationDirty()
+    evaluationConfigsRef.current = evaluations
     setEvaluationConfigs(evaluations)
   }
 
@@ -1660,6 +1715,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     if (!projectId) return
     cardSavingRef.current.evaluation = true
     setCardSaving((p) => ({ ...p, evaluation: true }))
+    const evaluations = evaluationConfigsRef.current
+    const base = evaluationConfigsBaselineRef.current
+    let saveDone: () => void = () => {}
+    evaluationConfigsSaveSeqRef.current += 1
+    evaluationConfigsSaveInFlightRef.current = new Promise<void>((resolve) => {
+      saveDone = resolve
+    })
     try {
       // Sequential on purpose: the defaults PATCH and the configs PUT both
       // write the evaluation_config JSONB column via unlocked server-side
@@ -1679,13 +1741,16 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         throw error
       }
       await handleSaveEvalDefaults()
-      await saveEvaluationConfigsToProject(evaluationConfigs)
+      await saveEvaluationConfigsToProject(evaluations, base)
       finishCardSave('evaluation')
     } catch {
       // Legs toast their own errors; keep the card dirty so a failed save
       // never looks saved, and swallow so the timer's void call doesn't
       // surface an unhandled rejection.
     } finally {
+      evaluationConfigsSaveSeqRef.current += 1
+      evaluationConfigsSaveInFlightRef.current = null
+      saveDone()
       cardSavingRef.current.evaluation = false
       setCardSaving((p) => ({ ...p, evaluation: false }))
     }
@@ -2814,7 +2879,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                           <ProjectEvaluationGradingSection
                             project={currentProject}
                             projectId={projectId || ''}
-                            onRefresh={() => fetchProject(projectId)}
+                            onRefresh={() => {
+                              void refreshEvaluationConfigsFromServer()
+                              return fetchProject(projectId)
+                            }}
                           />
                         </div>
                       )}

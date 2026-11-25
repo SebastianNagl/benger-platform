@@ -191,3 +191,84 @@ class TestEvaluationConfigMerge:
         assert seen[0]["evaluation_configs"] == new_configs
         assert seen[0]["default_temperature"] == 0.2
         assert seen[0]["selected_methods"] == STORED["selected_methods"]
+
+
+def _grading_config(**params):
+    return {
+        "id": "a",
+        "metric": "bleu",
+        "prediction_fields": ["__all_model__"],
+        "reference_fields": ["task.expected"],
+        "enabled": True,
+        "metric_parameters": params,
+    }
+
+
+@pytest.mark.integration
+class TestEvaluationConfigsBase:
+    """``evaluation_configs_base``: a whole-list write keeps the
+    ``metric_parameters`` keys another writer changed after the client read
+    the list, in any order of the two writes."""
+
+    def _put(self, client, auth_headers, project_id, body):
+        resp = client.put(
+            f"{BASE}/projects/{project_id}/evaluation-config",
+            json=body,
+            headers=auth_headers["admin"],
+        )
+        assert resp.status_code == 200, resp.text
+        return resp
+
+    def test_stale_list_keeps_keys_written_since_its_base(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        base = [_grading_config(rubric="r1")]
+        stored = dict(STORED, evaluation_configs=base)
+        project = _seed_project(test_db, test_users, test_org, stored)
+        # Another writer (the grading section) saves its policy keys.
+        self._put(
+            client,
+            auth_headers,
+            project.id,
+            {"evaluation_configs": [_grading_config(rubric="r1", blind=True, peer={"n": 2})]},
+        )
+        # The card saves a method edit from its stale buffer.
+        edited = dict(_grading_config(rubric="r2"), display_name="Edited")
+        self._put(
+            client,
+            auth_headers,
+            project.id,
+            {"evaluation_configs": [edited], "evaluation_configs_base": base},
+        )
+        saved = _stored_config(test_db, project.id)
+        assert saved["evaluation_configs"][0]["display_name"] == "Edited"
+        assert saved["evaluation_configs"][0]["metric_parameters"] == {
+            "rubric": "r2",
+            "blind": True,
+            "peer": {"n": 2},
+        }
+        assert "evaluation_configs_base" not in saved
+
+    def test_changed_and_removed_keys_win(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        stored = dict(STORED, evaluation_configs=[_grading_config(blind=True, extra=5)])
+        project = _seed_project(test_db, test_users, test_org, stored)
+        self._put(
+            client,
+            auth_headers,
+            project.id,
+            {"evaluation_configs": [_grading_config(blind=False)], "evaluation_configs_base": [_grading_config(blind=True, extra=1)]},
+        )
+        params = _stored_config(test_db, project.id)["evaluation_configs"][0]["metric_parameters"]
+        # blind changed by the client, extra removed by the client.
+        assert params == {"blind": False}
+
+    def test_without_base_the_list_is_replaced(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        stored = dict(STORED, evaluation_configs=[_grading_config(blind=True)])
+        project = _seed_project(test_db, test_users, test_org, stored)
+        self._put(client, auth_headers, project.id, {"evaluation_configs": [_grading_config()]})
+        params = _stored_config(test_db, project.id)["evaluation_configs"][0]["metric_parameters"]
+        assert params == {}

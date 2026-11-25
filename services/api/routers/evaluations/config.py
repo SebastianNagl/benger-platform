@@ -724,6 +724,74 @@ def merge_evaluation_config(stored_config: Any, body: Any) -> Dict[str, Any]:
     return merged
 
 
+EVALUATION_CONFIGS_BASE_KEY = "evaluation_configs_base"
+_ABSENT = object()
+
+
+def rebase_evaluation_configs(stored_config: Any, body: Any) -> Dict[str, Any]:
+    """Keep other writers' ``metric_parameters`` keys in a list write.
+
+    ``evaluation_configs`` is replaced as a whole, so a client that sends its
+    whole buffered list would put back an old value of every key another
+    writer changed since the client read the list (e.g. a grading section that
+    saves its policy keys into a config's ``metric_parameters`` on its own).
+    A client can send ``evaluation_configs_base``, the list as it last read or
+    saved it. Then, per config (matched by ``id``) that the base and the
+    stored document both hold, each ``metric_parameters`` key whose body value
+    equals its base value (the client did not change it) takes the stored
+    value instead, including its absence. Keys the client changed or removed
+    win. This holds in any order of the two writes. Without a base the body
+    is used as is. The base itself is never stored. Returns a new dict.
+    """
+    patch = dict(body) if isinstance(body, dict) else {}
+    base_list = patch.pop(EVALUATION_CONFIGS_BASE_KEY, None)
+    body_list = patch.get("evaluation_configs")
+    stored = stored_config if isinstance(stored_config, dict) else {}
+    stored_list = stored.get("evaluation_configs")
+    if not (
+        isinstance(base_list, list)
+        and isinstance(body_list, list)
+        and isinstance(stored_list, list)
+    ):
+        return patch
+
+    def by_id(items: list) -> Dict[Any, Dict[str, Any]]:
+        return {
+            item["id"]: item
+            for item in items
+            if isinstance(item, dict) and item.get("id") is not None
+        }
+
+    base_by_id = by_id(base_list)
+    stored_by_id = by_id(stored_list)
+    rebased = []
+    for item in body_list:
+        item_id = item.get("id") if isinstance(item, dict) else None
+        base_item = base_by_id.get(item_id)
+        stored_item = stored_by_id.get(item_id)
+        if base_item is None or stored_item is None:
+            rebased.append(item)
+            continue
+        base_params = base_item.get("metric_parameters") or {}
+        stored_params = stored_item.get("metric_parameters") or {}
+        body_params = item.get("metric_parameters") or {}
+        if not all(isinstance(x, dict) for x in (base_params, stored_params, body_params)):
+            rebased.append(item)
+            continue
+        params: Dict[str, Any] = {}
+        for key in {*base_params, *stored_params, *body_params}:
+            mine = body_params.get(key, _ABSENT)
+            value = stored_params.get(key, _ABSENT) if mine == base_params.get(key, _ABSENT) else mine
+            if value is not _ABSENT:
+                params[key] = value
+        new_item = dict(item)
+        if params or "metric_parameters" in item:
+            new_item["metric_parameters"] = params
+        rebased.append(new_item)
+    patch["evaluation_configs"] = rebased
+    return patch
+
+
 def _validate_selected_methods(config: Dict[str, Any]) -> None:
     """Legacy ``selected_methods`` against ``available_methods`` (raises 400)."""
     selected_methods = config.get("selected_methods")
@@ -899,6 +967,9 @@ def update_project_evaluation_config(
         ):
             config = without_analysis_plans(config)
         stored_config = project.evaluation_config or {}
+        # Under the row lock: keys another writer changed since the client
+        # read the list survive a whole-list write (see the function).
+        config = rebase_evaluation_configs(stored_config, config)
         merged = merge_evaluation_config(stored_config, config)
         validate_evaluation_config_write(config, merged)
         eval_configs_list = config.get("evaluation_configs") or config.get("multi_field_evaluations") or []
