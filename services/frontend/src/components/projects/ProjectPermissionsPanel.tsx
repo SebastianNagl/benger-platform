@@ -352,6 +352,18 @@ export function ProjectPermissionsPanel({
     }
   }
 
+  // Who may see the project, as it would be saved: the organizations and
+  // their group scopes only count for an organization choice.
+  const audience = (v: typeof value) =>
+    v.visibility === 'organization'
+      ? {
+          visibility: v.visibility,
+          organizations: [...v.orgIds]
+            .sort()
+            .map((orgId) => [orgId, v.groups[orgId] ?? null]),
+        }
+      : { visibility: v.visibility }
+
   const autoSave = useAutoSave({
     value,
     savedValue,
@@ -368,30 +380,37 @@ export function ProjectPermissionsPanel({
       setSelectedOrgIds(previous.orgIds)
       setSelectedGroupByOrg(previous.groups)
     },
+    riskChanges: (from, to) => [
+      { key: 'visibility', from: audience(from), to: audience(to) },
+    ],
     enabled: !readOnly,
   })
 
-  // Who may see the project is high-impact: ask before applying.
+  // Who may see the project is high-impact: ask before applying, once per
+  // change of the saved audience. Completing a confirmed change (choosing
+  // the organizations and group scopes of a confirmed organization choice)
+  // does not ask again; another visibility, or the next change after the
+  // confirmed one was saved, does.
   const gateChange = useGatedSettingChange()
-  const changeAudience = (next: Partial<typeof value>, apply: () => void) =>
-    gateChange(
-      [
-        {
-          key: 'visibility',
-          from: {
-            visibility,
-            orgIds: selectedOrgIds,
-            groups: selectedGroupByOrg,
-          },
-          to: {
-            visibility: next.visibility ?? visibility,
-            orgIds: next.orgIds ?? selectedOrgIds,
-            groups: next.groups ?? selectedGroupByOrg,
-          },
-        },
-      ],
-      apply,
-    )
+  const confirmedRef = useRef<ProjectVisibility | null>(null)
+  useEffect(() => {
+    if (!autoSave.dirty) confirmedRef.current = null
+  }, [autoSave.dirty])
+  const changeAudience = (next: Partial<typeof value>, apply: () => void) => {
+    const from = audience(savedValue)
+    const to = audience({ ...value, ...next })
+    if (
+      (autoSave.dirty && confirmedRef.current === to.visibility) ||
+      JSON.stringify(from) === JSON.stringify(to)
+    ) {
+      apply()
+      return
+    }
+    gateChange([{ key: 'visibility', from, to }], () => {
+      confirmedRef.current = to.visibility
+      apply()
+    })
+  }
   const chooseVisibility = (next: ProjectVisibility) =>
     changeAudience({ visibility: next }, () => setVisibility(next))
 

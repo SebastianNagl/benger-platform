@@ -7,8 +7,9 @@
  * since a partial date (year 0002) could open the window to students.
  * Opening or closing access is high-impact (risk registry key
  * `access_window`): the change is confirmed first, and cancelling puts the
- * fields back to the saved window. The badge shows the saved window, the
- * one the server enforces.
+ * fields back to the saved window. Only a confirmed window reaches the
+ * auto-save, so nothing unconfirmed is saved when the section unmounts.
+ * The badge shows the saved window, the one the server enforces.
  */
 
 'use client'
@@ -47,18 +48,21 @@ export function ProjectAccessWindowSection({
   const { t, locale } = useI18n()
   const { addToast } = useToast()
   const gateChange = useGatedSettingChange()
-  // The edit not saved yet; null shows the stored window. Kept until its
-  // save went through, so a refetch of the project in between never
-  // overwrites what the user is typing, and kept after a failed save.
+  // The window being typed, not confirmed yet; null shows the pending one.
   const [edit, setEdit] = useState<AccessWindowValue | null>(null)
+  // The confirmed window not saved yet; null is the stored window. Kept
+  // until its save went through, so a refetch of the project in between
+  // never overwrites it, and kept after a failed save.
+  const [confirmed, setConfirmed] = useState<AccessWindowValue | null>(null)
   const stored: AccessWindowValue = {
     window_start_at: windowStartAt ?? null,
     window_end_at: windowEndAt ?? null,
   }
-  const draft = edit ?? stored
+  const pending = confirmed ?? stored
+  const draft = edit ?? pending
 
   const autoSave = useAutoSave({
-    value: draft,
+    value: pending,
     savedValue: stored,
     saveOn: 'commit',
     isValid: isAccessWindowValid,
@@ -75,12 +79,18 @@ export function ProjectAccessWindowSection({
         throw error
       }
     },
-    onUndo: (previous) => setEdit(previous),
+    onUndo: (previous) => {
+      setEdit(null)
+      setConfirmed(previous)
+    },
+    riskChanges: (from, to) => [{ key: 'access_window', from, to }],
   })
 
-  // The edit is done once the stored window (refetched project) shows it;
-  // dropping it earlier would show the old window until the refetch lands.
-  if (edit && sameWindow(edit, stored) && !autoSave.saving) setEdit(null)
+  // The confirmed window is done once the stored window (refetched
+  // project) shows it; dropping it earlier would show the old window until
+  // the refetch lands.
+  if (confirmed && sameWindow(confirmed, stored) && !autoSave.saving)
+    setConfirmed(null)
 
   // Save once the committed window has rendered (the auto-save reads the
   // rendered value).
@@ -95,12 +105,17 @@ export function ProjectAccessWindowSection({
     if (!isAccessWindowValid(value)) return
     if (sameWindow(value, stored)) {
       setEdit(null)
+      setConfirmed(null)
       return
     }
     gateChange(
       [{ key: 'access_window', from: stored, to: value }],
-      () => setCommitRequest((n) => n + 1),
-      // Cancelled: back to the saved window.
+      () => {
+        setEdit(null)
+        setConfirmed(value)
+        setCommitRequest((n) => n + 1)
+      },
+      // Cancelled: back to the window before this edit.
       () => setEdit(null),
     )
   }

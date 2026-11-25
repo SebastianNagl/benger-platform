@@ -80,10 +80,12 @@ export interface AdvancedSettings {
 /**
  * Setter for the settings buffer. `deferSave` marks a free-text edit that
  * saves on blur (`onTextCommit`) instead of after the usual delay.
+ * `onCancel` runs when a risky change is cancelled in its confirmation, for
+ * controls that already show the new value.
  */
 export type AdvancedSettingsSetter = (
   value: SetStateAction<AdvancedSettings>,
-  options?: { deferSave?: boolean },
+  options?: { deferSave?: boolean; onCancel?: () => void },
 ) => void
 
 type Translate = (key: string, params?: any) => string
@@ -364,8 +366,14 @@ export function AdvancedSettingsCard({
                 t={t}
                 seconds={advancedSettings.annotation_time_limit_seconds}
                 editing={editing}
-                onCommit={(seconds) =>
-                  set('annotation_time_limit_seconds', seconds)
+                onCommit={(seconds, revert) =>
+                  setAdvancedSettings(
+                    (prev) => ({
+                      ...prev,
+                      annotation_time_limit_seconds: seconds,
+                    }),
+                    { onCancel: revert },
+                  )
                 }
               />
               <SettingRow
@@ -616,7 +624,8 @@ export function AdvancedSettingsCard({
 /**
  * Minutes of the time limit. Typed digits stay local until the field loses
  * focus or Enter is pressed, so a half-typed number is never applied (the
- * limit applies to people working right now).
+ * limit applies to people working right now). A cancelled confirmation puts
+ * the stored minutes back.
  */
 function TimeLimitMinutes({
   t,
@@ -627,7 +636,7 @@ function TimeLimitMinutes({
   t: Translate
   seconds: number | null
   editing: boolean
-  onCommit: (seconds: number) => void
+  onCommit: (seconds: number, revert: () => void) => void
 }) {
   const stored = seconds ? Math.round(seconds / 60) : 30
   const [draft, setDraft] = useState(String(stored))
@@ -640,7 +649,8 @@ function TimeLimitMinutes({
   const commit = () => {
     const minutes = parseInt(draft) || 30
     setDraft(String(minutes))
-    if (minutes * 60 !== seconds) onCommit(minutes * 60)
+    if (minutes * 60 !== seconds)
+      onCommit(minutes * 60, () => setDraft(String(stored)))
   }
   return (
     <div className="flex items-center gap-2">

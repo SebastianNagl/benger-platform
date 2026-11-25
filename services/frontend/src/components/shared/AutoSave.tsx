@@ -9,7 +9,10 @@
  *   unsaved and shows its own inline message.
  * - Every saved batch shows exactly ONE "Gespeichert" toast, with
  *   "Rückgängig" that restores the values from before that batch and saves
- *   them again. Save legs must not toast success themselves.
+ *   them again. Save legs must not toast success themselves. An undo is a
+ *   change like any other: a risky one is confirmed first (`riskChanges`).
+ *   Once its section unmounts, the toast loses its undo (it could no longer
+ *   restore anything).
  * - Saves of one buffer never overlap; newer values always land last.
  * - A pending valid change is saved when its section unmounts (a closed
  *   sub-collapsible unmounts its content), so nothing typed is lost.
@@ -17,8 +20,8 @@
  *   (`AutoSaveStatusProvider`).
  *
  * Risky changes are confirmed BEFORE they are applied, through
- * `useConfirmSettingChange` and the shared risk registry in
- * `settingRisk.tsx`.
+ * `useGatedSettingChange` and the shared risk registry in
+ * `settingRisk.tsx`: only confirmed values may reach a buffer.
  *
  * Building blocks:
  * - `useDebouncedSave(save)`: debounce core (schedule / flush).
@@ -30,6 +33,10 @@
 
 'use client'
 
+import {
+  useGatedSettingChange,
+  type SettingChange,
+} from '@/components/shared/settingRisk'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import {
@@ -128,15 +135,15 @@ export function useReportAutoSaveStatus({ dirty, saving }: AutoSaveStatus) {
 
 /**
  * Returns `showSaved(undo?)`: the single "Gespeichert" toast of a saved
- * batch, with "Rückgängig" when `undo` is given. Re-issuing it replaces the
- * previous one (the toast store dedups by message), so a burst of batches
- * never stacks toasts.
+ * batch, with "Rückgängig" when `undo` is given; it returns the toast's id.
+ * Re-issuing it replaces the previous one (the toast store dedups by
+ * message), so a burst of batches never stacks toasts.
  */
 export function useSavedToast() {
   const { t } = useI18n()
   const { addToast } = useToast()
   return useCallback(
-    (undo?: () => void) => {
+    (undo?: () => void) =>
       addToast(
         t('shared.autoSave.saved'),
         'success',
@@ -144,8 +151,7 @@ export function useSavedToast() {
         undo
           ? { action: { label: t('shared.autoSave.undo'), onClick: undo } }
           : undefined,
-      )
-    },
+      ),
     [addToast, t],
   )
 }
@@ -261,6 +267,11 @@ export interface UseAutoSaveBufferOptions<V extends Legs> {
   /** Put legs back to earlier values (undo). */
   restore: (values: Partial<V>) => void
   /**
+   * The registered settings (`settingRisk`) a change of the given legs
+   * touches; an undo of risky ones is confirmed before it is restored.
+   */
+  riskChanges?: (from: Partial<V>, to: Partial<V>) => SettingChange[]
+  /**
    * A leg this rejects is not saved; it stays unsaved (and `invalid`)
    * while the other changed legs save.
    */
@@ -293,12 +304,19 @@ export function useAutoSaveBuffer<V extends Legs>({
   values,
   save,
   restore,
+  riskChanges,
   isLegValid = () => true,
   baseline,
   delayMs = AUTOSAVE_DELAY_MS,
   enabled = true,
 }: UseAutoSaveBufferOptions<V>): AutoSaveBuffer {
   const showSaved = useSavedToast()
+  const { removeToast } = useToast()
+  const gateChange = useGatedSettingChange()
+  const gateRef = useRef(gateChange)
+  gateRef.current = gateChange
+  const riskChangesRef = useRef(riskChanges)
+  riskChangesRef.current = riskChanges
   const valuesRef = useRef(values)
   valuesRef.current = values
   const isLegValidRef = useRef(isLegValid)
@@ -332,6 +350,8 @@ export function useAutoSaveBuffer<V extends Legs>({
 
   const debouncedRef = useRef<DebouncedSave | null>(null)
   const [undoFlush, setUndoFlush] = useState(0)
+  const mountedRef = useRef(false)
+  const savedToastRef = useRef<string | null>(null)
 
   const runBatch = useCallback(async () => {
     if (!enabledRef.current) return
@@ -350,12 +370,17 @@ export function useAutoSaveBuffer<V extends Legs>({
     const stillChanged =
       changedLegs(valuesRef.current, baselineRef.current).length > 0
     if (!stillChanged && !debouncedRef.current?.isPending()) setChanged(false)
-    showSaved(() => {
-      restoreRef.current(previous)
-      setChanged(true)
-      // Save the restored values once they have rendered.
-      setUndoFlush((n) => n + 1)
-    })
+    const undo = () => {
+      const current = pick(valuesRef.current, legs)
+      gateRef.current(riskChangesRef.current?.(current, previous) ?? [], () => {
+        if (!mountedRef.current) return
+        restoreRef.current(previous)
+        setChanged(true)
+        // Save the restored values once they have rendered.
+        setUndoFlush((n) => n + 1)
+      })
+    }
+    savedToastRef.current = showSaved(mountedRef.current ? undo : undefined)
   }, [setChanged, showSaved])
 
   const debounced = useDebouncedSave(runBatch, { delayMs })
@@ -380,11 +405,17 @@ export function useAutoSaveBuffer<V extends Legs>({
     await debounced.flush().catch(() => {})
   }, [debounced])
 
-  // A pending valid change is saved when the buffer's owner unmounts.
+  // A pending valid change is saved when the buffer's owner unmounts; its
+  // saved toast, and the one of an earlier batch, have no undo then.
   const flushRef = useRef(debounced.flush)
   flushRef.current = debounced.flush
-  useEffect(
-    () => () => {
+  const removeToastRef = useRef(removeToast)
+  removeToastRef.current = removeToast
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      if (savedToastRef.current) removeToastRef.current(savedToastRef.current)
       if (!enabledRef.current || !userChangedRef.current) return
       const pending = valuesRef.current
       if (
@@ -394,9 +425,8 @@ export function useAutoSaveBuffer<V extends Legs>({
       ) {
         flushRef.current().catch(() => {})
       }
-    },
-    [],
-  )
+    }
+  }, [])
 
   const pendingLegs =
     enabled && userChanged ? changedLegs(values, baselineRef.current) : []
@@ -418,8 +448,13 @@ export interface UseAutoSaveOptions<T> {
   value: T
   /** Persist a value. Report errors yourself and throw. Never toast success. */
   save: (value: T) => Promise<void>
-  /** Put the value back (undo); without it the saved toast has no undo. */
+  /** Put the value back (undo). */
   onUndo: (previous: T) => void
+  /**
+   * The registered settings (`settingRisk`) a change from one value to
+   * another touches; an undo of risky ones is confirmed first.
+   */
+  riskChanges?: (from: T, to: T) => SettingChange[]
   /** A value this rejects is never saved; the section stays unsaved. */
   isValid?: (value: T) => boolean
   /**
@@ -448,6 +483,7 @@ export function useAutoSave<T>({
   value,
   save,
   onUndo,
+  riskChanges,
   isValid,
   savedValue,
   saveOn = 'change',
@@ -462,6 +498,12 @@ export function useAutoSave<T>({
     restore: (previous) => {
       if ('value' in previous) onUndo(previous.value as T)
     },
+    riskChanges: riskChanges
+      ? (from, to) =>
+          'value' in from && 'value' in to
+            ? riskChanges(from.value as T, to.value as T)
+            : []
+      : undefined,
     isLegValid: isValid ? (_leg, values) => isValid(values.value) : undefined,
     delayMs,
     enabled,

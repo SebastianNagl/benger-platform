@@ -12,13 +12,19 @@ import {
   useAutoSave,
   useAutoSaveBuffer,
 } from '@/components/shared/AutoSave'
+import {
+  registerSettingRisk,
+  settingChanges,
+  SettingRiskProvider,
+} from '@/components/shared/settingRisk'
 import '@testing-library/jest-dom'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
 
 const mockAddToast = jest.fn()
+const mockRemoveToast = jest.fn()
 jest.mock('@/components/shared/Toast', () => ({
-  useToast: () => ({ addToast: mockAddToast }),
+  useToast: () => ({ addToast: mockAddToast, removeToast: mockRemoveToast }),
 }))
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({ t: (key: string) => key }),
@@ -36,6 +42,10 @@ const advance = async (ms: number) => {
 beforeEach(() => {
   jest.useFakeTimers()
   mockAddToast.mockReset()
+  mockAddToast.mockImplementation(
+    () => `toast-${mockAddToast.mock.calls.length}`,
+  )
+  mockRemoveToast.mockReset()
 })
 afterEach(() => {
   jest.useRealTimers()
@@ -275,5 +285,97 @@ describe('useAutoSave', () => {
     fireEvent.click(screen.getByTestId('close'))
     await advance(0)
     expect(save).toHaveBeenCalledWith('c')
+    // The section is gone: its toast offers no undo that could not restore.
+    expect(savedToasts()).toHaveLength(1)
+    expect(savedToasts()[0][3]).toBeUndefined()
+  })
+
+  it('takes the undo away once its section unmounts', async () => {
+    const save = jest.fn().mockResolvedValue(undefined)
+    render(<Host save={save} />)
+    fireEvent.change(screen.getByTestId('value'), { target: { value: 'd' } })
+    await advance(2100)
+    expect(savedToasts()[0][3].action).toBeDefined()
+    const id = mockAddToast.mock.results[0].value
+    fireEvent.click(screen.getByTestId('close'))
+    expect(mockRemoveToast).toHaveBeenCalledWith(id)
+  })
+})
+
+/** A buffer with one registered setting; switching it on is risky. */
+function RiskyCard({ save }: { save: (on: boolean) => Promise<void> }) {
+  const [settings, setSettings] = useState({ test_undo_reveal: true })
+  const buffer = useAutoSaveBuffer({
+    values: { settings },
+    save: (_legs, values) => save(values.settings.test_undo_reveal),
+    restore: (previous) => {
+      if (previous.settings) setSettings(previous.settings)
+    },
+    riskChanges: (from, to) =>
+      settingChanges(from.settings ?? {}, to.settings ?? {}),
+  })
+  return (
+    <div>
+      <span data-testid="reveal">{String(settings.test_undo_reveal)}</span>
+      <button
+        data-testid="switch-off"
+        onClick={() => {
+          buffer.markChanged()
+          setSettings({ test_undo_reveal: false })
+        }}
+      />
+    </div>
+  )
+}
+
+describe('undo of a risky change', () => {
+  beforeAll(() =>
+    registerSettingRisk('test_undo_reveal', {
+      isRisky: (_from, to) => to === true,
+      label: () => 'reveal',
+      consequence: () => 'everyone sees the answers',
+    }),
+  )
+
+  const renderRisky = (save: (on: boolean) => Promise<void>) =>
+    render(
+      <SettingRiskProvider
+        context={{ project: null, runningExam: false, submittedCount: 0 }}
+      >
+        <RiskyCard save={save} />
+      </SettingRiskProvider>,
+    )
+
+  const switchOffAndUndo = async () => {
+    fireEvent.click(screen.getByTestId('switch-off'))
+    await advance(2100)
+    const undo = savedToasts()[0][3].action
+    await act(async () => {
+      undo.onClick()
+    })
+  }
+
+  it('asks first and keeps the current value, unsaved, when cancelled', async () => {
+    const save = jest.fn().mockResolvedValue(undefined)
+    renderRisky(save)
+    await switchOffAndUndo()
+    expect(screen.getByText(/everyone sees the answers/)).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('confirm-dialog-cancel-button'))
+    await advance(5000)
+    expect(screen.getByTestId('reveal')).toHaveTextContent('false')
+    expect(save).toHaveBeenCalledTimes(1)
+    expect(savedToasts()).toHaveLength(1)
+  })
+
+  it('restores and saves the previous value once confirmed', async () => {
+    const save = jest.fn().mockResolvedValue(undefined)
+    renderRisky(save)
+    await switchOffAndUndo()
+    expect(save).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByTestId('confirm-dialog-confirm-button'))
+    await advance(0)
+    expect(screen.getByTestId('reveal')).toHaveTextContent('true')
+    expect(save).toHaveBeenCalledTimes(2)
+    expect(save).toHaveBeenLastCalledWith(true)
   })
 })

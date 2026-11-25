@@ -81,15 +81,6 @@ export function registerSettingRisk(
   registry.set(key, definition)
 }
 
-export function getSettingRisk(key: string): SettingRiskDefinition | null {
-  return registry.get(key) ?? null
-}
-
-/** Registered keys (tests, documentation). */
-export function registeredSettingRisks(): string[] {
-  return [...registry.keys()]
-}
-
 const same = (a: unknown, b: unknown) =>
   JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 
@@ -202,18 +193,6 @@ export function SettingRiskProvider({
         variant="warning"
       />
     </SettingRiskConfirmContext.Provider>
-  )
-}
-
-/**
- * Ask before applying risky changes. Resolves true when nothing needs
- * confirming or the user confirmed, false when they cancelled.
- */
-export function useConfirmSettingChange(): Confirm {
-  const ctx = useContext(SettingRiskConfirmContext)
-  return useCallback<Confirm>(
-    (changes) => (ctx ? ctx.confirm(changes) : Promise.resolve(true)),
-    [ctx],
   )
 }
 

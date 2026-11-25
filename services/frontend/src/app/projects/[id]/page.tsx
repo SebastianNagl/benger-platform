@@ -1671,6 +1671,8 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
       if (previous.conditional !== undefined)
         setConditionalInstructions(previous.conditional)
     },
+    riskChanges: (from, to) =>
+      settingChanges(from.settings ?? {}, to.settings ?? {}),
     enabled: canEditProject(),
   })
 
@@ -1770,6 +1772,8 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
         setEvaluationConfigs(previous.configs)
       }
     },
+    riskChanges: (from, to) =>
+      settingChanges(from.settings ?? {}, to.settings ?? {}),
     enabled: canEditProject(),
   })
 
@@ -1800,11 +1804,15 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
   ) => {
     const prev = advancedSettingsRef.current
     const next = typeof value === 'function' ? value(prev) : value
-    gateChange(settingChanges(prev, next), () => {
-      annotationBuffer.markChanged({ schedule: !options?.deferSave })
-      advancedSettingsRef.current = next
-      setAdvancedSettings(next)
-    })
+    gateChange(
+      settingChanges(prev, next),
+      () => {
+        annotationBuffer.markChanged({ schedule: !options?.deferSave })
+        advancedSettingsRef.current = next
+        setAdvancedSettings(next)
+      },
+      options?.onCancel,
+    )
   }
 
   // Settings card: project type and which cards the page shows. Kind is
@@ -1863,6 +1871,11 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
         ...(draft ?? storedProjectSettings),
         ...previous,
       })),
+    riskChanges: (from, to) =>
+      settingChanges(
+        { kind: from.kind, ...from.features },
+        { kind: to.kind, ...to.features },
+      ),
     enabled: canEditProject(),
   })
   const handleKindChange = (kind: string | null) => {

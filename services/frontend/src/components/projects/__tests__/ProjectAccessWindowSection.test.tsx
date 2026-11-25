@@ -460,6 +460,28 @@ describe('ProjectAccessWindowSection', () => {
     expect(onSave).not.toHaveBeenCalled()
   })
 
+  it('never saves a window that was typed but not committed when the section closes', async () => {
+    const onSave = jest.fn().mockResolvedValue(undefined)
+    render(
+      <ProjectAccessWindowSection
+        windowStartAt={START}
+        windowEndAt={END}
+        onSave={onSave}
+      />,
+    )
+    expand()
+    fireEvent.change(opensInput(), {
+      target: { value: local('2030-03-01T07:00:00.000Z') },
+    })
+    // Closing the sub-section unmounts the fields without a blur.
+    await act(async () => {
+      expand()
+      jest.advanceTimersByTime(WAIT_MS)
+    })
+    expect(screen.queryByLabelText('Öffnet')).not.toBeInTheDocument()
+    expect(onSave).not.toHaveBeenCalled()
+  })
+
   it('keeps an edit in progress when the project is refetched', () => {
     const { rerender } = render(
       <ProjectAccessWindowSection

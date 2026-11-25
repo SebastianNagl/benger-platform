@@ -21,9 +21,21 @@ import {
   InstructionDisplaySettings,
   type AdvancedSettings,
 } from '@/components/projects/AdvancedSettingsCard'
+import { registerProjectSettingRisks } from '@/components/projects/projectSettingRisks'
+import {
+  settingChanges,
+  SettingRiskProvider,
+  useGatedSettingChange,
+} from '@/components/shared/settingRisk'
 import { createMockT } from '@/test-utils/i18nMock'
 import '@testing-library/jest-dom'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState, type ComponentType } from 'react'
 
@@ -124,6 +136,41 @@ function Harness({
       ProjectSettingsInterfaceExtra={ProjectSettingsInterfaceExtra}
       ProjectSettingsAnnotationWork={ProjectSettingsAnnotationWork}
       onTextCommit={onTextCommit}
+    />
+  )
+}
+
+/**
+ * Host that gates every change through the shared risk registry, the way
+ * the project page does: a risky change is applied only once confirmed.
+ */
+function GatedCard({ initial }: { initial: Partial<AdvancedSettings> }) {
+  const [settings, setSettings] = useState<AdvancedSettings>(
+    makeSettings(initial),
+  )
+  const gateChange = useGatedSettingChange()
+  const set = (
+    update: React.SetStateAction<AdvancedSettings>,
+    options?: { deferSave?: boolean; onCancel?: () => void },
+  ) => {
+    const next =
+      typeof update === 'function'
+        ? (update as (p: AdvancedSettings) => AdvancedSettings)(settings)
+        : update
+    gateChange(
+      settingChanges(settings, next),
+      () => setSettings(next),
+      options?.onCancel,
+    )
+  }
+  return (
+    <AdvancedSettingsCard
+      t={t}
+      canEditProject={() => true}
+      getReadOnlyMessage={(section) => `read-only: ${section}`}
+      advancedSettings={settings}
+      setAdvancedSettings={set}
+      editing
     />
   )
 }
@@ -425,6 +472,27 @@ describe('AdvancedSettingsCard', () => {
       expect(onChange).toHaveBeenLastCalledWith(
         expect.objectContaining({ annotation_time_limit_seconds: 300 }),
       )
+    })
+
+    it('puts the stored minutes back when the change is cancelled in its confirmation', async () => {
+      registerProjectSettingRisks()
+      render(
+        <SettingRiskProvider
+          context={{ project: null, runningExam: false, submittedCount: 0 }}
+        >
+          <GatedCard
+            initial={{
+              annotation_time_limit_enabled: true,
+              annotation_time_limit_seconds: 1800,
+            }}
+          />
+        </SettingRiskProvider>,
+      )
+      const minutes = screen.getByRole('spinbutton') as HTMLInputElement
+      fireEvent.change(minutes, { target: { value: '45' } })
+      fireEvent.blur(minutes)
+      fireEvent.click(await screen.findByTestId('confirm-dialog-cancel-button'))
+      await waitFor(() => expect(minutes.value).toBe('30'))
     })
 
     it('an empty/NaN minute value falls back to 30 minutes (1800s)', () => {
