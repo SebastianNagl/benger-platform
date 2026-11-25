@@ -249,8 +249,7 @@
       "duplicateSelected": "Ausgewählte duplizieren",
       "editMetadata": "Metadaten bearbeiten",
       "archiveSelected": "Ausgewählte archivieren",
-      "deleteSelected": "Ausgewählte löschen",
-      "selectTasksPrompt": "Aufgaben auswählen, um verfügbare Aktionen zu sehen"
+      "deleteSelected": "Ausgewählte löschen"
     },
     "pagination": {
       "showing": "Zeige",
@@ -937,7 +936,6 @@
       "unarchiveSelected": "Ausgewählte dearchivieren",
       "archiveSelected": "Ausgewählte archivieren",
       "deleteSelected": "Ausgewählte löschen",
-      "selectProjectsPrompt": "Projekte auswählen, um verfügbare Aktionen zu sehen",
       "exportNdjsonGz": "Als NDJSON (gzip) exportieren, für große Projekte",
       "exportComprehensive": "Als JSON exportieren (eine Datei je Projekt)"
     },
@@ -1513,7 +1511,7 @@
     },
     "quickActions": {
       "title": "Schnellaktionen",
-      "startLabeling": "Annotation starten",
+      "startLabeling": "Aufgabe starten",
       "allTasksAnnotated": "Alle Aufgaben annotiert",
       "projectData": "Projektdaten",
       "myTasks": "Meine Aufgaben",
@@ -1521,7 +1519,7 @@
       "generation": "Generierung",
       "evaluations": "Evaluierungen",
       "reviewWorkflow": "Review-Workflow",
-      "korrektur": "Korrektur",
+      "korrektur": "Menschl. Korrektur",
       "members": "Mitglieder"
     },
     "billing": {
@@ -1803,7 +1801,7 @@
       "unlabeled": "Unbeschriftet",
       "annotations": "Annotationen",
       "generations": "Generierungen",
-      "startLabeling": "Beschriftung starten",
+      "startLabeling": "Aufgabe starten",
       "viewAnnotations": "Annotationen anzeigen",
       "skipTask": "Aufgabe überspringen",
       "existingAnnotations": "Vorhandene Annotationen",
@@ -1863,7 +1861,7 @@
       "skipped": "Übersprungen",
       "allTasks": "Alle Aufgaben",
       "tasksAssigned": "Aufgaben zugewiesen",
-      "startAnnotating": "Annotation starten",
+      "startAnnotating": "Aufgabe starten",
       "loadingTasks": "Aufgaben werden geladen...",
       "noTasksWithStatus": "Keine Aufgaben mit Status \"{status}\".",
       "searchPlaceholder": "Nach Aufgaben-ID oder Titel suchen…",
@@ -7207,7 +7205,7 @@
     "instructions": {
       "title": "Annotationsanweisungen",
       "dontShowAgain": "Für dieses Projekt nicht mehr anzeigen",
-      "startAnnotating": "Annotation starten",
+      "startAnnotating": "Aufgabe starten",
       "showInstructions": "Anweisungen",
       "close": "Schließen"
     },
@@ -7416,7 +7414,7 @@
       "search": "Suchen",
       "orderBy": "Sortieren nach",
       "reviewAll": "Alle Aufgaben prüfen",
-      "labelAll": "Alle Aufgaben beschriften",
+      "labelAll": "Aufgabe starten",
       "import": "Aufgaben importieren",
       "export": "Aufgaben exportieren",
       "previous": "Zurück",
@@ -8747,7 +8745,7 @@
     }
   },
   "korrekturWorkflow": {
-    "title": "Korrektur",
+    "title": "Menschliche Korrektur",
     "loadFailed": "Korrektur-Daten konnten nicht geladen werden",
     "notEnabled": "Korrektur ist für dieses Projekt nicht aktiviert. Aktiviere es im Projekt-Wizard unter Evaluation Methods → Human Evaluation.",
     "noTasks": "Keine Aufgaben gefunden",
@@ -9215,6 +9213,9 @@
     },
     "pagination": {
       "goToPage": "Gehe zu Seite {page}"
+    },
+    "selectionActions": {
+      "actions": "Aktionen"
     }
   },
   "templates": {

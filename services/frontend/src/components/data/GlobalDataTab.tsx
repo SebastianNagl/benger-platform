@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/shared/Select'
+import { SelectionActions } from '@/components/shared/SelectionActions'
 import { useToast } from '@/components/shared/Toast'
 import { TaskDataViewModal } from '@/components/tasks/TaskDataViewModal'
 import { useAuth } from '@/contexts/AuthContext'
@@ -31,7 +32,6 @@ import {
   CheckIcon,
   ChevronDownIcon,
   DocumentMagnifyingGlassIcon,
-  EllipsisHorizontalIcon,
   EyeIcon,
   FunnelIcon,
   MagnifyingGlassIcon,
@@ -106,10 +106,8 @@ export function GlobalDataTab() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
   // Dropdown states
-  const [showActionsDropdown, setShowActionsDropdown] = useState(false)
   const [showColumnsDropdown, setShowColumnsDropdown] = useState(false)
   const [showOrderDropdown, setShowOrderDropdown] = useState(false)
-  const actionsRef = useRef<HTMLDivElement>(null)
   const columnsRef = useRef<HTMLDivElement>(null)
   const orderRef = useRef<HTMLDivElement>(null)
 
@@ -299,12 +297,6 @@ export function GlobalDataTab() {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
-        actionsRef.current &&
-        !actionsRef.current.contains(event.target as Node)
-      ) {
-        setShowActionsDropdown(false)
-      }
-      if (
         columnsRef.current &&
         !columnsRef.current.contains(event.target as Node)
       ) {
@@ -342,82 +334,42 @@ export function GlobalDataTab() {
 
   const dataLeftExtras = (
     <>
-      {/* Actions Dropdown */}
-      <div className="relative inline-block text-left" ref={actionsRef}>
-        <Button
-          variant="outline"
-          className="gap-2"
-          disabled={selectedTasks.size === 0}
-          onClick={() => setShowActionsDropdown(!showActionsDropdown)}
-        >
-          <EllipsisHorizontalIcon className="h-4 w-4" />
-          {t('data.management.actions')}
-          {selectedTasks.size > 0 && (
-            <span className="ml-1 inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
-              {selectedTasks.size}
-            </span>
-          )}
-          <ChevronDownIcon className="h-4 w-4" />
-        </Button>
-
-        {showActionsDropdown && (
-          <div className="absolute left-0 z-10 mt-2 w-56 origin-top-left rounded-lg bg-white shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
-            <div className="p-1">
-              <div className="px-3 py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                {t('data.management.tasksSelected', {
-                  count: selectedTasks.size,
-                })}
-              </div>
-
-              <button
-                className="group flex w-full items-center rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800"
-                onClick={() => {
-                  handleBulkComplete()
-                  setShowActionsDropdown(false)
-                }}
-              >
-                <CheckIcon className="mr-3 h-4 w-4 text-emerald-600" />
-                {t('data.management.markComplete')}
-              </button>
-
-              <button
-                className="group flex w-full items-center rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800"
-                onClick={() => {
-                  handleBulkIncomplete()
-                  setShowActionsDropdown(false)
-                }}
-              >
-                <MagnifyingGlassIcon className="mr-3 h-4 w-4 text-amber-600" />
-                {t('data.management.markIncomplete')}
-              </button>
-
-              <div className="my-1 border-t border-zinc-200 dark:border-zinc-700" />
-
-              <button
-                className="group flex w-full items-center rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800"
-                onClick={() => {
-                  handleExport('json')
-                  setShowActionsDropdown(false)
-                }}
-              >
-                <ArrowDownTrayIcon className="mr-3 h-4 w-4" />
-                {t('data.management.exportJson')}
-              </button>
-
-              <button
-                className="group flex w-full items-center rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800"
-                onClick={() => {
-                  handleExport('csv')
-                  setShowActionsDropdown(false)
-                }}
-              >
-                <ArrowDownTrayIcon className="mr-3 h-4 w-4" />
-                {t('data.management.exportCsv')}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Actions over the selected tasks */}
+      <SelectionActions
+        selectedCount={selectedTasks.size}
+        selectedLabel={t('data.management.tasksSelected', {
+          count: selectedTasks.size,
+        })}
+        label={t('data.management.actions')}
+        testId="global-data-bulk-actions"
+        actions={[
+          {
+            id: 'complete',
+            label: t('data.management.markComplete'),
+            icon: CheckIcon,
+            onSelect: handleBulkComplete,
+          },
+          {
+            id: 'incomplete',
+            label: t('data.management.markIncomplete'),
+            icon: MagnifyingGlassIcon,
+            onSelect: handleBulkIncomplete,
+          },
+          {
+            id: 'export-json',
+            label: t('data.management.exportJson'),
+            icon: ArrowDownTrayIcon,
+            onSelect: () => handleExport('json'),
+            separatorBefore: true,
+          },
+          {
+            id: 'export-csv',
+            label: t('data.management.exportCsv'),
+            icon: ArrowDownTrayIcon,
+            onSelect: () => handleExport('csv'),
+          },
+        ]}
+      />
 
       {/* Columns Dropdown */}
       <div className="relative inline-block text-left" ref={columnsRef}>

@@ -534,7 +534,7 @@ test.describe('Project Settings Behavior', () => {
     // Close the modal
     const startButton = page
       .locator('button')
-      .filter({ hasText: /Start Annotating|Annotation starten/i })
+      .filter({ hasText: /Start task|Aufgabe starten/i })
     await expect(startButton).toBeVisible({ timeout: 5000 })
     await startButton.click()
     await page.waitForTimeout(1000)

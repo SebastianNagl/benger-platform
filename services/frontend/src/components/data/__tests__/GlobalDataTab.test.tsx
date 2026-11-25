@@ -1035,7 +1035,7 @@ describe('GlobalDataTab', () => {
       expect(screen.getByText('Mark as Complete')).toBeInTheDocument()
 
       // Click outside
-      fireEvent.mouseDown(document.body)
+      await user.click(document.body)
 
       await waitFor(() => {
         expect(screen.queryByText('Mark as Complete')).toBeNull()

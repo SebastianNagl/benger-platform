@@ -249,8 +249,7 @@
       "duplicateSelected": "Duplicate Selected",
       "editMetadata": "Edit Metadata",
       "archiveSelected": "Archive Selected",
-      "deleteSelected": "Delete Selected",
-      "selectTasksPrompt": "Select tasks to see available actions"
+      "deleteSelected": "Delete Selected"
     },
     "pagination": {
       "showing": "Showing",
@@ -937,7 +936,6 @@
       "unarchiveSelected": "Unarchive Selected",
       "archiveSelected": "Archive Selected",
       "deleteSelected": "Delete Selected",
-      "selectProjectsPrompt": "Select projects to see available actions",
       "exportNdjsonGz": "Export as NDJSON (gzip), for large projects",
       "exportComprehensive": "Export as JSON (one file per project)"
     },
@@ -1513,7 +1511,7 @@
     },
     "quickActions": {
       "title": "Quick Actions",
-      "startLabeling": "Start Labeling",
+      "startLabeling": "Start task",
       "allTasksAnnotated": "All Tasks Annotated",
       "projectData": "Project Data",
       "myTasks": "My Tasks",
@@ -1521,7 +1519,7 @@
       "generation": "Generation",
       "evaluations": "Evaluations",
       "reviewWorkflow": "Review Workflow",
-      "korrektur": "Correction",
+      "korrektur": "Human grading",
       "members": "Members"
     },
     "billing": {
@@ -1803,7 +1801,7 @@
       "unlabeled": "Unlabeled",
       "annotations": "Annotations",
       "generations": "Generations",
-      "startLabeling": "Start Labeling",
+      "startLabeling": "Start task",
       "viewAnnotations": "View Annotations",
       "skipTask": "Skip Task",
       "existingAnnotations": "Existing Annotations",
@@ -1863,7 +1861,7 @@
       "skipped": "Skipped",
       "allTasks": "All Tasks",
       "tasksAssigned": "tasks assigned",
-      "startAnnotating": "Start Annotating",
+      "startAnnotating": "Start task",
       "loadingTasks": "Loading tasks...",
       "noTasksWithStatus": "No tasks with status \"{status}\".",
       "searchPlaceholder": "Search by task ID or title…",
@@ -7207,7 +7205,7 @@
     "instructions": {
       "title": "Annotation Instructions",
       "dontShowAgain": "Don't show again for this project",
-      "startAnnotating": "Start Annotating",
+      "startAnnotating": "Start task",
       "showInstructions": "Instructions",
       "close": "Close"
     },
@@ -7416,7 +7414,7 @@
       "search": "Search",
       "orderBy": "Order by",
       "reviewAll": "Review All Tasks",
-      "labelAll": "Label All Tasks",
+      "labelAll": "Start task",
       "import": "Import tasks",
       "export": "Export tasks",
       "previous": "Previous",
@@ -8626,7 +8624,7 @@
     }
   },
   "korrekturWorkflow": {
-    "title": "Correction",
+    "title": "Human grading",
     "loadFailed": "Failed to load correction data",
     "notEnabled": "Correction is not enabled for this project. Enable it in the project wizard under Evaluation Methods → Human Evaluation.",
     "noTasks": "No tasks found",
@@ -9094,6 +9092,9 @@
     },
     "pagination": {
       "goToPage": "Go to page {page}"
+    },
+    "selectionActions": {
+      "actions": "Actions"
     }
   },
   "templates": {

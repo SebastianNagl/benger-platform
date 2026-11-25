@@ -31,7 +31,7 @@ test.describe('Choice Annotation', () => {
 
       // Look for annotation interface or tasks
       const annotateButton = page.locator(
-        'button:has-text("Annotate"), a:has-text("Start Annotating"), a:has-text("Annotation")',
+        'button:has-text("Annotate"), button:has-text("Start task"), a:has-text("Annotation")',
       )
       if (await annotateButton.isVisible({ timeout: 3000 })) {
         await annotateButton.click()
@@ -78,7 +78,7 @@ test.describe('Choice Annotation', () => {
 
       // Navigate to annotation if possible
       const annotateButton = page.locator(
-        'button:has-text("Annotate"), a:has-text("Start Annotating"), a:has-text("Annotation")',
+        'button:has-text("Annotate"), button:has-text("Start task"), a:has-text("Annotation")',
       )
       if (await annotateButton.isVisible({ timeout: 3000 })) {
         await annotateButton.click()

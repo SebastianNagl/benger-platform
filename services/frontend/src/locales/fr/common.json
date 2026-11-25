@@ -249,8 +249,7 @@
       "duplicateSelected": "Dupliquer la sélection",
       "editMetadata": "Modifier les métadonnées",
       "archiveSelected": "Archiver la sélection",
-      "deleteSelected": "Supprimer la sélection",
-      "selectTasksPrompt": "Sélectionnez des tâches pour voir les actions disponibles"
+      "deleteSelected": "Supprimer la sélection"
     },
     "pagination": {
       "showing": "Affichage de",
@@ -937,7 +936,6 @@
       "unarchiveSelected": "Désarchiver la sélection",
       "archiveSelected": "Archiver la sélection",
       "deleteSelected": "Supprimer la sélection",
-      "selectProjectsPrompt": "Sélectionnez des projets pour voir les actions disponibles",
       "exportNdjsonGz": "Exporter en NDJSON (gzip), pour les grands projets",
       "exportComprehensive": "Exporter en JSON (un fichier par projet)"
     },
@@ -1513,7 +1511,7 @@
     },
     "quickActions": {
       "title": "Actions rapides",
-      "startLabeling": "Commencer l'annotation",
+      "startLabeling": "Commencer la tâche",
       "allTasksAnnotated": "Toutes les tâches sont annotées",
       "projectData": "Données du projet",
       "myTasks": "Mes tâches",
@@ -1521,7 +1519,7 @@
       "generation": "Génération",
       "evaluations": "Évaluations",
       "reviewWorkflow": "Processus de relecture",
-      "korrektur": "Correction",
+      "korrektur": "Correction humaine",
       "members": "Membres"
     },
     "billing": {
@@ -1803,7 +1801,7 @@
       "unlabeled": "Non étiquetée",
       "annotations": "Annotations",
       "generations": "Générations",
-      "startLabeling": "Commencer l'étiquetage",
+      "startLabeling": "Commencer la tâche",
       "viewAnnotations": "Afficher les annotations",
       "skipTask": "Ignorer la tâche",
       "existingAnnotations": "Annotations existantes",
@@ -1863,7 +1861,7 @@
       "skipped": "Ignorée",
       "allTasks": "Toutes les tâches",
       "tasksAssigned": "tâches attribuées",
-      "startAnnotating": "Commencer l'annotation",
+      "startAnnotating": "Commencer la tâche",
       "loadingTasks": "Chargement des tâches...",
       "noTasksWithStatus": "Aucune tâche avec le statut « {status} ».",
       "searchPlaceholder": "Rechercher par ID ou titre de tâche…",
@@ -7207,7 +7205,7 @@
     "instructions": {
       "title": "Instructions d'annotation",
       "dontShowAgain": "Ne plus afficher pour ce projet",
-      "startAnnotating": "Commencer l'annotation",
+      "startAnnotating": "Commencer la tâche",
       "showInstructions": "Instructions",
       "close": "Fermer"
     },
@@ -7416,7 +7414,7 @@
       "search": "Rechercher",
       "orderBy": "Trier par",
       "reviewAll": "Relire toutes les tâches",
-      "labelAll": "Annoter toutes les tâches",
+      "labelAll": "Commencer la tâche",
       "import": "Importer des tâches",
       "export": "Exporter des tâches",
       "previous": "Précédent",
@@ -8747,7 +8745,7 @@
     }
   },
   "korrekturWorkflow": {
-    "title": "Correction",
+    "title": "Correction humaine",
     "loadFailed": "Impossible de charger les données de correction",
     "notEnabled": "La correction n'est pas activée pour ce projet. Activez-la dans l'assistant de projet sous Méthodes d'évaluation → Évaluation humaine.",
     "noTasks": "Aucune tâche trouvée",
@@ -9215,6 +9213,9 @@
     },
     "pagination": {
       "goToPage": "Aller à la page {page}"
+    },
+    "selectionActions": {
+      "actions": "Actions"
     }
   },
   "templates": {
