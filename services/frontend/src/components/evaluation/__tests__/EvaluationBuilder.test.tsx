@@ -665,13 +665,16 @@ describe('EvaluationBuilder', () => {
         .filter((b) => b.querySelector('[data-testid="pencil-icon"]'))
       if (editButtons.length > 0) {
         await user.click(editButtons[0])
-        // Should open the wizard in edit mode
+        // Opens the dialog in edit mode, on the parameters step (BLEU has
+        // parameters).
         await waitFor(() => {
           expect(
-            screen.queryByText('evaluationBuilder.steps.metric.title') ||
-              screen.queryByText(/metric/i),
-          ).toBeTruthy()
+            screen.getByText('evaluationBuilder.editEvaluation'),
+          ).toBeInTheDocument()
         })
+        expect(
+          screen.getByText('evaluationBuilder.steps.parameters.title'),
+        ).toBeInTheDocument()
       }
     })
 

@@ -3,15 +3,18 @@
  *
  * The component tests mock `t` to return the key, so a mistyped key passes
  * them and shows the raw key on a real page. This reads the keys straight
- * from the component source.
+ * from the component sources: the builder and its dialog, including keys
+ * kept in a lookup table (the step names) rather than passed to t() inline.
  */
 import * as fs from 'fs'
 import * as path from 'path'
 
-const source = fs.readFileSync(
-  path.resolve(__dirname, '../EvaluationBuilder.tsx'),
-  'utf8',
-)
+const source = [
+  '../EvaluationBuilder.tsx',
+  '../builder/EvaluationMethodDialog.tsx',
+]
+  .map((file) => fs.readFileSync(path.resolve(__dirname, file), 'utf8'))
+  .join('\n')
 const locale = (lang: string) =>
   JSON.parse(
     fs.readFileSync(
@@ -29,7 +32,7 @@ describe('EvaluationBuilder i18n keys', () => {
     new Set(
       Array.from(
         source.matchAll(
-          /\bt\(\s*'((?:evaluationBuilder|evaluation\.metricParams)\.[\w.]+)'/g,
+          /'((?:evaluationBuilder|evaluation\.metricParams)\.[\w.]+)'/g,
         ),
         (m) => m[1],
       ),
@@ -43,6 +46,8 @@ describe('EvaluationBuilder i18n keys', () => {
         'evaluationBuilder.placeholders.judgeModel',
         'evaluation.metricParams.rouge.rougeL',
         'evaluationBuilder.parameters.factcc.method',
+        'evaluationBuilder.nav.review',
+        'evaluationBuilder.discard.keepEditing',
       ]),
     )
   })

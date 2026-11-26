@@ -976,12 +976,9 @@ describe('EvaluationBuilder wizard step rendering', () => {
         ).toBeInTheDocument()
       })
 
-      // Advance metric -> prediction -> reference -> parameters -> review
-      // (all fields are prefilled from the edited config).
-      await user.click(screen.getByTestId('wizard-next-button')) // -> prediction
-      await user.click(screen.getByTestId('wizard-next-button')) // -> reference
-      await user.click(screen.getByTestId('wizard-next-button')) // -> parameters
-      await user.click(screen.getByTestId('wizard-next-button')) // -> review
+      // The edit opens on the parameters step; every field is prefilled, so
+      // the step navigation jumps straight to the review.
+      await user.click(screen.getByTestId('wizard-step-nav-review'))
 
       await waitFor(() => {
         expect(screen.getByTestId('evaluation-name-input')).toBeInTheDocument()
@@ -1049,10 +1046,8 @@ describe('EvaluationBuilder wizard step rendering', () => {
           screen.getByText('evaluationBuilder.editEvaluation'),
         ).toBeInTheDocument(),
       )
-      await user.click(screen.getByTestId('wizard-next-button')) // -> prediction
-      await user.click(screen.getByTestId('wizard-next-button')) // -> reference
-      await user.click(screen.getByTestId('wizard-next-button')) // -> parameters
-      await user.click(screen.getByTestId('wizard-next-button')) // -> review
+      // Opens on the parameters step; the step navigation reaches the review.
+      await user.click(screen.getByTestId('wizard-step-nav-review'))
       await waitFor(() =>
         expect(screen.getByTestId('evaluation-name-input')).toBeInTheDocument(),
       )
@@ -1189,14 +1184,14 @@ describe('EvaluationBuilder wizard step rendering', () => {
       ).toBeInTheDocument()
     })
 
-    it('hides empty state when wizard is open', async () => {
+    it('opens the dialog over the empty state', async () => {
       const user = userEvent.setup()
       render(<EvaluationBuilder {...defaultProps} evaluations={[]} />)
 
       await user.click(screen.getByTestId('add-evaluation-button'))
-      expect(
-        screen.queryByText('evaluationBuilder.emptyState.title'),
-      ).not.toBeInTheDocument()
+      // The dialog covers the card; the card keeps its empty state behind it.
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+      expect(screen.getByTestId('evaluation-method-modal')).toBeInTheDocument()
     })
   })
 
@@ -1386,7 +1381,7 @@ describe('EvaluationBuilder wizard step rendering', () => {
         .getAllByRole('button')
         .find((b) => b.querySelector('[data-testid="pencil-icon"]'))
       await user.click(editBtn!)
-      await user.click(screen.getByTestId('wizard-next-button'))
+      await user.click(screen.getByTestId('wizard-step-nav-prediction_fields'))
     }
 
     it('ticks the options the stored values stand for', async () => {

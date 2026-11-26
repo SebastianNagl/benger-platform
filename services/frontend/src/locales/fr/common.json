@@ -6855,24 +6855,24 @@
     },
     "steps": {
       "metric": {
-        "title": "1. Choisir la métrique d'évaluation",
+        "title": "Choisir la métrique d'évaluation",
         "description": "Choisissez la métrique pour cette configuration d'évaluation."
       },
       "predictionFields": {
-        "title": "2. Choisir les champs de prédiction",
+        "title": "Choisir les champs de prédiction",
         "description": "Choisissez les champs à évaluer. Utilisez les sélecteurs spéciaux pour une sélection groupée."
       },
       "referenceFields": {
-        "title": "3. Choisir les champs de référence",
+        "title": "Choisir les champs de référence",
         "description": "Choisissez les champs de vérité terrain pour la comparaison. Plusieurs références sont prises en charge."
       },
       "parameters": {
-        "title": "4. Configurer les paramètres",
+        "title": "Configurer les paramètres",
         "description": "Ajustez les paramètres propres à la métrique.",
         "descriptionWithMetric": "Ajustez les paramètres propres à la métrique {metric}."
       },
       "review": {
-        "title": "5. Vérifier la configuration"
+        "title": "Vérifier la configuration"
       }
     },
     "review": {
@@ -7104,7 +7104,21 @@
         "hint": "Idéal pour les réponses numériques et les mesures"
       }
     },
-    "detectedAnswerType": "{name} détecté, critères sélectionnés automatiquement"
+    "detectedAnswerType": "{name} détecté, critères sélectionnés automatiquement",
+    "nav": {
+      "label": "Étapes",
+      "metric": "Métrique",
+      "predictionFields": "Champs de prédiction",
+      "referenceFields": "Champs de référence",
+      "parameters": "Paramètres",
+      "review": "Nom et vérification"
+    },
+    "discard": {
+      "title": "Abandonner les modifications ?",
+      "message": "Cette méthode d'évaluation contient des modifications non enregistrées. Les fermer maintenant les abandonne.",
+      "confirm": "Abandonner",
+      "keepEditing": "Continuer la modification"
+    }
   },
   "annotation": {
     "examLayout": {

@@ -2653,8 +2653,7 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
                   )}
 
                   {/* Always-visible "Evaluierung starten" CTA at the card
-                      footer; EvaluationBuilder also has one inside the
-                      methods. Both open the same modal. */}
+                      footer: the one entry point to the run modal. */}
                   {canEditProject() &&
                     evaluationConfigs.filter((e: any) => e.enabled).length >
                       0 && (

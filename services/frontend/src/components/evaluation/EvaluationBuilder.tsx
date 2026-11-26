@@ -1,7 +1,8 @@
 /**
  * EvaluationBuilder Component
  *
- * Wizard-style UI for configuring evaluations.
+ * Configured evaluation methods as a compact list; creating or editing one
+ * opens a step-by-step dialog (EvaluationMethodDialog).
  * Supports N:M field mappings where multiple prediction fields can be
  * evaluated against multiple reference fields with different metrics.
  *
@@ -58,14 +59,10 @@ import { useJudgeModelHelpers } from '@/lib/evaluation/judgeModelHelpers'
 import { getMetricEditor } from '@/lib/extensions/metricEditors'
 import { DEFAULT_MODEL_ID } from '@/lib/modelDefaults'
 import {
-  CheckIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
   InformationCircleIcon,
   PencilIcon,
   PlusIcon,
   TrashIcon,
-  XMarkIcon,
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -73,6 +70,10 @@ import { DimensionsEditor } from './DimensionsEditor'
 import { FieldMappingEditor } from './FieldMappingEditor'
 import { PromptTemplateEditor } from './PromptTemplateEditor'
 import { TextPatternEditor, textPatternReady } from './TextPatternEditor'
+import {
+  EvaluationMethodDialog,
+  type EvaluationMethodStepNavItem,
+} from './builder/EvaluationMethodDialog'
 import { JudgeEnsembleControl } from './builder/JudgeEnsembleControl'
 import { MetricStep } from './builder/MetricStep'
 import { PredictionFieldsStep } from './builder/PredictionFieldsStep'
@@ -104,6 +105,15 @@ const WIZARD_STEPS: WizardStep[] = [
   'parameters',
   'review',
 ]
+
+// Short names of the steps in the dialog's step navigation.
+const STEP_NAV_LABEL_KEYS: Record<WizardStep, string> = {
+  metric: 'evaluationBuilder.nav.metric',
+  prediction_fields: 'evaluationBuilder.nav.predictionFields',
+  reference_fields: 'evaluationBuilder.nav.referenceFields',
+  parameters: 'evaluationBuilder.nav.parameters',
+  review: 'evaluationBuilder.nav.review',
+}
 
 interface NewEvaluationState {
   metric: string
@@ -163,6 +173,11 @@ export function EvaluationBuilder({
     INITIAL_EVALUATION_STATE,
   )
   const [editingId, setEditingId] = useState<string | null>(null)
+  // The draft as the dialog opened it: closing with a different draft asks
+  // before the changes are thrown away.
+  const [openedDraft, setOpenedDraft] = useState<string>(
+    JSON.stringify(INITIAL_EVALUATION_STATE),
+  )
   // Inner showEvaluationModal removed — the page-level Evaluation card
   // footer is the single trigger for the run modal. See the comment near
   // where the button used to live (end of this component).
@@ -342,12 +357,27 @@ export function EvaluationBuilder({
     )
   }
 
-  const resetWizard = useCallback(() => {
-    setNewEvaluation(INITIAL_EVALUATION_STATE)
-    setCurrentStep('metric')
+  // Closing keeps the draft in place, so the dialog does not flash back to
+  // its first step while it fades out; opening sets a fresh draft.
+  const closeWizard = useCallback(() => {
     setIsAddingNew(false)
-    setEditingId(null)
   }, [])
+
+  const openWizard = useCallback(
+    (
+      draft: NewEvaluationState,
+      id: string | null,
+      step: WizardStep = 'metric',
+    ) => {
+      setNewEvaluation(draft)
+      setOpenedDraft(JSON.stringify(draft))
+      setEditingId(id)
+      setDetectedAnswerType(null)
+      setCurrentStep(step)
+      setIsAddingNew(true)
+    },
+    [],
+  )
 
   const handleAddEvaluation = useCallback(() => {
     if (!newEvaluation.metric) {
@@ -405,7 +435,7 @@ export function EvaluationBuilder({
       onEvaluationsChange([...evaluations, newConfig])
     }
 
-    resetWizard()
+    closeWizard()
     addToast(
       editingId
         ? t('evaluationBuilder.toast.updated')
@@ -417,7 +447,7 @@ export function EvaluationBuilder({
     editingId,
     evaluations,
     onEvaluationsChange,
-    resetWizard,
+    closeWizard,
     addToast,
     t,
   ])
@@ -446,7 +476,6 @@ export function EvaluationBuilder({
           evaluations.map((e) => (e === evaluation ? { ...e, id: editId } : e)),
         )
       }
-      setEditingId(editId)
       // Distinguish a user-typed custom name from an auto-generated one so the
       // edit never (a) clobbers a real custom name, nor (b) freezes a stale
       // model into an auto-name when the judge model is changed during the edit.
@@ -467,17 +496,29 @@ export function EvaluationBuilder({
         evaluation.metric,
       ])
       const isCustomName = stored !== '' && !autoNames.has(stored)
-      setNewEvaluation({
-        metric: evaluation.metric,
-        display_name: isCustomName ? stored : '',
-        prediction_fields: evaluation.prediction_fields || [],
-        reference_fields: evaluation.reference_fields || [],
-        metric_parameters: evaluation.metric_parameters || {},
-      })
-      setCurrentStep('metric')
-      setIsAddingNew(true)
+      openWizard(
+        {
+          metric: evaluation.metric,
+          display_name: isCustomName ? stored : '',
+          prediction_fields: evaluation.prediction_fields || [],
+          reference_fields: evaluation.reference_fields || [],
+          metric_parameters: evaluation.metric_parameters || {},
+        },
+        editId,
+        // An edit usually changes the settings: open on the parameters step
+        // (the name and review for a metric without parameters), or on the
+        // first field step a config written elsewhere left empty. The step
+        // navigation reaches every other step from there.
+        !evaluation.prediction_fields?.length
+          ? 'prediction_fields'
+          : !metricDef?.reference_free && !evaluation.reference_fields?.length
+            ? 'reference_fields'
+            : metricDef?.supports_parameters
+              ? 'parameters'
+              : 'review',
+      )
     },
-    [evaluations, onEvaluationsChange],
+    [evaluations, onEvaluationsChange, openWizard],
   )
 
   const handleToggleEnabled = useCallback(
@@ -626,8 +667,9 @@ export function EvaluationBuilder({
     return defaults
   }
 
-  const canProceed = (): boolean => {
-    switch (currentStep) {
+  // Whether a step's input is complete enough to move past it.
+  const stepIsValid = (step: WizardStep): boolean => {
+    switch (step) {
       case 'metric':
         return !!newEvaluation.metric
       case 'prediction_fields':
@@ -670,13 +712,12 @@ export function EvaluationBuilder({
     }
   }
 
-  const getStepNumber = (step: WizardStep): number =>
-    WIZARD_STEPS.indexOf(step) + 1
-
   // A reference-free metric has no reference step, a metric without
   // parameters no parameters step.
+  // Before a metric is chosen every step is listed.
   const stepIsSkipped = (step: WizardStep): boolean => {
     const metricDef = getMetricDefinitions()[newEvaluation.metric]
+    if (!newEvaluation.metric) return false
     if (step === 'reference_fields') return !!metricDef?.reference_free
     if (step === 'parameters') return !metricDef?.supports_parameters
     return false
@@ -693,13 +734,74 @@ export function EvaluationBuilder({
 
   const goToNextStep = () => {
     const next = stepAfter(1)
-    if (next) setCurrentStep(next)
+    if (next && stepIsValid(currentStep)) setCurrentStep(next)
   }
 
   const goToPreviousStep = () => {
     const previous = stepAfter(-1)
     if (previous) setCurrentStep(previous)
   }
+
+  // The steps the chosen metric uses, in order.
+  const visibleSteps = WIZARD_STEPS.filter((step) => !stepIsSkipped(step))
+
+  // A step may be opened once every step before it is filled in, so an edit
+  // can jump straight to any step and a new method to the ones done so far.
+  const stepIsReachable = (step: WizardStep): boolean =>
+    visibleSteps
+      .slice(0, visibleSteps.indexOf(step))
+      .every((earlier) => stepIsValid(earlier))
+
+  // Saving needs every step before the review; the review only adds the
+  // optional name.
+  const canSave = visibleSteps
+    .filter((step) => step !== 'review')
+    .every((step) => stepIsValid(step))
+
+  const goToStep = (step: string) => {
+    const target = step as WizardStep
+    if (visibleSteps.includes(target) && stepIsReachable(target)) {
+      setCurrentStep(target)
+    }
+  }
+
+  const stepSummary = (step: WizardStep): string | undefined => {
+    switch (step) {
+      case 'metric': {
+        const def = getMetricDefinitions()[newEvaluation.metric]
+        return newEvaluation.metric
+          ? def?.display_name || newEvaluation.metric
+          : undefined
+      }
+      case 'prediction_fields':
+        return newEvaluation.prediction_fields.length > 0
+          ? newEvaluation.prediction_fields
+              .map((field) => getFieldLabel(field, t))
+              .join(', ')
+          : undefined
+      case 'reference_fields':
+        return newEvaluation.reference_fields.length > 0
+          ? newEvaluation.reference_fields.join(', ')
+          : undefined
+      default:
+        return undefined
+    }
+  }
+
+  const stepNavItems: EvaluationMethodStepNavItem[] = visibleSteps.map(
+    (step) => ({
+      id: step,
+      label: t(STEP_NAV_LABEL_KEYS[step]),
+      summary: stepSummary(step),
+      status:
+        step === currentStep
+          ? 'current'
+          : step !== 'review' && stepIsValid(step) && stepIsReachable(step)
+            ? 'complete'
+            : 'upcoming',
+      reachable: stepIsReachable(step),
+    }),
+  )
 
   const renderWizardStep = () => {
     switch (currentStep) {
@@ -1812,6 +1914,11 @@ export function EvaluationBuilder({
     }
   }
 
+  const currentMetricDef = getMetricDefinitions()[newEvaluation.metric]
+  const saveLabel = editingId
+    ? t('evaluationBuilder.update')
+    : t('evaluationBuilder.addEvaluation')
+
   return (
     <div className="space-y-4">
       {/* Action Bar */}
@@ -1822,9 +1929,8 @@ export function EvaluationBuilder({
           </Badge>
         </div>
         <Button
-          onClick={() => setIsAddingNew(true)}
+          onClick={() => openWizard(INITIAL_EVALUATION_STATE, null)}
           className="text-sm"
-          disabled={isAddingNew}
           data-testid="add-evaluation-button"
         >
           <PlusIcon className="mr-1 h-4 w-4" />
@@ -1832,187 +1938,149 @@ export function EvaluationBuilder({
         </Button>
       </div>
 
-      {/* Add New Wizard */}
-      {isAddingNew && (
-        <div className="overflow-hidden rounded-lg border dark:border-zinc-700">
-          {/* Wizard Header */}
-          <div
-            className="flex items-center justify-between bg-emerald-50 px-4 py-3 dark:bg-emerald-900/30"
-            data-testid="evaluation-wizard-header"
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
-                {editingId
-                  ? t('evaluationBuilder.editEvaluation')
-                  : t('evaluationBuilder.newEvaluation')}
-              </span>
-              <span
-                className="text-xs text-emerald-600 dark:text-emerald-400"
-                data-testid="wizard-step-indicator"
-              >
-                {t('evaluationBuilder.stepOf', {
-                  current: getStepNumber(currentStep),
-                  total: 5,
-                })}
-              </span>
-            </div>
-            <button
-              onClick={resetWizard}
-              className="text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-200"
-            >
-              <XMarkIcon className="h-5 w-5" />
-            </button>
-          </div>
+      {/* Create / edit dialog */}
+      <EvaluationMethodDialog
+        open={isAddingNew}
+        title={
+          editingId
+            ? t('evaluationBuilder.editEvaluation')
+            : t('evaluationBuilder.newEvaluation')
+        }
+        subtitle={
+          newEvaluation.metric
+            ? currentMetricDef?.display_name || newEvaluation.metric
+            : undefined
+        }
+        stepIndicator={t('evaluationBuilder.stepOf', {
+          current: Math.max(visibleSteps.indexOf(currentStep), 0) + 1,
+          total: visibleSteps.length,
+        })}
+        steps={stepNavItems}
+        onStepSelect={goToStep}
+        dirty={JSON.stringify(newEvaluation) !== openedDraft}
+        onDiscard={closeWizard}
+        canGoBack={stepAfter(-1) !== null}
+        onBack={goToPreviousStep}
+        hasNext={currentStep !== 'review'}
+        canGoNext={stepIsValid(currentStep)}
+        onNext={goToNextStep}
+        canSave={canSave}
+        onSave={handleAddEvaluation}
+        saveLabel={saveLabel}
+      >
+        {renderWizardStep()}
+      </EvaluationMethodDialog>
 
-          {/* Wizard Content */}
-          <div className="p-4" data-testid="evaluation-wizard-body">
-            {renderWizardStep()}
-          </div>
-
-          {/* Wizard Footer — Cancel on the far left, then Back; the
-              primary forward action (Next / Add) sits on the right. */}
-          <div className="flex justify-between bg-zinc-50 px-4 py-3 dark:bg-zinc-800">
-            <div className="flex gap-2">
-              <Button
-                onClick={resetWizard}
-                variant="secondary"
-                className="text-sm"
-              >
-                {t('evaluationBuilder.cancel')}
-              </Button>
-              <Button
-                onClick={goToPreviousStep}
-                variant="secondary"
-                disabled={currentStep === 'metric'}
-                className="text-sm"
-                data-testid="wizard-back-button"
-              >
-                {t('evaluationBuilder.back')}
-              </Button>
-            </div>
-            {currentStep === 'review' ? (
-              <Button onClick={handleAddEvaluation} className="text-sm">
-                <CheckIcon className="mr-1 h-4 w-4" />
-                {editingId
-                  ? t('evaluationBuilder.update')
-                  : t('evaluationBuilder.addEvaluation')}
-              </Button>
-            ) : (
-              <Button
-                onClick={goToNextStep}
-                disabled={!canProceed()}
-                className="text-sm"
-                data-testid="wizard-next-button"
-              >
-                {t('evaluationBuilder.next')}
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Configured Evaluations List */}
+      {/* Configured methods: one compact row each */}
       {evaluations.length > 0 ? (
-        <div className="space-y-3">
+        <ul
+          className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700"
+          data-testid="evaluation-method-list"
+        >
           {evaluations.map((evaluation) => {
             const metricDef = getMetricDefinitions()[evaluation.metric]
+            const name =
+              (evaluation.display_name &&
+                localizedEvalConfigName(evaluation, t)) ||
+              metricDef?.display_name ||
+              evaluation.metric
+            const metricName = metricDef?.display_name || evaluation.metric
+            // Scripted/imported configs may omit the field arrays — never
+            // crash the whole builder on it.
+            const predictions = (evaluation.prediction_fields ?? [])
+              .map((field) => getFieldLabel(field, t))
+              .join(', ')
+            const references = metricDef?.reference_free
+              ? t('evaluationBuilder.review.noReferenceNeeded')
+              : (evaluation.reference_fields ?? []).join(', ')
             return (
-              <div
+              <li
                 key={evaluation.id}
-                className={`rounded-lg border p-4 dark:border-zinc-700 ${
-                  !evaluation.enabled ? 'opacity-50' : ''
-                }`}
+                className="flex items-center gap-3 px-4 py-3"
+                data-testid="evaluation-method-row"
               >
-                <div className="flex items-start justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                        {(evaluation.display_name &&
-                          localizedEvalConfigName(evaluation, t)) ||
-                          metricDef?.display_name ||
-                          evaluation.metric}
-                      </span>
-                      {!evaluation.enabled && (
-                        <Badge variant="secondary" className="text-[10px]">
-                          {t('evaluationBuilder.list.disabled')}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="space-y-1 text-xs wrap-break-word text-zinc-500">
-                      <div>
-                        <span className="font-medium">
-                          {t('evaluationBuilder.list.predictions')}
-                        </span>{' '}
-                        {/* Scripted/imported configs may omit the field
-                            arrays — never crash the whole builder on it. */}
-                        {(evaluation.prediction_fields ?? [])
-                          .map((field) => getFieldLabel(field, t))
-                          .join(', ')}
-                      </div>
-                      <div>
-                        <span className="font-medium">
-                          {t('evaluationBuilder.list.references')}
-                        </span>{' '}
-                        {getMetricDefinitions()[evaluation.metric]
-                          ?.reference_free
-                          ? t('evaluationBuilder.review.noReferenceNeeded')
-                          : (evaluation.reference_fields ?? []).join(', ')}
-                      </div>
-                      {evaluation.metric_parameters &&
-                        Object.keys(evaluation.metric_parameters).length >
-                          0 && (
-                          <div>
-                            <span className="font-medium">
-                              {t('evaluationBuilder.list.parameters')}
-                            </span>{' '}
-                            {JSON.stringify(evaluation.metric_parameters)}
-                          </div>
-                        )}
-                    </div>
+                <div
+                  className={`min-w-0 flex-1 ${!evaluation.enabled ? 'opacity-50' : ''}`}
+                >
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="truncate font-medium text-zinc-900 dark:text-zinc-100">
+                      {name}
+                    </span>
+                    {!name.includes(metricName) && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        {metricName}
+                      </Badge>
+                    )}
+                    {!evaluation.enabled && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        {t('evaluationBuilder.list.disabled')}
+                      </Badge>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleToggleEnabled(evaluation.id)}
-                      className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-                      title={
-                        evaluation.enabled
-                          ? t('common.disable')
-                          : t('common.enable')
-                      }
-                    >
-                      <Checkbox
-                        checked={evaluation.enabled}
-                        onChange={() => {}}
-                      />
-                    </button>
-                    <button
-                      onClick={() => handleEditEvaluation(evaluation)}
-                      className="text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400"
-                      title={t('common.edit')}
-                    >
-                      <PencilIcon className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => handleRemoveEvaluation(evaluation.id)}
-                      className="text-zinc-400 hover:text-red-600 dark:hover:text-red-400"
-                      title={t('common.remove')}
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  </div>
+                  <p
+                    className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400"
+                    title={`${t('evaluationBuilder.list.predictions')} ${predictions} · ${t('evaluationBuilder.list.references')} ${references}`}
+                  >
+                    <span className="font-medium">
+                      {t('evaluationBuilder.list.predictions')}
+                    </span>{' '}
+                    {predictions}
+                    <span aria-hidden="true"> · </span>
+                    <span className="font-medium">
+                      {t('evaluationBuilder.list.references')}
+                    </span>{' '}
+                    {references}
+                  </p>
                 </div>
-              </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleEnabled(evaluation.id)}
+                    className="rounded-md p-1.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                    title={
+                      evaluation.enabled
+                        ? t('common.disable')
+                        : t('common.enable')
+                    }
+                  >
+                    <Checkbox
+                      checked={evaluation.enabled}
+                      onChange={() => {}}
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleEditEvaluation(evaluation)}
+                    className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-emerald-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:hover:bg-zinc-800 dark:hover:text-emerald-400"
+                    title={t('common.edit')}
+                    aria-label={`${t('common.edit')}: ${name}`}
+                    data-testid="evaluation-method-edit"
+                  >
+                    <PencilIcon className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveEvaluation(evaluation.id)}
+                    className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-red-600 focus:ring-2 focus:ring-red-500 focus:outline-none dark:hover:bg-zinc-800 dark:hover:text-red-400"
+                    title={t('common.remove')}
+                    aria-label={`${t('common.remove')}: ${name}`}
+                    data-testid="evaluation-method-delete"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              </li>
             )
           })}
-        </div>
-      ) : !isAddingNew ? (
+        </ul>
+      ) : (
         <div className="py-8 text-center text-zinc-500">
           <p className="text-sm">{t('evaluationBuilder.emptyState.title')}</p>
           <p className="mt-1 text-xs">
             {t('evaluationBuilder.emptyState.description')}
           </p>
         </div>
-      ) : null}
+      )}
 
       {/* The "Run Evaluation" CTA used to live here (in-line with the
           Evaluierungsmethoden subsection) and again at the project page's
