@@ -32,6 +32,12 @@ health_check() {
     return 1
 }
 
+# Keep node_modules in step with the lockfile in development; see the script
+# for why the dev container's node_modules volume can go stale.
+if [ "$NODE_ENV" = "development" ] && [ -f scripts/sync-dev-node-modules.sh ]; then
+    sh scripts/sync-dev-node-modules.sh
+fi
+
 # Start the application
 echo "Starting Next.js application..."
 echo "NODE_ENV: ${NODE_ENV}"
