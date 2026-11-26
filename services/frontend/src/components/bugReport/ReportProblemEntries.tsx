@@ -89,11 +89,8 @@ export function ReportProblemFooterLink() {
 
 export function ReportProblemButton({
   source = 'error-page',
-  onClick,
 }: {
   source?: BugReportSource
-  /** Replaces opening the shared dialog (the crash card has its own). */
-  onClick?: () => void
 }) {
   const { t } = useI18n()
   const enabled = useFeatureFlag(BUG_REPORTS)
@@ -103,7 +100,7 @@ export function ReportProblemButton({
       type="button"
       variant="outline"
       data-testid="error-report-problem"
-      onClick={onClick ?? (() => openBugReport(source))}
+      onClick={() => openBugReport(source)}
     >
       {t('bugReport.entry')}
     </Button>
