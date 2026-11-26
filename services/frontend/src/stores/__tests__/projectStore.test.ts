@@ -91,6 +91,12 @@ const createMockAnnotation = (overrides?: Partial<Annotation>): Annotation => ({
   ...overrides,
 })
 
+// The 403 the API sends while an exam's tasks are not released yet.
+const examNotReadyError = () =>
+  Object.assign(new Error('Exam not released yet'), {
+    response: { status: 403, data: { detail: { code: 'exam_not_ready' } } },
+  })
+
 describe('ProjectStore', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -909,9 +915,97 @@ describe('ProjectStore', () => {
       expect(state.error).toBe('Fetch failed')
       expect(mockToast.error).toHaveBeenCalledWith('Fetch failed')
     })
+
+    it('marks the project as not released instead of failing while the exam is closed', async () => {
+      mockProjectsAPI.getTasks.mockRejectedValue(examNotReadyError())
+
+      let result: Task[] | null = null
+      await act(async () => {
+        result = await useProjectStore.getState().fetchProjectTasks('exam-1')
+      })
+
+      expect(result).toEqual([])
+      const state = useProjectStore.getState()
+      expect(state.examNotReadyProjectId).toBe('exam-1')
+      expect(state.error).toBeNull()
+      expect(state.loading).toBe(false)
+      expect(mockToast.error).not.toHaveBeenCalled()
+    })
+
+    it('treats a plain 403 as an error, not as a closed exam', async () => {
+      mockProjectsAPI.getTasks.mockRejectedValue(
+        Object.assign(new Error('Forbidden'), {
+          response: { status: 403, data: { detail: 'Forbidden' } },
+        }),
+      )
+
+      await act(async () => {
+        await useProjectStore.getState().fetchProjectTasks('1')
+      })
+
+      const state = useProjectStore.getState()
+      expect(state.examNotReadyProjectId).toBeNull()
+      expect(state.error).toBe('Forbidden')
+      expect(mockToast.error).toHaveBeenCalledWith('Forbidden')
+    })
+
+    it('clears an earlier not-released mark once the tasks load', async () => {
+      act(() => {
+        useProjectStore.setState({ examNotReadyProjectId: '1' })
+      })
+      mockProjectsAPI.getTasks.mockResolvedValue([createMockTask()])
+
+      await act(async () => {
+        await useProjectStore.getState().fetchProjectTasks('1')
+      })
+
+      expect(useProjectStore.getState().examNotReadyProjectId).toBeNull()
+    })
   })
 
   describe('getNextTask', () => {
+    it('does not ask the server for the next task while the exam is closed', async () => {
+      mockProjectsAPI.getTasks.mockRejectedValue(examNotReadyError())
+
+      let result: Task | null = createMockTask()
+      await act(async () => {
+        result = await useProjectStore.getState().getNextTask('exam-1')
+      })
+
+      expect(result).toBeNull()
+      expect(mockProjectsAPI.getNextTask).not.toHaveBeenCalled()
+      const state = useProjectStore.getState()
+      expect(state.examNotReadyProjectId).toBe('exam-1')
+      expect(state.error).toBeNull()
+      expect(mockToast.error).not.toHaveBeenCalled()
+      expect(mockToastSetup.info).not.toHaveBeenCalled()
+    })
+
+    it('marks the project as not released when /next refuses for a closed exam', async () => {
+      act(() => {
+        useProjectStore.setState({
+          currentProject: createMockProject({
+            id: 'exam-2',
+            assignment_mode: 'auto',
+          }),
+        })
+      })
+      mockProjectsAPI.getNextTask.mockRejectedValue(examNotReadyError())
+
+      let result: Task | null = createMockTask()
+      await act(async () => {
+        result = await useProjectStore.getState().getNextTask('exam-2')
+      })
+
+      expect(result).toBeNull()
+      expect(mockProjectsAPI.getTasks).not.toHaveBeenCalled()
+      const state = useProjectStore.getState()
+      expect(state.examNotReadyProjectId).toBe('exam-2')
+      expect(state.error).toBeNull()
+      expect(state.loading).toBe(false)
+      expect(mockToast.error).not.toHaveBeenCalled()
+    })
+
     it('should load task cycle and return first task', async () => {
       const tasks = [
         createMockTask({ id: '1' }),

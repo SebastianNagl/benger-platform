@@ -20,7 +20,9 @@ A note on parse-status precedence (``parse()``):
 failed (only on an internal exception).
 """
 
+import json
 import os
+import re
 import sys
 
 import pytest
@@ -37,7 +39,13 @@ _workers_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _workers_root not in sys.path:
     sys.path.insert(0, _workers_root)
 
-from response_parser import ParseResult, ResponseParser  # noqa: E402
+from response_parser import (  # noqa: E402
+    ParseResult,
+    ResponseParser,
+    find_prompt_structure,
+    last_json_value,
+    multi_choice_names,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -868,3 +876,421 @@ class TestAnswerKeyMapping:
 
     def test_default_mapped_keys_is_an_empty_dict(self):
         assert ParseResult(status="failed").mapped_keys == {}
+
+
+# ===========================================================================
+# Kills for the parser paths added with per-item answers, answer-format
+# options and the platform flags: prompt-structure lookup, multi-choice
+# lists, JSON after prose, boolean choices, <Repeater> configs, answer keys
+# from the structure's answer_schema, and the exact span/schema shapes.
+# ===========================================================================
+
+def _annotation(result):
+    return {a["from_name"]: a["value"] for a in result.parsed_annotation}
+
+
+class TestFindPromptStructure:
+    def test_numeric_key_selects_the_entry_at_that_position(self):
+        # `0 <= index` and `.get("structure", entry)`: position 0 is valid and
+        # its inner structure (not the entry) is returned.
+        config = {"prompt_structures": [{"structure": {"name": "first"}}]}
+        assert find_prompt_structure(config, "0") == {"name": "first"}
+
+    def test_position_past_the_end_is_none(self):
+        # `index < len(structures)`: one entry, position 1 does not exist.
+        config = {"prompt_structures": [{"structure": {"name": "first"}}]}
+        assert find_prompt_structure(config, "1") is None
+
+    def test_a_matching_key_with_an_empty_structure_stops_the_search(self):
+        # `break`: the first entry with the key decides; a later entry with
+        # the same key is not looked at.
+        config = {
+            "prompt_structures": [
+                {"key": "a", "structure": {}},
+                {"key": "a", "structure": {"name": "second"}},
+            ]
+        }
+        assert find_prompt_structure(config, "a") is None
+
+
+MULTI_CONFIG = """<View>
+  <Text name="t" value="$t"/>
+  <Choices name="tags" toName="t" choice="multiple">
+    <Choice value="a"/><Choice value="b"/>
+  </Choices>
+  <Choices name="single" toName="t">
+    <Choice value="x"/><Choice value="y"/>
+  </Choices>
+  <Choices toName="t" choice="multiple"><Choice value="z"/></Choices>
+</View>"""
+
+
+class TestMultiChoiceNames:
+    def test_only_named_multi_choice_controls(self):
+        # Pins the "name", "Choices" and `and` of the comprehension: the single
+        # choice and the nameless multi choice are not listed.
+        assert multi_choice_names(MULTI_CONFIG) == ["tags"]
+
+    def test_no_config_and_bad_xml(self):
+        assert multi_choice_names(None) == []
+        assert multi_choice_names("") == []
+        assert multi_choice_names("<View>") == []
+
+    def test_multi_choice_answer_takes_a_list(self):
+        # `name in self.label_config_map` keeps "tags" a multi-choice field,
+        # so the schema takes a list of its values.
+        r = _parser(MULTI_CONFIG).parse('{"tags": ["a", "b"], "single": "x"}')
+        assert r.status == "success"
+        assert _annotation(r) == {"tags": {"choices": ["a", "b"]}, "single": {"choices": ["x"]}}
+
+
+class TestChoiceListSchema:
+    def test_multi_choice_property_widened_exactly(self):
+        p = _parser(MULTI_CONFIG)
+        single = {"type": "string", "enum": ["a", "b"]}
+        assert p._validation_schema == {
+            "type": "object",
+            "properties": {
+                "tags": {"anyOf": [single, {"type": "array", "items": single}]},
+                "single": {"type": "string", "enum": ["x", "y"]},
+            },
+        }
+        # The widening copies: the plain schema keeps the single-value form.
+        assert p.json_schema["properties"]["tags"] == single
+
+    def test_schema_without_multi_choice_is_returned_as_is(self):
+        p = _parser(CHOICES_CONFIG)
+        assert p._validation_schema is p.json_schema
+        assert p._with_choice_lists({}) == {}
+
+    def test_list_item_outside_the_choices_is_rejected(self):
+        p = _parser(MULTI_CONFIG)
+        r = p._parse_decoded({"tags": ["a", "c"]})
+        assert r.status == "validation_error"
+
+    def test_flag_off_keeps_the_single_value_schema(self):
+        p = ResponseParser({}, MULTI_CONFIG, variant_experiments=False)
+        assert p._validation_schema is p.json_schema
+        assert p._parse_decoded({"tags": ["a"]}).status == "validation_error"
+
+
+class TestLastJsonValue:
+    def test_object_after_prose_and_trailing_whitespace(self):
+        assert last_json_value('Here is my answer: {"a": 1}  \n') == {"a": 1}
+        assert last_json_value('{"a": 1}') == {"a": 1}
+        assert last_json_value('List: [1, 2]') == [1, 2]
+
+    def test_empty_and_non_json_endings(self):
+        assert last_json_value("") is None
+        assert last_json_value("   ") is None
+        assert last_json_value("no json here") is None
+        assert last_json_value('{"a": 1} trailing') is None
+
+    def test_uppercase_x_in_prose_is_no_bracket(self):
+        assert last_json_value('eXample {"a": 1}') == {"a": 1}
+
+    def test_closed_bracket_pair_before_the_value(self):
+        # "{ }" decodes but does not reach the end; depth returns to 0 at its
+        # "}" (depth - 1, clamped at 0), so the final object is found.
+        assert last_json_value('first { } then {"a": 1}') == {"a": 1}
+
+    def test_unclosed_bracket_before_the_value_blocks_it(self):
+        # Two opens and one close leave depth 1: the final object is nested in
+        # an unclosed draft and is not promoted.
+        assert last_json_value('draft {{ } {"a": 1}') is None
+        assert last_json_value('draft {{ X } {"a": 1}') is None
+        assert last_json_value('draft [[ ] {"a": 1}') is None
+
+    def test_truncated_final_value(self):
+        assert last_json_value('{"a": 1} {"b": ') is None
+        assert last_json_value('x {"a": {"b": 1}') is None
+
+
+class TestJsonAfterProse:
+    def test_json_after_prose_answers_a_known_field(self):
+        p = _parser(TEXTAREA_CONFIG)
+        assert p.variant_experiments is True
+        r = p.parse('My reply follows {"answer": "x"}')
+        assert r.status == "success"
+        assert r.parsed_annotation == [
+            {"from_name": "answer", "type": "textarea", "value": {"text": ["x"]}}
+        ]
+
+    def test_json_after_prose_without_a_known_field_is_free_text(self):
+        # Decodes and validates, but answers no field: the pattern fallback
+        # reads the whole text (not a failed JSON parse, not an empty answer).
+        text = 'Note: {"other": 1}'
+        r = _parser(TEXTAREA_CONFIG).parse(text)
+        assert r.status == "success"
+        assert r.parsed_annotation == [
+            {"from_name": "__response__", "type": "textarea", "value": {"text": [text]}}
+        ]
+
+    def test_flag_off_does_not_look_for_json_after_prose(self):
+        text = 'My reply follows {"answer": "x"}'
+        p = ResponseParser({}, TEXTAREA_CONFIG, variant_experiments=False)
+        r = p.parse(text)
+        assert r.status == "success"
+        assert [a["from_name"] for a in r.parsed_annotation] == ["__response__"]
+
+    def test_unexpected_error_in_json_parse(self):
+        r = _parser(TEXTAREA_CONFIG)._try_json_parse(None)
+        assert r.status == "failed"
+        assert r.error.startswith("Unexpected error in JSON parsing: ")
+
+    def test_pattern_match_failure(self):
+        r = _parser(TEXTAREA_CONFIG)._try_pattern_match(None)
+        assert r.status == "failed"
+        assert r.error.startswith("Pattern matching failed: ")
+
+
+BOOL_CONFIG = """<View>
+  <Text name="t" value="$t"/>
+  <TextArea name="note" toName="t"/>
+  <Choices name="flag" toName="t"><Choice value="True"/><Choice value="False"/></Choices>
+  <Choices name="flags" toName="t" choice="multiple">
+    <Choice value="true"/><Choice value="false"/><Choice value="maybe"/>
+  </Choices>
+  <Choices name="empty" toName="t"/>
+</View>"""
+
+
+class TestBooleanChoices:
+    def test_json_booleans_read_as_the_matching_choice(self):
+        r = _parser(BOOL_CONFIG).parse(
+            '{"note": "n", "flag": true, "flags": [false, "maybe"]}'
+        )
+        assert r.status == "success"
+        assert _annotation(r) == {
+            "note": {"text": ["n"]},
+            "flag": {"choices": ["True"]},
+            "flags": {"choices": ["false", "maybe"]},
+        }
+
+    def test_false_reads_as_false(self):
+        p = _parser(BOOL_CONFIG)
+        assert p._coerce_boolean_choices({"flag": False}) == {"flag": "False"}
+
+    def test_non_choice_and_choiceless_fields_are_left_alone(self):
+        p = _parser(BOOL_CONFIG)
+        assert p._coerce_boolean_choices({"note": True, "empty": True, "x": True}) == {
+            "note": True,
+            "empty": True,
+            "x": True,
+        }
+
+    def test_flag_off_does_not_coerce(self):
+        p = ResponseParser({}, BOOL_CONFIG, variant_experiments=False)
+        assert p._coerce_boolean_choices({"flag": True}) == {"flag": True}
+
+
+class TestAnswerKeyExactFieldNotAliased:
+    def test_a_field_named_like_an_alias_keeps_its_own_value(self):
+        # `key not in fields and ...`: "answer" is itself a field here, so it
+        # is not read as kurzantwort.
+        config = (
+            '<View><TextArea name="answer" toName="t"/>'
+            '<TextArea name="kurzantwort" toName="t"/></View>'
+        )
+        r = _parser(config).parse('{"answer": "A"}')
+        assert _annotation(r) == {"answer": {"text": ["A"]}}
+        assert r.mapped_keys == {}
+
+
+class _StubAnswerKeys:
+    """Stands in for generation_fidelity.AnswerKeys."""
+
+    def map_answer(self, parsed):
+        data = {("answer" if k == "Antwort" else k): v for k, v in parsed.items()}
+        return data, {"Antwort": "answer"}, {"answer": {"J": "Ja"}}
+
+
+class TestStructureAnswerKeys:
+    def test_answer_keys_rename_and_report(self):
+        p = ResponseParser({}, TEXTAREA_CONFIG, answer_keys=_StubAnswerKeys())
+        r = p.parse('{"Antwort": "Ja"}')
+        assert r.status == "success"
+        assert _annotation(r) == {"answer": {"text": ["Ja"]}}
+        assert r.mapped_keys == {"Antwort": "answer"}
+        assert r.mapped_values == {"answer": {"J": "Ja"}}
+
+    def test_mapped_values_default_and_explicit(self):
+        assert ParseResult(status="failed").mapped_values == {}
+        assert ParseResult(status="success", mapped_values={"f": {"a": "b"}}).mapped_values == {
+            "f": {"a": "b"}
+        }
+
+
+REPEATER_CONFIG = """<View>
+  <Repeater on="$cases" indexFlag="{{idx}}" answerKey="case">
+    <Text name="case_{{idx}}" value="$cases[{{idx}}].text"/>
+    <Number name="risk_{{idx}}" toName="case_{{idx}}"/>
+  </Repeater>
+</View>"""
+
+TWO_CASES = {"cases": [{"text": "a"}, {"text": "b"}]}
+
+
+class TestRepeaterParsing:
+    def test_array_answer_maps_onto_indexed_names(self):
+        p = ResponseParser({}, REPEATER_CONFIG)
+        r = p.parse('[{"case": 1, "risk": 10}, {"case": 2, "risk": 20}]', task_data=TWO_CASES)
+        assert r.status == "success"
+        assert r.parsed_annotation == [
+            {"from_name": "risk_0", "type": "number", "value": {"number": 10}},
+            {"from_name": "risk_1", "type": "number", "value": {"number": 20}},
+        ]
+
+    def test_without_task_data_the_parse_fails_with_the_reason(self):
+        r = ResponseParser({}, REPEATER_CONFIG).parse('[{"case": 1, "risk": 10}]')
+        assert r.status == "failed"
+        assert r.error == "The label config has a <Repeater>; parsing needs the task's data"
+
+    def test_wrong_item_count_is_a_validation_error(self):
+        # The count comes from the task (2 items), not from the answer.
+        r = ResponseParser({}, REPEATER_CONFIG).parse('[{"case": 1, "risk": 10}]', task_data=TWO_CASES)
+        assert r.status == "validation_error"
+        assert r.error == "'cases' has 1 objects, the task has 2 items"
+        assert r.parsed_annotation is None
+
+    def test_task_parsers_are_cached_per_item_count(self):
+        p = ResponseParser({}, REPEATER_CONFIG)
+        three = {"cases": [{}, {}, {}]}
+        assert p._for_task(TWO_CASES) is p._for_task({"cases": [{"text": "c"}, {}]})
+        assert p._for_task(three) is not p._for_task(TWO_CASES)
+        assert set(p._task_parsers) == {(2,), (3,)}
+        r = p.parse(json.dumps([{"risk": i} for i in range(3)]), task_data=three)
+        assert [a["from_name"] for a in r.parsed_annotation] == ["risk_0", "risk_1", "risk_2"]
+
+    def test_answer_controls(self):
+        p = ResponseParser({}, REPEATER_CONFIG)
+        assert p.answer_controls(TWO_CASES) == ["risk_0", "risk_1"]
+        assert p.answer_controls() == []
+        assert _parser(TEXTAREA_CONFIG).answer_controls(TWO_CASES) == ["answer"]
+
+
+TWO_LABELS_CONFIG = """<View>
+  <Text name="text" value="$text"/>
+  <Labels name="ner1" toName="text"><Label value="PERSON"/></Labels>
+  <Labels name="ner2" toName="text"><Label value="PERSON"/></Labels>
+</View>"""
+
+SPAN_ID = re.compile(r"span-[0-9a-f]{8}")
+
+
+class TestLabelsAnswers:
+    def test_object_answer_for_a_labels_field_is_not_rewrapped(self):
+        r = _parser(LABELS_CONFIG).parse(
+            '{"entities": [{"start": 0, "end": 3, "type": "ORG", "text": "Acm", "id": "s1"}]}'
+        )
+        assert r.status == "success"
+        assert r.parsed_annotation == [
+            {
+                "from_name": "entities",
+                "type": "labels",
+                "value": {
+                    "spans": [
+                        {"id": "s1", "start": 0, "end": 3, "text": "Acm", "labels": ["ORG"]}
+                    ]
+                },
+            }
+        ]
+
+    def test_bare_list_goes_to_the_first_labels_field(self):
+        r = _parser(TWO_LABELS_CONFIG).parse('[{"start": 0, "end": 3, "type": "PERSON"}]')
+        assert r.status == "success"
+        assert [a["from_name"] for a in r.parsed_annotation] == ["ner1"]
+
+    def test_labels_span_schema_exactly(self):
+        assert _parser(LABELS_CONFIG).json_schema == {
+            "type": "object",
+            "properties": {
+                "entities": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "start": {"type": "integer"},
+                            "end": {"type": "integer"},
+                            "text": {"type": "string"},
+                            "type": {"type": "string", "enum": ["PERSON", "ORG"]},
+                        },
+                        "required": ["start", "end", "type"],
+                    },
+                }
+            },
+        }
+
+    def test_generated_span_ids(self):
+        p = _parser(LABELS_CONFIG)
+        inline = p._parse_span_value("[ORG: 0-4] Acme", {"labels": ["ORG"]})
+        assert SPAN_ID.fullmatch(inline[0]["id"])
+        p._source_text = "Ann works at Acme."
+        marked = p._parse_span_value("<ORG>Acme</ORG>", {"labels": ["ORG"]})
+        assert SPAN_ID.fullmatch(marked[0]["id"])
+        assert marked[0]["start"] == 13
+        normalized = p._normalize_span({"start": 0, "end": 3, "type": "ORG"}, [])
+        assert SPAN_ID.fullmatch(normalized["id"])
+
+    def test_marked_label_outside_the_labels_is_dropped(self):
+        p = _parser(LABELS_CONFIG)
+        p._source_text = "Ann lives in Berlin."
+        assert p._parse_span_value("<LOC>Berlin</LOC>", {"labels": ["PERSON", "ORG"]}) == []
+
+    def test_marked_text_not_in_source_message(self):
+        p = _parser(LABELS_CONFIG)
+        p._source_text = "Ann lives in Berlin."
+        with pytest.raises(ValueError) as exc:
+            p._parse_span_value("<ORG>Acme</ORG>", {"labels": ["ORG"]})
+        assert str(exc.value) == (
+            "Span text 'Acme' not found in source text. "
+            "Cannot calculate accurate position offsets."
+        )
+
+    def test_marked_without_source_text_message(self):
+        p = _parser(LABELS_CONFIG)
+        p._source_text = None
+        with pytest.raises(ValueError) as exc:
+            p._parse_span_value("<ORG>Acme</ORG>", {"labels": ["ORG"]})
+        assert str(exc.value) == (
+            "Marked format <ORG>Acme</ORG> requires source_text "
+            "parameter to calculate accurate position offsets. "
+            "Pass source_text to parse() method."
+        )
+
+
+class TestPatternMatchSources:
+    def test_generation_structure_fields_without_label_config(self):
+        p = ResponseParser({"fields": {"summary": {"type": "text"}}}, "")
+        r = p._try_pattern_match("summary: hello")
+        assert r.parsed_annotation == [
+            {"from_name": "summary", "type": "textarea", "value": {"text": ["hello"]}}
+        ]
+
+    def test_generation_structure_types_win_over_label_config(self):
+        # Number from the structure (float), not TextArea text from the config.
+        p = ResponseParser({"fields": {"answer": {"type": "number"}}}, TEXTAREA_CONFIG)
+        r = p._try_pattern_match("answer: 42")
+        answer = r.field_values["answer"]
+        assert isinstance(answer, float)
+        assert answer == 42.0
+
+    def test_label_config_choices_type_extracts_the_quoted_choice(self):
+        r = _parser(CHOICES_CONFIG)._try_pattern_match("sentiment: I pick 'positive' here")
+        assert r.parsed_annotation == [
+            {"from_name": "sentiment", "type": "choices", "value": {"choices": ["positive"]}}
+        ]
+
+    def test_field_name_ignores_case_and_value_spans_lines(self):
+        r = _parser(TEXTAREA_CONFIG)._try_pattern_match("Answer: first line\nsecond line")
+        assert _annotation(r) == {"answer": {"text": ["first line second line"]}}
+
+    def test_only_quotes_are_stripped_from_the_value(self):
+        r = _parser(TEXTAREA_CONFIG)._try_pattern_match('answer: "Xylophone X"')
+        assert _annotation(r) == {"answer": {"text": ["Xylophone X"]}}
+
+
+class TestSchemaWithoutStructureFields:
+    def test_structure_without_fields_uses_the_label_config(self):
+        p = ResponseParser({"system_prompt": "x"}, TEXTAREA_CONFIG)
+        assert p.json_schema == {"type": "object", "properties": {"answer": {"type": "string"}}}
