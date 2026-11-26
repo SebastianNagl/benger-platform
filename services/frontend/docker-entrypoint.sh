@@ -32,6 +32,60 @@ health_check() {
     return 1
 }
 
+# Keep node_modules in step with the lockfile in development. The dev compose
+# file keeps node_modules in an anonymous volume, and Docker carries that
+# volume over when the container is recreated from a rebuilt image, so a stale
+# install (for example a Next.js release with known advisories) would
+# otherwise keep running after the lockfile moved on. Dockerfile.dev stamps
+# the lockfile hash into node_modules; on a mismatch the dependencies are
+# installed afresh with npm ci in a staging directory and swapped in. Neither
+# npm ci nor npm install can run in place, because overlays bind-mount
+# packages inside node_modules and npm would try to delete those mounts.
+
+# True when $1 is a mount point or contains one.
+holds_mount() {
+    printf '%s\n' "$node_modules_mounts" | grep -q -e "^$1\$" -e "^$1/"
+}
+
+# Delete everything under directory $1 except mount points and their parents.
+clear_except_mounts() {
+    for entry in "$1"/* "$1"/.[!.]* "$1"/..?*; do
+        [ -e "$entry" ] || [ -L "$entry" ] || continue
+        if holds_mount "$entry"; then
+            if [ -d "$entry" ] && ! printf '%s\n' "$node_modules_mounts" | grep -q "^$entry\$"; then
+                clear_except_mounts "$entry"
+            fi
+        else
+            rm -rf "$entry"
+        fi
+    done
+}
+
+sync_node_modules() {
+    wanted_lock=$(sha256sum package-lock.json | cut -d' ' -f1)
+    installed_lock=$(cat node_modules/.lockfile-sha256 2>/dev/null || true)
+    [ "$wanted_lock" = "$installed_lock" ] && return 0
+
+    echo "node_modules does not match package-lock.json, reinstalling dependencies..."
+    staging=$(mktemp -d)
+    cp package.json package-lock.json "$staging"/
+    [ -f .npmrc ] && cp .npmrc "$staging"/
+    (cd "$staging" && npm ci --no-audit --no-fund)
+
+    node_modules_mounts=$(awk -v dir="$PWD/node_modules" \
+        'index($5, dir "/") == 1 { sub("^" dir, "node_modules", $5); print $5 }' \
+        /proc/self/mountinfo)
+    clear_except_mounts node_modules
+    cp -a "$staging"/node_modules/. node_modules/
+    rm -rf "$staging"
+    echo "$wanted_lock" > node_modules/.lockfile-sha256
+    echo "Dependencies reinstalled from package-lock.json"
+}
+
+if [ "$NODE_ENV" = "development" ] && [ -f package-lock.json ] && [ -d node_modules ]; then
+    sync_node_modules
+fi
+
 # Start the application
 echo "Starting Next.js application..."
 echo "NODE_ENV: ${NODE_ENV}"

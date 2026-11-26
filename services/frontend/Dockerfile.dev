@@ -9,9 +9,12 @@ WORKDIR /app
 # Install dependencies for native modules and curl for health checks
 RUN apk add --no-cache libc6-compat curl
 
-# Copy package files and install dependencies
-COPY package*.json ./
-RUN npm install
+# Copy package files and install exactly what the lockfile pins. The stamp
+# records which lockfile this node_modules belongs to, so the entrypoint can
+# tell when a carried-over node_modules volume no longer matches it.
+COPY package.json package-lock.json .npmrc ./
+RUN npm ci --no-audit --no-fund && \
+    sha256sum package-lock.json | cut -d' ' -f1 > node_modules/.lockfile-sha256
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/
