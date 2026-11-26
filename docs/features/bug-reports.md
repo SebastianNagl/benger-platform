@@ -61,12 +61,20 @@ an hour is queued again by the hourly `tasks.sweep_pending_bug_reports` (its
 first send was lost, for example while the broker was down). If the
 repository refuses the labels, the issue is created without them.
 
+Reports must stay private, so before creating an issue the worker looks up
+the target repository (`GET /repos/{owner}/{name}`, same token) and refuses
+it unless GitHub answers `"private": true`. A refused report is kept as
+`failed` with the error "Delivery refused: the target repository is not
+private", no issue is created, and "Deliver again" sends it once the
+repository is private. A confirmed private answer is kept for ten minutes
+per worker process; a failing lookup counts like any other delivery error.
+
 Configuration (workers; read on every attempt):
 
 | Variable | Meaning |
 |---|---|
 | `BUG_REPORT_GITHUB_REPO` | `owner/name` of the repository that receives the issues |
-| `BUG_REPORT_GITHUB_TOKEN` | a token that may create issues there; a fine-grained token limited to that repository with "Issues: read and write" is enough |
+| `BUG_REPORT_GITHUB_TOKEN` | a token that may create issues there; a fine-grained token limited to that repository with "Issues: read and write" is enough (the "Metadata: read" it always includes covers the visibility check) |
 | `BUG_REPORT_GITHUB_LABELS` | optional, comma-separated, default `bug,user-report` |
 | `BUG_REPORT_GITHUB_API_URL` | optional API base, default `https://api.github.com` |
 

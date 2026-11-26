@@ -3,7 +3,8 @@
 Runs the worker's sync lane against the test database and a mock GitHub API
 (``httpx.MockTransport``): the issue text and what stays out of it, labels,
 retries of transient errors, permanent errors, the token never in a stored
-error, the "no target" case and the sweep of stale pending reports.
+error, the refusal of a repository that is not private, the "no target"
+case and the sweep of stale pending reports.
 """
 
 from __future__ import annotations
@@ -54,13 +55,21 @@ def _stored_report(db, **extra) -> BugReport:
 
 
 class FakeGitHub:
-    """Records issue posts and answers from a script of responses."""
+    """Records issue posts and answers them from a script of responses; the
+    repository lookup (``GET /repos/{repo}``) answers from ``repo`` (default:
+    a private repository) and is recorded in ``lookups``."""
 
-    def __init__(self, *responses):
+    def __init__(self, *responses, repo=None):
         self.responses = list(responses)
+        self.repo_responses = list(repo or [])
         self.requests: List[httpx.Request] = []
+        self.lookups: List[httpx.Request] = []
 
     def handler(self, request: httpx.Request) -> httpx.Response:
+        if request.method == "GET":
+            self.lookups.append(request)
+            status, payload = self.repo_responses.pop(0) if self.repo_responses else (200, {"private": True})
+            return httpx.Response(status, json=payload)
         self.requests.append(request)
         status, payload = self.responses.pop(0) if self.responses else (201, None)
         if status == 201 and payload is None:
@@ -71,6 +80,11 @@ class FakeGitHub:
     def create_issue(self, target, title, body):
         client = httpx.Client(transport=httpx.MockTransport(self.handler))
         return reports.create_github_issue(target, title, body, client=client)
+
+
+@pytest.fixture(autouse=True)
+def _fresh_private_check(monkeypatch):
+    monkeypatch.setattr(reports, "_private_until", {})
 
 
 @pytest.fixture
@@ -93,6 +107,9 @@ def test_delivery_creates_the_issue_and_records_it(test_db, target):
     assert row.issue_number == 1 and row.issue_url == "https://github.example/o/r/issues/1"
     assert row.delivery_attempts == 1 and row.delivery_error is None and row.delivered_at
 
+    (lookup,) = github.lookups
+    assert lookup.url == "https://github.example/api/repos/example-owner/example-repo"
+    assert lookup.headers["authorization"] == "Bearer secret-token-value"
     (request,) = github.requests
     assert request.url == "https://github.example/api/repos/example-owner/example-repo/issues"
     assert request.headers["authorization"] == "Bearer secret-token-value"
@@ -151,6 +168,58 @@ def test_permanent_errors_fail_at_once_without_leaking_the_token(test_db, target
     test_db.refresh(row)
     assert row.delivery_error == "GitHub answered 401: Bad credentials"
     assert "secret-token-value" not in row.delivery_error
+
+
+@pytest.mark.parametrize("repo_answer", [{"private": False}, {"full_name": "o/r"}, {"private": "true"}])
+def test_a_repository_that_is_not_private_is_refused(test_db, target, repo_answer):
+    row = _stored_report(test_db)
+    github = FakeGitHub(repo=[(200, repo_answer)])
+    outcome = reports.deliver_report(test_db, row.id, final=False, create_issue=github.create_issue)
+    assert outcome.state == "failed" and not outcome.retry
+    assert github.requests == []
+    test_db.refresh(row)
+    assert row.status == "failed" and row.issue_url is None
+    assert row.delivery_error == "Delivery refused: the target repository is not private"
+
+    # Once the repository is private, delivering the report again works.
+    row.status = "pending"
+    test_db.commit()
+    again = reports.deliver_report(test_db, row.id, final=False, create_issue=github.create_issue)
+    assert again.state == "delivered" and len(github.lookups) == 2 and len(github.requests) == 1
+
+
+def test_a_confirmed_private_repository_is_not_looked_up_again(test_db, target, monkeypatch):
+    github = FakeGitHub()
+    for _ in range(2):
+        row = _stored_report(test_db)
+        assert reports.deliver_report(test_db, row.id, final=False, create_issue=github.create_issue).state == "delivered"
+    assert len(github.lookups) == 1 and len(github.requests) == 2
+
+    clock = reports.time.monotonic() + reports.PRIVATE_CHECK_TTL_SECONDS + 1
+    monkeypatch.setattr(reports.time, "monotonic", lambda: clock)
+    row = _stored_report(test_db)
+    reports.deliver_report(test_db, row.id, final=False, create_issue=github.create_issue)
+    assert len(github.lookups) == 2
+
+
+@pytest.mark.parametrize(
+    "repo_answer, retry, error",
+    [
+        ((502, {"message": "Bad gateway"}), True, "GitHub answered 502: Bad gateway"),
+        ((403, {"message": "API rate limit exceeded"}), True, "GitHub answered 403: API rate limit exceeded"),
+        ((404, {"message": "Not Found"}), False, "GitHub answered 404: Not Found"),
+        ((401, {"message": "Bad credentials"}), False, "GitHub answered 401: Bad credentials"),
+    ],
+)
+def test_a_failing_repository_lookup_is_a_delivery_error(test_db, target, repo_answer, retry, error):
+    row = _stored_report(test_db)
+    github = FakeGitHub(repo=[repo_answer])
+    outcome = reports.deliver_report(test_db, row.id, final=False, create_issue=github.create_issue)
+    assert outcome.retry is retry
+    assert outcome.state == ("pending" if retry else "failed")
+    assert github.requests == []
+    test_db.refresh(row)
+    assert row.delivery_error == error
 
 
 def test_refused_labels_still_create_the_issue(test_db, target):

@@ -20,7 +20,10 @@ Delivery target
       ``https://api.github.com``; a test stack points it at a stub).
 
     Without repository or token nothing is delivered: the report is kept
-    with status ``stored`` and superadmins see it in the list.
+    with status ``stored`` and superadmins see it in the list. A repository
+    that is not private is refused before any issue is created: the report
+    is kept as ``failed`` with that error and can be delivered again once
+    the repository is private.
 
 What leaves the platform
     The issue carries the reporter's text and the technical context, the
@@ -37,6 +40,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -599,6 +603,47 @@ def _is_rate_limited(response) -> bool:
     return "rate limit" in (response.text or "").lower()
 
 
+PRIVATE_CHECK_TTL_SECONDS = 600
+NOT_PRIVATE_ERROR = "Delivery refused: the target repository is not private"
+
+# (api_url, repo) -> monotonic time until which the repository counts as
+# private; only a confirmed private answer is kept, so a refusal is checked
+# again on the next attempt.
+_private_until: Dict[Tuple[str, str], float] = {}
+
+
+def _github_error(response) -> DeliveryError:
+    message = f"GitHub answered {response.status_code}: {_excerpt(response)}"
+    transient = response.status_code >= 500 or _is_rate_limited(response)
+    return DeliveryError(message[:MAX_ERROR_CHARS], transient=transient)
+
+
+def _require_private(target: DeliveryTarget, http, headers: Dict[str, str]) -> None:
+    """Refuse a target repository that is not private: reports hold the
+    reporter's text and technical context and must never become public."""
+    import httpx
+
+    key = (target.api_url, target.repo)
+    now = time.monotonic()
+    if _private_until.get(key, 0.0) > now:
+        return
+    try:
+        response = http.get(f"{target.api_url}/repos/{target.repo}", headers=headers)
+    except httpx.HTTPError as exc:
+        raise DeliveryError(f"GitHub unreachable ({type(exc).__name__})", transient=True) from None
+    if response.status_code != 200:
+        raise _github_error(response)
+    try:
+        private = response.json().get("private") is True
+    except Exception:
+        private = False
+    if not private:
+        _private_until.pop(key, None)
+        logger.error("bug report delivery refused: %s is not a private repository", target.repo)
+        raise DeliveryError(NOT_PRIVATE_ERROR, transient=False)
+    _private_until[key] = now + PRIVATE_CHECK_TTL_SECONDS
+
+
 def create_github_issue(
     target: DeliveryTarget,
     title: str,
@@ -608,6 +653,8 @@ def create_github_issue(
 ) -> Tuple[int, str]:
     """Create the issue; returns ``(number, html_url)``.
 
+    The target repository must be private (checked first, a confirmed answer
+    kept for :data:`PRIVATE_CHECK_TTL_SECONDS`); otherwise nothing is posted.
     Labels the repository does not accept (422 on ``labels``) do not lose the
     report: the issue is created again without them. Raises
     :class:`DeliveryError`; its message never holds the token.
@@ -624,6 +671,7 @@ def create_github_issue(
     own_client = client is None
     http = client or httpx.Client(timeout=HTTP_TIMEOUT_SECONDS)
     try:
+        _require_private(target, http, headers)
         payload: Dict[str, Any] = {"title": title, "body": body}
         if target.labels:
             payload["labels"] = list(target.labels)
@@ -647,9 +695,7 @@ def create_github_issue(
                 payload.pop("labels")
                 continue
             break
-        message = f"GitHub answered {response.status_code}: {_excerpt(response)}"
-        transient = response.status_code >= 500 or _is_rate_limited(response)
-        raise DeliveryError(message[:MAX_ERROR_CHARS], transient=transient)
+        raise _github_error(response)
     finally:
         if own_client:
             http.close()
