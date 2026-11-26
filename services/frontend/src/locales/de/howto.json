@@ -741,7 +741,7 @@
         "Für jedes Verfahren: **Vorhersagefeld** (z.B. `loesung` oder *Alle Modellausgaben*) und **Referenzfeld** (z.B. `task.musterloesung`). Bei mehreren Referenzen zählt der beste Treffer."
       ],
       "tips": [
-        "Klausur-Projekte bekommen automatisch **zwei** Falllösungs-Judges auf zwei verschiedenen Modellen (z. B. *Notenpunkte (gpt-5-mini)* und *Notenpunkte (gpt-5.4-mini)*). Bei der Sofort-Korrektur läuft genau einer davon. Die Batch-Evaluation führt beide aus. Das ist gewollt.",
+        "Klausur-Projekte bekommen automatisch **zwei** Falllösungs-Judges auf zwei verschiedenen Modellen (z. B. *Notenpunkte (gpt-6.1-terra)* und *Notenpunkte (gpt-5.4-mini)*). Bei der Sofort-Korrektur läuft genau einer davon. Die Batch-Evaluation führt beide aus. Das ist gewollt.",
         "Erweiterte Einstellungen (Judge-Modell, Temperatur, Denkbudget, mehrere Judges als Ensemble, Läufe pro Judge) findest du nach dem Anlegen auf der Projektseite.",
         "Eine eigene Rubrik gibst du beim *Custom LLM Judge* als Kriterien mit Beschreibung und Maximalpunktzahl an. Mit Maximalpunktzahl bewertet der Judge alle Kriterien in einem Durchgang."
       ],

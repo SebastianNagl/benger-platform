@@ -533,6 +533,16 @@ export class EvaluationHelpers {
     if (await cancelBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await cancelBtn.click()
       await this.page.waitForTimeout(500)
+      // With unsaved changes the dialog asks first: confirm the discard so
+      // Cancel still closes it.
+      const discardBtn = this.page
+        .locator('button')
+        .filter({ hasText: /^(Discard|Verwerfen)$/i })
+        .first()
+      if (await discardBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await discardBtn.click()
+        await this.page.waitForTimeout(500)
+      }
     }
     // Cancel is optional, don't throw if not found
   }

@@ -498,41 +498,7 @@ class UserSpecificDeepInfraService(DeepInfraService):
         # Don't call super().__init__() to avoid using global API key
         self.api_key = api_key
         self.base_url = "https://api.deepinfra.com/v1/openai"
-
-        # Model name mapping from display names to API names
-        self.model_mapping = {
-            # DeepSeek models
-            "DeepSeek-V3.2": "deepseek-ai/DeepSeek-V3.2",
-            "DeepSeek-V3.1": "deepseek-ai/DeepSeek-V3.1",
-            "DeepSeek-R1": "deepseek-ai/DeepSeek-R1-0528",
-            "DeepSeek-R1-Distill-Llama-70B": "deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
-            # Qwen models
-            "Qwen3-235B Instruct": "Qwen/Qwen3-235B-A22B-Instruct-2507",
-            "Qwen3-235B Thinking": "Qwen/Qwen3-235B-A22B-Thinking-2507",
-            "Qwen3 Coder 480B": "Qwen/Qwen3-Coder-480B-A35B-Instruct",
-            "Qwen3 32B": "Qwen/Qwen3-32B",
-            "QwQ-32B": "Qwen/QwQ-32B",
-            "Qwen 2.5 Coder 32B": "Qwen/Qwen2.5-Coder-32B-Instruct",
-            # Llama models
-            "Llama 3.3 70B Turbo": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
-            "Llama 3.1 70B": "meta-llama/Meta-Llama-3.1-70B-Instruct",
-            "Llama 3.1 8B": "meta-llama/Meta-Llama-3.1-8B-Instruct",
-            "Llama 4 Scout": "meta-llama/Llama-4-Scout-17B-16E-Instruct",
-            "Llama 4 Maverick": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
-            # Kimi models
-            "Kimi K2.5": "moonshotai/Kimi-K2.5",
-            "Kimi K2 Instruct": "moonshotai/Kimi-K2-Instruct-0905",
-            "Kimi K2 Thinking": "moonshotai/Kimi-K2-Thinking",
-            # MiniMax
-            "MiniMax M2.5": "MiniMaxAI/MiniMax-M2.5",
-            # GLM models (formerly separate Zhipu AI provider)
-            "GLM-5": "zai-org/GLM-5",
-            "GLM-4.7": "zai-org/GLM-4.7",
-            "GLM-4.7-Flash": "zai-org/GLM-4.7-Flash",
-            # Backward compatibility: map old incorrect API names to correct ones
-            "meta-llama/Llama-3.1-70B-Instruct": "meta-llama/Meta-Llama-3.1-70B-Instruct",
-            "meta-llama/Llama-3.1-8B-Instruct": "meta-llama/Meta-Llama-3.1-8B-Instruct",
-        }
+        # model_mapping is inherited from DeepInfraService.
 
         if self.api_key:
             self.client = True  # Simple flag to indicate we have API key

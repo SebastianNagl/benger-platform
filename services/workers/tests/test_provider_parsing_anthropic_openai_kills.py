@@ -184,7 +184,7 @@ class TestAnthropicParsing:
         svc = _make_anthropic(
             _anthropic_response(text="Die Klage ist zul", stop_reason="max_tokens")
         )
-        out = svc.generate(prompt="frage")
+        out = svc.generate(prompt="frage", model_name="claude-haiku-4-5-20251001")
 
         assert out["metadata"]["finish_reason"] == "max_tokens"
         assert out["metadata"]["truncated"] is True
@@ -199,7 +199,7 @@ class TestAnthropicParsing:
         """
         for reason in ("end_turn", "stop_sequence", "tool_use"):
             svc = _make_anthropic(_anthropic_response(stop_reason=reason))
-            out = svc.generate(prompt="frage")
+            out = svc.generate(prompt="frage", model_name="claude-haiku-4-5-20251001")
             assert out["metadata"]["truncated"] is False, reason
 
     def test_refusal_stop_reason_sets_refusal_flag(self):
@@ -212,7 +212,7 @@ class TestAnthropicParsing:
         svc = _make_anthropic(
             _anthropic_response(text="", stop_reason="refusal")
         )
-        out = svc.generate(prompt="frage")
+        out = svc.generate(prompt="frage", model_name="claude-haiku-4-5-20251001")
 
         assert out["metadata"]["refusal"] is True
         assert out["metadata"]["finish_reason"] == "refusal"
@@ -227,7 +227,7 @@ class TestAnthropicParsing:
         svc = _make_anthropic(
             _anthropic_response(content_blocks=[], stop_reason="end_turn")
         )
-        out = svc.generate(prompt="frage")
+        out = svc.generate(prompt="frage", model_name="claude-haiku-4-5-20251001")
 
         assert out["content"] == ""
         assert out["success"] is True  # parsing did not crash
@@ -245,7 +245,7 @@ class TestAnthropicParsing:
             usage=types.SimpleNamespace(input_tokens=3, output_tokens=0),
             stop_reason="end_turn",
         )
-        out = svc.generate(prompt="frage")
+        out = svc.generate(prompt="frage", model_name="claude-haiku-4-5-20251001")
 
         assert out["content"] == ""
         assert out["success"] is True
@@ -259,7 +259,7 @@ class TestAnthropicParsing:
         svc = _make_anthropic(
             _anthropic_response(stop_reason="end_turn", omit_usage=True)
         )
-        out = svc.generate(prompt="frage")
+        out = svc.generate(prompt="frage", model_name="claude-haiku-4-5-20251001")
 
         assert out["usage"]["prompt_tokens"] == 0
         assert out["usage"]["completion_tokens"] == 0
@@ -276,7 +276,7 @@ class TestAnthropicParsing:
             usage=types.SimpleNamespace(input_tokens=1, output_tokens=1),
         )
         svc = _make_anthropic(resp)
-        out = svc.generate(prompt="frage")
+        out = svc.generate(prompt="frage", model_name="claude-haiku-4-5-20251001")
 
         assert out["metadata"]["finish_reason"] is None
         assert out["metadata"]["truncated"] is False
@@ -301,7 +301,7 @@ class TestAnthropicParsing:
                 stop_reason="end_turn",
             )
         )
-        out = svc.generate(prompt="frage")
+        out = svc.generate(prompt="frage", model_name="claude-haiku-4-5-20251001")
         assert out["content"] == "FIRSTSECOND"
 
     def test_thinking_block_is_skipped(self):
@@ -318,13 +318,38 @@ class TestAnthropicParsing:
                 stop_reason="end_turn",
             )
         )
-        out = svc.generate(prompt="frage")
+        out = svc.generate(prompt="frage", model_name="claude-haiku-4-5-20251001")
         assert out["content"] == "ANSWER"
 
 
 # ===========================================================================
 # OPENAI — generate() parsing rules
 # ===========================================================================
+class TestModelNameRequired:
+    """The services used to fall back to a hard-coded model that the
+    provider had since retired; a caller that names no model now fails
+    before any request is sent."""
+
+    @pytest.mark.parametrize("method", ["generate", "generate_structured"])
+    def test_anthropic_without_a_model_name_raises(self, method):
+        svc = _make_anthropic(_anthropic_response(text="x", stop_reason="end_turn"))
+        args = {"prompt": "frage", "system_prompt": "s"}
+        if method == "generate_structured":
+            args["json_schema"] = {"type": "object"}
+        with pytest.raises(ValueError, match="model_name is required"):
+            getattr(svc, method)(**args)
+        svc.client.messages.create.assert_not_called()
+
+    def test_google_and_grok_without_a_model_name_raise(self):
+        from ai_services.google_service import GoogleService
+        from ai_services.grok_service import GrokService
+
+        with pytest.raises(ValueError, match="Google: model_name is required"):
+            GoogleService.generate(MagicMock(), prompt="p")
+        with pytest.raises(ValueError, match="Grok: model_name is required"):
+            GrokService(api_key="dummy").generate(prompt="p")
+
+
 class TestOpenAIParsing:
     def test_normal_response_extracts_content_tokens_and_flags(self):
         """NORMAL: a clean finish_reason='stop' response.
@@ -474,7 +499,7 @@ class TestProviderStripAsymmetry:
         padded = "  geantwortet  "
 
         a = _make_anthropic(_anthropic_response(text=padded, stop_reason="end_turn"))
-        a_out = a.generate(prompt="frage")
+        a_out = a.generate(prompt="frage", model_name="claude-haiku-4-5-20251001")
         assert a_out["content"] == padded  # verbatim, NOT stripped
 
         o = _make_openai(_openai_response(content=padded, finish_reason="stop"))

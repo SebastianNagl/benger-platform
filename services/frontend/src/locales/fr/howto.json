@@ -743,7 +743,7 @@
         "Pour chaque méthode : **Champ de prédiction** (par ex. `loesung` ou *Toutes les sorties des modèles*) et **Champ de référence** (par ex. `task.musterloesung`). En cas de plusieurs références, la meilleure correspondance compte."
       ],
       "tips": [
-        "Les projets d'examen reçoivent automatiquement **deux** juges de résolution de cas sur deux modèles différents (par ex. *Notenpunkte (gpt-5-mini)* et *Notenpunkte (gpt-5.4-mini)*). La correction immédiate en exécute exactement un. L'évaluation par lot exécute les deux. C'est voulu.",
+        "Les projets d'examen reçoivent automatiquement **deux** juges de résolution de cas sur deux modèles différents (par ex. *Notenpunkte (gpt-6.1-terra)* et *Notenpunkte (gpt-5.4-mini)*). La correction immédiate en exécute exactement un. L'évaluation par lot exécute les deux. C'est voulu.",
         "Les paramètres avancés (modèle du juge, température, budget de réflexion, plusieurs juges en ensemble, exécutions par juge) se trouvent sur la page du projet après sa création.",
         "Pour le *Custom LLM Judge*, vous indiquez votre propre grille sous forme de critères avec description et nombre maximal de points. Avec un nombre maximal de points, le juge évalue tous les critères en un seul passage."
       ],

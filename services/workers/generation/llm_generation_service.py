@@ -700,6 +700,14 @@ def generate_llm_responses_impl(
             if not model:
                 raise Exception(f"Model {model_id} not found")
 
+            # A retired official model (model_availability): jobs queued
+            # before the row was switched off, or a resume/retry of an older
+            # generation, stop here instead of failing at the provider.
+            from model_availability import InactiveModelError, row_is_inactive_official
+
+            if row_is_inactive_official(model):
+                raise InactiveModelError([model_id])
+
             # The experiment features (variant_experiments, core 2.75) for
             # the user the generation belongs to, decided once for the job:
             # off, it generates as the platform did before them (no request

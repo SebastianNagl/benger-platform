@@ -88,34 +88,19 @@ def retry_with_exponential_backoff(
 class MistralService(BaseAIService):
     """Service for handling Mistral AI API interactions"""
 
-    # Model name mapping from display names to API names
+    # Display names of the catalog's Mistral rows -> API ids. Any other name
+    # is sent as given, so an id needs no entry. Devstral and Magistral were
+    # retired 2026-07-31; version-pinned names ("Mistral Large 3") are not
+    # listed because the -latest aliases have moved past those versions.
     MODEL_MAPPING = {
-        # Premier/Frontier models
+        "Mistral Large 4": "mistral-large-4",
         "Mistral Large": "mistral-large-latest",
-        "Mistral Large 3": "mistral-large-latest",
         "Mistral Medium": "mistral-medium-latest",
-        "Mistral Medium 3.1": "mistral-medium-latest",
         "Mistral Small": "mistral-small-latest",
-        "Mistral Small 3.2": "mistral-small-latest",
-        # Code models
         "Codestral": "codestral-latest",
-        "Codestral 2508": "codestral-latest",
-        "Devstral": "devstral-small-latest",
-        # Reasoning models (Magistral)
-        "Magistral Medium": "magistral-medium-latest",
-        "Magistral Small": "magistral-small-latest",
-        # Edge models
+        "Ministral 14B": "ministral-14b-latest",
         "Ministral 8B": "ministral-8b-latest",
         "Ministral 3B": "ministral-3b-latest",
-        # Direct model IDs
-        "mistral-large-latest": "mistral-large-latest",
-        "mistral-medium-latest": "mistral-medium-latest",
-        "mistral-small-latest": "mistral-small-latest",
-        "codestral-latest": "codestral-latest",
-        "magistral-medium-latest": "magistral-medium-latest",
-        "magistral-small-latest": "magistral-small-latest",
-        "ministral-8b-latest": "ministral-8b-latest",
-        "ministral-3b-latest": "ministral-3b-latest",
     }
 
     def __init__(self, api_key: Optional[str] = None):

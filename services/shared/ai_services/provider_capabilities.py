@@ -72,17 +72,6 @@ PROVIDER_CAPABILITIES: Dict[str, Dict[str, Any]] = {
             "max": 2.0,
             "default": 0.0,
         },
-        "models_supporting_json_schema": [
-            "gpt-4o", "gpt-4o-mini", "gpt-4o-2024",
-            "gpt-4-turbo", "gpt-4-turbo-preview",
-            "gpt-4-0125-preview", "gpt-4-1106-preview",
-            "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano",
-            "gpt-5", "gpt-5.1", "gpt-5.2", "gpt-5.4",
-            "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.4-pro",
-            "gpt-5.5", "gpt-5.5-pro",
-            "gpt-5-mini", "gpt-5-nano",
-            "o1", "o3", "o3-pro", "o4-mini",
-        ],
     },
     "anthropic": {
         "display_name": "Anthropic",
@@ -705,9 +694,11 @@ _O_SERIES_EFFORTS = frozenset({"low", "medium", "high"})
 # GPT-6 (verified against the live Chat Completions API 2026-10-07; the
 # model pages also list "max", which this endpoint rejects): gpt-6-sol and
 # gpt-6-luna take none..xhigh, gpt-6-astra and gpt-6.1-sol low..xhigh.
+# gpt-6.1-terra takes none..xhigh and gpt-6.2-astra / gpt-6.2-sol reject
+# "none" (model pages, 2026-11-26).
 _GPT6_EFFORTS = frozenset({"low", "medium", "high", "xhigh"})
 _GPT6_WITH_NONE_EFFORTS = _GPT6_EFFORTS | {"none"}
-_GPT6_WITH_NONE = ("gpt-6-sol", "gpt-6-luna")
+_GPT6_WITH_NONE = ("gpt-6-sol", "gpt-6-luna", "gpt-6.1-terra")
 
 
 def is_openai_gpt5_or_later(model_name: Optional[str]) -> bool:
@@ -726,8 +717,8 @@ def openai_reasoning_efforts(model_name: Optional[str]) -> frozenset:
     * ``gpt-5.1`` and later point releases (``gpt-5.4-mini`` …):
       none / low / medium / high
     * o-series (``o1``, ``o3``, ``o3-mini``, ``o4-mini``): low / medium / high
-    * GPT-6: low / medium / high / xhigh, plus none for ``gpt-6-sol``
-      and ``gpt-6-luna``
+    * GPT-6: low / medium / high / xhigh, plus none for ``gpt-6-sol``,
+      ``gpt-6-luna`` and ``gpt-6.1-terra``
     * ``*-pro`` tiers (Responses API, separate code path), ``*-chat*``
       variants and every non-reasoning model: empty
     """

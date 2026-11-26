@@ -6855,24 +6855,24 @@
     },
     "steps": {
       "metric": {
-        "title": "1. Select Evaluation Metric",
+        "title": "Select Evaluation Metric",
         "description": "Choose the metric to use for this evaluation configuration."
       },
       "predictionFields": {
-        "title": "2. Select Prediction Fields",
+        "title": "Select Prediction Fields",
         "description": "Choose which fields to evaluate. Use special selectors for bulk selection."
       },
       "referenceFields": {
-        "title": "3. Select Reference Fields",
+        "title": "Select Reference Fields",
         "description": "Choose the ground truth fields to compare against. Multiple references are supported."
       },
       "parameters": {
-        "title": "4. Configure Parameters",
+        "title": "Configure Parameters",
         "description": "Customize metric-specific parameters.",
         "descriptionWithMetric": "Customize metric-specific parameters for {metric}."
       },
       "review": {
-        "title": "5. Review Configuration"
+        "title": "Review Configuration"
       }
     },
     "review": {
@@ -7104,7 +7104,21 @@
         "hint": "Best for numerical answers, measurements"
       }
     },
-    "detectedAnswerType": "Detected {name}, criteria auto-selected"
+    "detectedAnswerType": "Detected {name}, criteria auto-selected",
+    "nav": {
+      "label": "Steps",
+      "metric": "Metric",
+      "predictionFields": "Prediction fields",
+      "referenceFields": "Reference fields",
+      "parameters": "Parameters",
+      "review": "Name & review"
+    },
+    "discard": {
+      "title": "Discard changes?",
+      "message": "This evaluation method has unsaved changes. Closing now discards them.",
+      "confirm": "Discard",
+      "keepEditing": "Keep editing"
+    }
   },
   "annotation": {
     "examLayout": {
@@ -8235,7 +8249,6 @@
     "copyJson": "Copy JSON",
     "close": "Close",
     "modelCount": "{count} models",
-    "contentPolicyWarning": "May block legal/academic content due to strict content policies",
     "fetchFailed": "Failed to fetch models",
     "unknownError": "Unknown error",
     "detail": {
