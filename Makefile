@@ -11,16 +11,21 @@ help: ## Show this help message
 # ==================== VARIABLES ====================
 # Auto-detect docker compose command (v2 plugin "docker compose" vs v1 standalone "docker-compose")
 DOCKER_COMPOSE_CMD := $(shell docker compose version >/dev/null 2>&1 && echo "docker compose" || echo "docker-compose")
-# Compose project names, resolved the way compose resolves them
-# (COMPOSE_PROJECT_NAME, else the file's `name:`) and passed with -p, so the
-# cleanup targets can scope every removal to exactly the project they started.
+# Compose project names, passed with -p so the cleanup targets can scope every
+# removal to exactly the project they started. The dev stack is
+# COMPOSE_PROJECT_NAME (parallel worktree stacks), else the file's `name:`
+# (benger); the test stack is $(COMPOSE_PROJECT_NAME)-test, else benger-test.
+# They must differ: test cleanup removes every volume of the test project.
 # Several stacks share one Docker daemon: never prune host-wide here
-# (scripts/tests/test_no_host_wide_docker_prune.py enforces it).
+# (scripts/tests/test_make_docker_cleanup.py checks it).
 DEV_COMPOSE_PROJECT := $(or $(COMPOSE_PROJECT_NAME),benger)
-TEST_COMPOSE_PROJECT := $(or $(COMPOSE_PROJECT_NAME),benger-test)
+TEST_COMPOSE_PROJECT := $(if $(COMPOSE_PROJECT_NAME),$(COMPOSE_PROJECT_NAME)-test,benger-test)
+ifeq ($(DEV_COMPOSE_PROJECT),$(TEST_COMPOSE_PROJECT))
+$(error DEV_COMPOSE_PROJECT and TEST_COMPOSE_PROJECT are both "$(DEV_COMPOSE_PROJECT)"; test cleanup would delete the dev stack's containers and volumes, so give them distinct names)
+endif
 DOCKER_COMPOSE := $(DOCKER_COMPOSE_CMD) -p $(DEV_COMPOSE_PROJECT) -f infra/docker-compose.yml
 DOCKER_COMPOSE_DEV := $(DOCKER_COMPOSE_CMD) -p $(DEV_COMPOSE_PROJECT) -f infra/docker-compose.yml -f infra/docker-compose.dev.yml
-DOCKER_COMPOSE_TEST := $(DOCKER_COMPOSE_CMD) -p $(TEST_COMPOSE_PROJECT) -f $(CURDIR)/infra/docker-compose.test.yml
+DOCKER_COMPOSE_TEST := BENGER_TRAEFIK_PROJECT=$(TEST_COMPOSE_PROJECT) $(DOCKER_COMPOSE_CMD) -p $(TEST_COMPOSE_PROJECT) -f $(CURDIR)/infra/docker-compose.test.yml
 TEST_PROJECT_FILTER := label=com.docker.compose.project=$(TEST_COMPOSE_PROJECT)
 API_DIR := services/api
 FRONTEND_DIR := services/frontend
@@ -584,7 +589,7 @@ test-quiet: ## Run tests with minimal output (for agents/CI)
 	cd $(CURDIR)/services/frontend && E2E_ISOLATED=true PLAYWRIGHT_BASE_URL=http://benger-test.localhost:8090 \
 	npx playwright test --reporter=dot 2>&1 | tail -10 && E2E_RESULT=0 || E2E_RESULT=1; \
 	\
-	$(MAKE) --no-print-directory test-prune >/dev/null 2>&1 || true; \
+	$(MAKE) -C $(CURDIR) --no-print-directory test-prune >/dev/null 2>&1 || true; \
 	\
 	echo ""; \
 	echo "=== RESULTS ==="; \
