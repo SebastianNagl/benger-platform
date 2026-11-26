@@ -108,10 +108,10 @@ Covers "Report a problem" (account menu, footer, error pages), the report
 endpoint `POST /api/bug-reports`, the superadmin list at
 `/admin/bug-reports` with its routes, the recorder of recent errors, failed
 requests and page changes, and the changelog entry. Off: the entries are
-gone, nothing is recorded and every route answers 404 `feature_disabled`;
-stored reports stay. A report sent without a session counts as anonymous,
-so the flag reaches visitors only in state `everyone`. Details in
-[bug-reports.md](bug-reports.md).
+gone, the recorder stops and drops what it held since page load, and every
+route answers 404 `feature_disabled`; stored reports stay. A report sent
+without a session counts as anonymous, so the flag reaches visitors only in
+state `everyone`. Details in [bug-reports.md](bug-reports.md).
 
 ## Who a flag is decided for
 

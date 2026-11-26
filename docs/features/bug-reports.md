@@ -33,7 +33,9 @@ and reduced again by the server to the keys and sizes it allows
 - the last 5 frontend errors with stack traces, the last 10 failed requests to
   the platform API (method, path, status, request id, duration; never bodies,
   headers, cookies or tokens) and the last 15 page changes
-  (`src/lib/bugReport/recorder.ts`, recording only while the flag is on).
+  (`src/lib/bugReport/recorder.ts`). Recording starts when the app loads,
+  before the flag has answered, so the failures of the first page load are
+  kept; once the flag reads off it stops and drops what it recorded.
 
 Path segments that look like secrets (the token of invitation, activation,
 password reset and e-mail links, any long token-like segment that is not a
