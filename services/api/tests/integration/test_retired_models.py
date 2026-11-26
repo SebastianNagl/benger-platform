@@ -97,6 +97,40 @@ async def test_generation_start_refuses_a_retired_official_model(
     assert "no longer available" in detail
 
 
+async def test_a_model_without_a_replacement_stays_and_is_refused(
+    async_test_client, async_test_db, world, migration
+):
+    """Qwen/QwQ-32B has no replacement in the catalog: migration 161 leaves
+    the saved reference, and generation start names it and points to the
+    project settings."""
+    model_id = "Qwen/QwQ-32B"
+    row = await async_test_db.get(LLMModel, model_id)
+    if row is None:
+        async_test_db.add(_catalog_row(model_id, active=False))
+    else:
+        row.is_active = False
+        row.is_official = True
+    config = {
+        "prompt_structures": {
+            "s": {"name": "S", "system_prompt": "Sys", "instruction_prompt": "Q"}
+        },
+        "selected_configuration": {"models": [model_id], "active_structures": ["s"]},
+    }
+    assert migration.rewrite_generation_config(config) == (None, set())
+    world["project"].generation_config = config
+    await async_test_db.commit()
+
+    with v1_auth(async_test_db, session_user=world["admin"]):
+        start = await async_test_client.post(
+            f"/api/generation-tasks/projects/{world['project'].id}/generate",
+            json={"mode": "missing", "structure_keys": ["s"]},
+        )
+    assert start.status_code == 400, start.text
+    detail = start.json()["detail"]
+    assert model_id in detail
+    assert "project's settings" in detail
+
+
 # --------------------------------------------------------------------------- #
 # evaluation start
 # --------------------------------------------------------------------------- #
@@ -325,6 +359,11 @@ class TestMigration161:
         assert "projects.evaluation_config=1" in out
         assert "organizations.settings=1" in out
         assert "projects.handwriting_ocr_model=1" in out
+        # Per retired id: the rows (column values) that named it.
+        assert (
+            "per retired id: Qwen/Qwen3-Max=1, claude-sonnet-4-5-20250929=1, "
+            "gemini-2.5-pro=1, gemini-3.7-flash=1, gpt-5=2, gpt-5-mini=2, o3=3"
+        ) in out
 
         test_db.expire_all()
         p = test_db.get(Project, project.id)
@@ -371,18 +410,78 @@ class TestMigration161:
         second = capsys.readouterr().out
         assert "projects.generation_config=0" in second
         assert "projects.handwriting_ocr_model=0" in second
+        assert "per retired id: none" in second
+
+    def test_models_switched_off_earlier_move_too(self, test_db, migration, capsys):
+        """Rows retired before this refresh (claude-sonnet-4-20250514, grok-3)
+        move to the provider's named replacement; one without a replacement in
+        the catalog (Qwen/QwQ-32B) stays, for the start guard to refuse."""
+        user = _user(test_db)
+        project = Project(
+            id=_uid(),
+            title="Older models",
+            created_by=user.id,
+            generation_config={
+                "selected_configuration": {
+                    "models": ["claude-sonnet-4-20250514", "Qwen/QwQ-32B"],
+                },
+            },
+            evaluation_config={
+                "evaluation_configs": [
+                    {
+                        "id": "a",
+                        "metric": "llm_judge_classic",
+                        "metric_parameters": {"judge_model": "grok-3"},
+                    }
+                ],
+            },
+        )
+        test_db.add(project)
+        test_db.commit()
+
+        with patch.object(migration.op, "get_bind", return_value=test_db.connection()):
+            migration.upgrade()
+        test_db.commit()
+        out = capsys.readouterr().out
+        assert "per retired id: claude-sonnet-4-20250514=1, grok-3=1" in out
+
+        test_db.expire_all()
+        p = test_db.get(Project, project.id)
+        assert p.generation_config["selected_configuration"]["models"] == [
+            "claude-sonnet-5-5",
+            "Qwen/QwQ-32B",
+        ]
+        judge = p.evaluation_config["evaluation_configs"][0]["metric_parameters"]
+        assert judge["judge_model"] == "grok-4.3"
 
     def test_every_replacement_is_an_active_catalog_model(self, migration):
         from seeds.llm_models_loader import load_catalog
 
         by_id = {m["id"]: m for m in load_catalog().models}
+        # Every official row switched off in the catalog has a replacement,
+        # except the three for which the catalog offers none.
+        no_replacement = {
+            "Qwen/QwQ-32B",
+            "Qwen/Qwen2.5-Coder-32B-Instruct",
+            "magistral-small-latest",
+        }
+        inactive = {
+            m["id"]
+            for m in by_id.values()
+            if m["is_active"] is False and m.get("is_official", True)
+        }
+        assert inactive - set(migration.REPLACEMENTS) == no_replacement
         for retired, replacement in migration.REPLACEMENTS.items():
             assert by_id[retired]["is_active"] is False, retired
             assert by_id[replacement]["is_active"] is True, replacement
 
     def test_rewriters_leave_unrelated_shapes_alone(self, migration):
-        assert migration.rewrite_generation_config(None) is None
-        assert migration.rewrite_generation_config({"selected_configuration": "x"}) is None
-        assert migration.rewrite_evaluation_config({"evaluation_configs": []}) is None
-        assert migration.rewrite_org_settings({"handwriting_ocr_model": "gpt-5.6-luna"}) is None
+        unchanged = (None, set())
+        assert migration.rewrite_generation_config(None) == unchanged
+        assert migration.rewrite_generation_config({"selected_configuration": "x"}) == unchanged
+        assert migration.rewrite_evaluation_config({"evaluation_configs": []}) == unchanged
+        assert (
+            migration.rewrite_org_settings({"handwriting_ocr_model": "gpt-5.6-luna"})
+            == unchanged
+        )
         assert json.dumps(migration.REPLACEMENTS)  # plain data

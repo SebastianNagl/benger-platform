@@ -1884,7 +1884,7 @@ models:
         retrieved: '2026-07-16'
   - id: gemini-3-flash-preview
     name: Gemini 3 Flash Preview
-    description: Frontier-class performance rivaling larger models (preview, no shutdown date - replacement gemini-3.6-flash)
+    description: Frontier-class performance rivaling larger models (preview, closed to new users, no shutdown date - replacement gemini-3.6-flash)
     provider: Google
     model_type: chat
     capabilities: [text-generation, data-synthesis, reasoning, thinking]

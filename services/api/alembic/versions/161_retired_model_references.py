@@ -6,10 +6,14 @@ Claude Sonnet 4.5 (retired 2026-11-30), Gemini 3.5 Flash and 3.7 Flash
 (answered by other models since 2026-10-08), Gemini 2.5 Pro and 2.5 Flash
 (rerouted from 2026-12-01), the two DeepInfra Qwen3-Max rows (no longer
 served) and gpt-5, gpt-5-mini, gpt-5-nano, o3 and o3-pro (shut down
-2026-12-11). Switching a row off only hides it from the pickers, and the
-platform now refuses an inactive official model at generation and
-evaluation start, so a saved config that still names one would stop working.
-This rewrites the saved references to the replacement each provider names:
+2026-12-11). About forty more official rows were switched off by earlier
+refreshes (older OpenAI, Anthropic, Google, xAI, Mistral and DeepInfra
+models such as o4-mini, claude-sonnet-4-20250514 or grok-3), yet saved
+configs naming them kept running. Switching a row off only hides it from
+the pickers, and the platform now refuses an inactive official model at
+generation and evaluation start, so a saved config that still names one of
+either group would stop working. This rewrites the saved references to the
+replacement each provider names:
 
 * ``projects.generation_config``: ``selected_configuration.models`` and the
   keys of ``selected_configuration.model_configs`` (a retired model's
@@ -28,9 +32,13 @@ This rewrites the saved references to the replacement each provider names:
 Past results keep the model id they were produced with (generations,
 evaluation rows, judge runs, rubric records and their
 ``rubric_selector.generator_model_id`` lookups are not touched), so the
-record stays truthful. Counts per column are printed. Idempotent: a second
-run finds no retired id. Downgrade is a no-op, since the retired models no
-longer run.
+record stays truthful. Three inactive rows have no replacement in the
+catalog (Qwen/QwQ-32B, Qwen/Qwen2.5-Coder-32B-Instruct and
+magistral-small-latest): their references stay, and generation or
+evaluation start refuses them with a message asking for another model in
+the project settings. Counts per column and per retired id are printed.
+Idempotent: a second run finds no retired id. Downgrade is a no-op, since
+the retired models no longer run.
 
 Revision ID: 161_retired_model_references
 Revises: 160_bug_reports
@@ -39,6 +47,7 @@ Create Date: 2026-11-26
 
 import json
 import re
+from collections import Counter
 
 import sqlalchemy as sa
 from sqlalchemy import inspect
@@ -50,9 +59,12 @@ down_revision = "160_bug_reports"
 branch_labels = None
 depends_on = None
 
-#: Retired id -> the replacement its provider names (deprecation pages,
-#: 2026-11-26). o3-pro's named replacement is gpt-6.1-sol in "pro"
-#: reasoning mode, which the platform does not send; plain gpt-6.1-sol it is.
+#: Retired id -> the replacement its provider names (deprecation pages and
+#: DeepInfra ``replaced_by``, 2026-11-26). o3-pro's named replacement is
+#: gpt-6.1-sol in "pro" reasoning mode, which the platform does not send;
+#: plain gpt-6.1-sol it is. The first group is retired by this refresh, the
+#: second was switched off earlier; an earlier row still served under an
+#: alias maps to the current catalog equivalent.
 REPLACEMENTS = {
     "claude-sonnet-4-5-20250929": "claude-sonnet-5-5",
     "gemini-3.5-flash": "gemini-3.6-flash",
@@ -66,6 +78,48 @@ REPLACEMENTS = {
     "gpt-5-nano": "gpt-6-luna",
     "o3": "gpt-6.1-sol",
     "o3-pro": "gpt-6.1-sol",
+    "gpt-4.1-nano": "gpt-5.6-luna",
+    "o4-mini": "gpt-5.6-terra",
+    "o3-mini": "gpt-5.6-sol",
+    "o1": "gpt-5.6-sol",
+    "gpt-3.5-turbo": "gpt-5.6-terra",
+    "claude-opus-4-1-20250805": "claude-opus-4-8",
+    "claude-opus-4-20250514": "claude-opus-4-8",
+    "claude-sonnet-4-20250514": "claude-sonnet-5-5",
+    "claude-3-5-haiku-20241022": "claude-haiku-4-5-20251001",
+    "claude-3-opus-20240229": "claude-opus-4-8",
+    "claude-3-sonnet-20240229": "claude-sonnet-5-5",
+    "claude-3-haiku-20240307": "claude-haiku-4-5-20251001",
+    "gemini-2.0-flash": "gemini-3.6-flash",
+    "gemini-3.1-flash-lite-preview": "gemini-3.1-flash-lite",
+    "grok-4": "grok-4.3",
+    "grok-4-1-fast": "grok-4.3",
+    "grok-3": "grok-4.3",
+    "grok-3-mini": "grok-4.3",
+    "grok-3-beta": "grok-4.3",
+    "grok-3-mini-beta": "grok-4.3",
+    "mistral-large-latest": "mistral-large-4",
+    "devstral-latest": "mistral-medium-latest",
+    "magistral-medium-latest": "mistral-medium-latest",
+    "deepseek-ai/DeepSeek-R1-Distill-Llama-70B": "deepseek-ai/DeepSeek-R1-0528",
+    "Qwen/Qwen3.5-122B-A10B": "Qwen/Qwen3.5-397B-A17B",
+    "Qwen/Qwen3-235B-A22B-Thinking-2507": "Qwen/Qwen3.6-35B-A3B",
+    "meta-llama/Meta-Llama-3.1-70B-Instruct": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+    "meta-llama/Meta-Llama-3.1-8B-Instruct": "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
+    "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8": "google/gemma-4-31B-it-turbo",
+    "moonshotai/Kimi-K2-Instruct-0905": "moonshotai/Kimi-K2.6",
+    "Qwen/Qwen3-Coder-480B-A35B-Instruct": "Qwen/Qwen3-Coder-480B-A35B-Instruct-Turbo",
+    "MiniMaxAI/MiniMax-M2.5": "MiniMaxAI/MiniMax-M3",
+    "MiniMaxAI/MiniMax-M2.7": "MiniMaxAI/MiniMax-M3",
+    "MiniMaxAI/MiniMax-M2.7-Turbo": "MiniMaxAI/MiniMax-M3",
+    "moonshotai/Kimi-K2.7-Code": "moonshotai/Kimi-K3",
+    "moonshotai/Kimi-K2.5": "moonshotai/Kimi-K2.6",
+    "zai-org/GLM-5.1": "zai-org/GLM-5.3",
+    "zai-org/GLM-5": "zai-org/GLM-5.2",
+    "zai-org/GLM-4.7-Flash": "zai-org/GLM-5.3-Flash",
+    "stepfun-ai/Step-3.5-Flash": "XiaomiMiMo/MiMo-V2.6-Flash",
+    "stepfun-ai/Step-3.7-Flash": "XiaomiMiMo/MiMo-V2.6-Flash",
+    "nvidia/Nemotron-3-Nano-30B-A3B": "nvidia/NVIDIA-Nemotron-3.5-Lightning",
 }
 
 _JUDGE_KEYS = ("judge_model", "judge_model_id")
@@ -73,35 +127,41 @@ _OCR_KEY = "handwriting_ocr_model"
 
 
 def _replace_list(ids):
-    """A model id list with retired ids replaced, duplicates dropped (first
-    occurrence wins); None when nothing changed."""
-    if not isinstance(ids, list) or not any(
-        isinstance(m, str) and m in REPLACEMENTS for m in ids
-    ):
-        return None
+    """(model id list with retired ids replaced, duplicates dropped with the
+    first occurrence winning; the retired ids replaced). (None, empty set)
+    when nothing changed."""
+    if not isinstance(ids, list):
+        return None, set()
+    replaced = {m for m in ids if isinstance(m, str) and m in REPLACEMENTS}
+    if not replaced:
+        return None, set()
     out = []
     for m in ids:
         m = REPLACEMENTS.get(m, m) if isinstance(m, str) else m
         if m not in out:
             out.append(m)
-    return out
+    return out, replaced
 
 
 def rewrite_generation_config(config):
-    """``generation_config`` with retired ids replaced; None when unchanged."""
+    """(``generation_config`` with retired ids replaced, the retired ids
+    replaced); (None, empty set) when unchanged."""
     if not isinstance(config, dict):
-        return None
+        return None, set()
     selected = config.get("selected_configuration")
     if not isinstance(selected, dict):
-        return None
+        return None, set()
     new_selected = dict(selected)
-    changed = False
-    models = _replace_list(selected.get("models"))
+    models, replaced = _replace_list(selected.get("models"))
     if models is not None:
         new_selected["models"] = models
-        changed = True
     model_configs = selected.get("model_configs")
-    if isinstance(model_configs, dict) and any(k in REPLACEMENTS for k in model_configs):
+    retired_keys = (
+        {k for k in model_configs if k in REPLACEMENTS}
+        if isinstance(model_configs, dict)
+        else set()
+    )
+    if retired_keys:
         moved = {}
         for key, value in model_configs.items():
             if key not in REPLACEMENTS:
@@ -111,10 +171,10 @@ def rewrite_generation_config(config):
             if target is not None and target not in moved:
                 moved[target] = value
         new_selected["model_configs"] = moved
-        changed = True
-    if not changed:
-        return None
-    return {**config, "selected_configuration": new_selected}
+        replaced = replaced | retired_keys
+    if not replaced:
+        return None, set()
+    return {**config, "selected_configuration": new_selected}, replaced
 
 
 def _rename_in_label(label, retired_ids):
@@ -173,21 +233,23 @@ def _rewrite_judges(node):
 
 
 def rewrite_evaluation_config(config):
-    """``evaluation_config`` with retired judge ids replaced; None when unchanged."""
+    """(``evaluation_config`` with retired judge ids replaced, the retired ids
+    replaced); (None, empty set) when unchanged."""
     if not isinstance(config, dict):
-        return None
-    out, changed = _rewrite_judges(config)
-    return out if changed else None
+        return None, set()
+    out, replaced = _rewrite_judges(config)
+    return (out, replaced) if replaced else (None, set())
 
 
 def rewrite_org_settings(settings):
-    """``organizations.settings`` with a retired OCR model replaced; None when unchanged."""
+    """(``organizations.settings`` with a retired OCR model replaced, the
+    retired id replaced); (None, empty set) when unchanged."""
     if not isinstance(settings, dict):
-        return None
+        return None, set()
     value = settings.get(_OCR_KEY)
     if not isinstance(value, str) or value.strip() not in REPLACEMENTS:
-        return None
-    return {**settings, _OCR_KEY: REPLACEMENTS[value.strip()]}
+        return None, set()
+    return {**settings, _OCR_KEY: REPLACEMENTS[value.strip()]}, {value.strip()}
 
 
 def _column_types(conn, table):
@@ -214,7 +276,7 @@ def _like_any(column):
     return clauses, params
 
 
-def _rewrite_json_column(conn, table, column, rewrite):
+def _rewrite_json_column(conn, table, column, rewrite, per_id):
     types = _column_types(conn, table)
     if column not in types:
         return 0
@@ -224,9 +286,10 @@ def _rewrite_json_column(conn, table, column, rewrite):
     ).fetchall()
     updated = 0
     for row_id, value in rows:
-        new_value = rewrite(_load(value))
+        new_value, replaced = rewrite(_load(value))
         if new_value is None:
             continue
+        per_id.update(replaced)
         conn.execute(
             sa.text(
                 f"UPDATE {table} SET {column} = CAST(:v AS {_cast(types[column])}) "
@@ -240,33 +303,39 @@ def _rewrite_json_column(conn, table, column, rewrite):
 
 def upgrade() -> None:
     conn = op.get_bind()
+    per_id = Counter()
     counts = {
         "projects.generation_config": _rewrite_json_column(
-            conn, "projects", "generation_config", rewrite_generation_config
+            conn, "projects", "generation_config", rewrite_generation_config, per_id
         ),
         "projects.llm_model_ids": _rewrite_json_column(
-            conn, "projects", "llm_model_ids", _replace_list
+            conn, "projects", "llm_model_ids", _replace_list, per_id
         ),
         "projects.evaluation_config": _rewrite_json_column(
-            conn, "projects", "evaluation_config", rewrite_evaluation_config
+            conn, "projects", "evaluation_config", rewrite_evaluation_config, per_id
         ),
         "organizations.settings": _rewrite_json_column(
-            conn, "organizations", "settings", rewrite_org_settings
+            conn, "organizations", "settings", rewrite_org_settings, per_id
         ),
     }
     ocr = 0
     if "handwriting_ocr_model" in _column_types(conn, "projects"):
         for retired, replacement in REPLACEMENTS.items():
-            ocr += conn.execute(
+            n = conn.execute(
                 sa.text(
                     "UPDATE projects SET handwriting_ocr_model = :new "
                     "WHERE handwriting_ocr_model = :old"
                 ),
                 {"new": replacement, "old": retired},
             ).rowcount
+            ocr += n
+            if n:
+                per_id[retired] += n
     counts["projects.handwriting_ocr_model"] = ocr
     summary = ", ".join(f"{name}={n}" for name, n in counts.items())
     print(f"161: rewrote retired model references: {summary}")
+    by_id = ", ".join(f"{rid}={n}" for rid, n in sorted(per_id.items())) or "none"
+    print(f"161: rewritten references per retired id: {by_id}")
 
 
 def downgrade() -> None:
