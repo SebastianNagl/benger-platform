@@ -251,30 +251,28 @@ def _load(value):
     return value
 
 
-def _like_any(column, replacements):
+def _like_any(column):
     """A cheap SQL prefilter: the column's text mentions some retired id."""
-    ids = list(replacements)
+    ids = list(REPLACEMENTS)
     clauses = " OR ".join(f"{column}::text LIKE :p{i}" for i in range(len(ids)))
     params = {f"p{i}": f'%"{rid}"%' for i, rid in enumerate(ids)}
     return clauses, params
 
 
-def _rewrite_table(conn, table, per_id, per_path, counts, replacements):
+def _rewrite_table(conn, table, per_id, per_path, counts):
     if not inspect(conn).has_table(table):
         return
     key = _key_column(conn, table)
     if key is None:
         return
     for column, cast in sorted(_json_columns(conn, table).items()):
-        where, params = _like_any(column, replacements)
+        where, params = _like_any(column)
         rows = conn.execute(
             sa.text(f"SELECT {key}, {column} FROM {table} WHERE {where}"), params
         ).fetchall()
         updated = 0
         for row_key, value in rows:
-            new_value, retired, paths = rewrite_model_references(
-                _load(value), column, replacements
-            )
+            new_value, retired, paths = rewrite_model_references(_load(value), column)
             if new_value is None:
                 continue
             per_id.update(retired)
@@ -290,17 +288,16 @@ def _rewrite_table(conn, table, per_id, per_path, counts, replacements):
         counts[f"{table}.{column}"] = updated
 
 
-def upgrade(replacements=None) -> None:
-    replacements = REPLACEMENTS if replacements is None else replacements
+def upgrade() -> None:
     conn = op.get_bind()
     per_id = Counter()
     per_path = Counter()
     counts = {}
     for table in ("projects", "organizations", "project_wizard_drafts"):
-        _rewrite_table(conn, table, per_id, per_path, counts, replacements)
+        _rewrite_table(conn, table, per_id, per_path, counts)
     ocr = 0
     if "handwriting_ocr_model" in {c["name"] for c in inspect(conn).get_columns("projects")}:
-        for retired, replacement in replacements.items():
+        for retired, replacement in REPLACEMENTS.items():
             n = conn.execute(
                 sa.text(
                     "UPDATE projects SET handwriting_ocr_model = :new "
