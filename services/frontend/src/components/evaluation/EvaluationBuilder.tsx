@@ -75,6 +75,7 @@ import {
   type EvaluationMethodStepNavItem,
 } from './builder/EvaluationMethodDialog'
 import { JudgeEnsembleControl } from './builder/JudgeEnsembleControl'
+import { MetricEditorHost } from './builder/MetricEditorHost'
 import { MetricStep } from './builder/MetricStep'
 import { PredictionFieldsStep } from './builder/PredictionFieldsStep'
 import { ReferenceFieldsStep } from './builder/ReferenceFieldsStep'
@@ -173,10 +174,11 @@ export function EvaluationBuilder({
     INITIAL_EVALUATION_STATE,
   )
   const [editingId, setEditingId] = useState<string | null>(null)
-  // The draft as the dialog opened it: closing with a different draft asks
-  // before the changes are thrown away.
-  const [openedDraft, setOpenedDraft] = useState<string>(
-    JSON.stringify(INITIAL_EVALUATION_STATE),
+  // The draft as the dialog opened it (plus the defaults a metric editor
+  // writes as it mounts): closing with a different draft asks before the
+  // changes are thrown away.
+  const [openedDraft, setOpenedDraft] = useState<NewEvaluationState>(
+    INITIAL_EVALUATION_STATE,
   )
   // Inner showEvaluationModal removed — the page-level Evaluation card
   // footer is the single trigger for the run modal. See the comment near
@@ -370,7 +372,7 @@ export function EvaluationBuilder({
       step: WizardStep = 'metric',
     ) => {
       setNewEvaluation(draft)
-      setOpenedDraft(JSON.stringify(draft))
+      setOpenedDraft(draft)
       setEditingId(id)
       setDetectedAnswerType(null)
       setCurrentStep(step)
@@ -1838,18 +1840,21 @@ export function EvaluationBuilder({
                 const ExtendedEditor = getMetricEditor(newEvaluation.metric)
                 if (ExtendedEditor) {
                   return (
-                    <ExtendedEditor
+                    <MetricEditorHost
+                      editor={ExtendedEditor}
                       metric={newEvaluation.metric}
                       parameters={newEvaluation.metric_parameters}
-                      onChange={(patch) =>
-                        setNewEvaluation((prev) => ({
+                      onChange={(patch, fromMount) => {
+                        const applyPatch = (prev: NewEvaluationState) => ({
                           ...prev,
                           metric_parameters: {
                             ...prev.metric_parameters,
                             ...patch,
                           },
-                        }))
-                      }
+                        })
+                        setNewEvaluation(applyPatch)
+                        if (fromMount) setOpenedDraft(applyPatch)
+                      }}
                       siblingConfigs={evaluations.map((e) => ({
                         metric: e.metric,
                         metric_parameters: e.metric_parameters as
@@ -1957,7 +1962,7 @@ export function EvaluationBuilder({
         })}
         steps={stepNavItems}
         onStepSelect={goToStep}
-        dirty={JSON.stringify(newEvaluation) !== openedDraft}
+        dirty={JSON.stringify(newEvaluation) !== JSON.stringify(openedDraft)}
         onDiscard={closeWizard}
         canGoBack={stepAfter(-1) !== null}
         onBack={goToPreviousStep}

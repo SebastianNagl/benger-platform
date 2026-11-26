@@ -14,6 +14,7 @@ import { registerMetric, registerMetricGroup } from '@/lib/api/evaluation-types'
 import { registerMetricEditor } from '@/lib/extensions/metricEditors'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import React from 'react'
 import { EvaluationBuilder } from '../EvaluationBuilder'
 
 const mockT = jest.fn((key: string, _vars?: Record<string, unknown>) => key)
@@ -83,10 +84,17 @@ beforeAll(() => {
     supports_parameters: true,
     reference_free: true,
   } as any)
+  registerMetric('dialog_mount_metric', {
+    display_name: 'Dialog Mount Metric',
+    description: 'test-only',
+    category: 'extended',
+    supports_parameters: true,
+    reference_free: true,
+  } as any)
   registerMetricGroup({
     name: 'Dialog Extensions',
     description: 'test-only',
-    metrics: ['dialog_ext_metric'],
+    metrics: ['dialog_ext_metric', 'dialog_mount_metric'],
   } as any)
 })
 
@@ -367,6 +375,92 @@ describe('EvaluationBuilder dialog', () => {
         reference_fields: [],
       }),
     )
+  })
+})
+
+describe('EvaluationBuilder dialog with an editor that writes defaults on mount', () => {
+  // Like an extension editor that fills in a missing policy as it mounts.
+  const DefaultingEditor = (props: any) => {
+    const { onChange, parameters } = props
+    React.useEffect(() => {
+      if (parameters.policy === undefined) onChange({ policy: 'lenient' })
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+    return (
+      <button
+        type="button"
+        data-testid="dialog-mount-change"
+        onClick={() => onChange({ policy: 'strict' })}
+      >
+        {String(parameters.policy)}
+      </button>
+    )
+  }
+  const mountConfig = {
+    id: 'eval-mount',
+    metric: 'dialog_mount_metric',
+    display_name: 'Mount',
+    prediction_fields: ['model_answer'],
+    reference_fields: [],
+    metric_parameters: { threshold: 2 },
+    enabled: true,
+    created_at: '2025-01-01',
+  }
+
+  beforeAll(() => {
+    registerMetricEditor('dialog_mount_metric', DefaultingEditor as any)
+  })
+
+  it.each([
+    [
+      'Escape',
+      (user: ReturnType<typeof userEvent.setup>) => user.keyboard('{Escape}'),
+    ],
+    [
+      'Cancel',
+      (user: ReturnType<typeof userEvent.setup>) =>
+        user.click(screen.getByTestId('wizard-cancel-button')),
+    ],
+  ])(
+    'closes an untouched edit through %s without the discard prompt',
+    async (_label, close) => {
+      const user = userEvent.setup()
+      const onChange = renderBuilder([mountConfig])
+      await user.click(screen.getByTestId('evaluation-method-edit'))
+
+      // The edit opens on the parameters step, where the default lands.
+      expect(
+        await screen.findByTestId('dialog-mount-change'),
+      ).toHaveTextContent('lenient')
+
+      await close(user)
+
+      await waitFor(() =>
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+      )
+      expect(
+        screen.queryByText('evaluationBuilder.discard.title'),
+      ).not.toBeInTheDocument()
+      expect(onChange).not.toHaveBeenCalled()
+    },
+  )
+
+  it('still asks once the user changes a value after the defaults', async () => {
+    const user = userEvent.setup()
+    renderBuilder([mountConfig])
+    await user.click(screen.getByTestId('evaluation-method-edit'))
+    await screen.findByText('lenient')
+
+    await user.click(screen.getByTestId('dialog-mount-change'))
+    expect(screen.getByTestId('dialog-mount-change')).toHaveTextContent(
+      'strict',
+    )
+    await user.keyboard('{Escape}')
+
+    expect(
+      await screen.findByText('evaluationBuilder.discard.title'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 })
 
