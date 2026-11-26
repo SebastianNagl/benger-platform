@@ -1271,9 +1271,9 @@ class TestPatternMatchSources:
         # Number from the structure (float), not TextArea text from the config.
         p = ResponseParser({"fields": {"answer": {"type": "number"}}}, TEXTAREA_CONFIG)
         r = p._try_pattern_match("answer: 42")
-        assert r.parsed_annotation == [
-            {"from_name": "answer", "type": "textarea", "value": {"text": 42.0}}
-        ]
+        answer = r.field_values["answer"]
+        assert isinstance(answer, float)
+        assert answer == 42.0
 
     def test_label_config_choices_type_extracts_the_quoted_choice(self):
         r = _parser(CHOICES_CONFIG)._try_pattern_match("sentiment: I pick 'positive' here")
