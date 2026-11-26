@@ -183,6 +183,8 @@ export function EvaluationBuilder({
   // Inner showEvaluationModal removed — the page-level Evaluation card
   // footer is the single trigger for the run modal. See the comment near
   // where the button used to live (end of this component).
+  const draftDirty =
+    JSON.stringify(newEvaluation) !== JSON.stringify(openedDraft)
   const { addToast } = useToast()
 
   const renderTemperatureInput = () => (
@@ -1853,7 +1855,7 @@ export function EvaluationBuilder({
                           },
                         })
                         setNewEvaluation(applyPatch)
-                        if (fromMount) setOpenedDraft(applyPatch)
+                        if (fromMount && !draftDirty) setOpenedDraft(applyPatch)
                       }}
                       siblingConfigs={evaluations.map((e) => ({
                         metric: e.metric,
@@ -1962,7 +1964,7 @@ export function EvaluationBuilder({
         })}
         steps={stepNavItems}
         onStepSelect={goToStep}
-        dirty={JSON.stringify(newEvaluation) !== JSON.stringify(openedDraft)}
+        dirty={draftDirty}
         onDiscard={closeWizard}
         canGoBack={stepAfter(-1) !== null}
         onBack={goToPreviousStep}

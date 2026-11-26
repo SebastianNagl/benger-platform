@@ -128,10 +128,26 @@ describe.each<Locale>(['de', 'en'])(
               await user.click(boxes[0])
             }
           }
+          if (
+            step === 'parameters' &&
+            screen
+              .getByTestId('wizard-step-nav-review')
+              .hasAttribute('disabled')
+          ) {
+            const prompt = screen
+              .getByTestId('evaluation-wizard-body')
+              .querySelector('textarea')
+            if (prompt) await user.type(prompt, 'Judge the answer')
+          }
           record()
         }
         expect(visited).toEqual(
-          expect.arrayContaining(['metric', 'prediction_fields', 'parameters']),
+          STEPS.filter((step) =>
+            screen.queryByTestId(`wizard-step-nav-${step}`),
+          ),
+        )
+        expect(visited).toEqual(
+          expect.arrayContaining(['metric', 'prediction_fields', 'review']),
         )
 
         await user.keyboard('{Escape}')

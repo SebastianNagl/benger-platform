@@ -379,11 +379,12 @@ describe('EvaluationBuilder dialog', () => {
 })
 
 describe('EvaluationBuilder dialog with an editor that writes defaults on mount', () => {
-  // Like an extension editor that fills in a missing policy as it mounts.
+  // Like an extension editor that writes its policy (or the default for a
+  // missing one) back every time it mounts.
   const DefaultingEditor = (props: any) => {
     const { onChange, parameters } = props
     React.useEffect(() => {
-      if (parameters.policy === undefined) onChange({ policy: 'lenient' })
+      onChange({ policy: parameters.policy ?? 'lenient' })
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
     return (
@@ -456,6 +457,27 @@ describe('EvaluationBuilder dialog with an editor that writes defaults on mount'
       'strict',
     )
     await user.keyboard('{Escape}')
+
+    expect(
+      await screen.findByText('evaluationBuilder.discard.title'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('still asks after a change when the editor mounts again on return to the parameters step', async () => {
+    const user = userEvent.setup()
+    renderBuilder([mountConfig])
+    await user.click(screen.getByTestId('evaluation-method-edit'))
+    await screen.findByText('lenient')
+
+    await user.click(screen.getByTestId('dialog-mount-change'))
+    await user.click(screen.getByTestId('wizard-step-nav-review'))
+    await user.click(screen.getByTestId('wizard-step-nav-parameters'))
+    expect(screen.getByTestId('dialog-mount-change')).toHaveTextContent(
+      'strict',
+    )
+
+    await user.click(screen.getByTestId('wizard-cancel-button'))
 
     expect(
       await screen.findByText('evaluationBuilder.discard.title'),
