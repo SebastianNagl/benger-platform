@@ -82,10 +82,12 @@ export function Dialog({
                 className={clsx(
                   // relative: the close button below is absolutely positioned
                   // and must anchor to the panel, not to the viewport.
-                  'relative w-full transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-zinc-800',
-                  // Default width unless the caller sets its own max-w-* (clsx
-                  // cannot resolve the Tailwind conflict, so guard it here).
+                  'relative w-full transform overflow-hidden rounded-2xl bg-white text-left align-middle shadow-xl transition-all dark:bg-zinc-800',
+                  // Default width and padding unless the caller sets its own
+                  // max-w-* / p-* (clsx cannot resolve the Tailwind conflict,
+                  // so guard it here).
                   !/(^|\s)([a-z]+:)?max-w-/.test(className ?? '') && 'max-w-md',
+                  !/(^|\s)p-/.test(className ?? '') && 'p-6',
                   className,
                 )}
               >

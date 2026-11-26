@@ -2,7 +2,6 @@
  * MetricStep — wizard step 1 (metric selection).
  *
  * Extracted from EvaluationBuilder.tsx `renderWizardStep()` (`case 'metric'`).
- * Behavior-preserving extraction; rendered output is identical.
  */
 
 'use client'
@@ -17,6 +16,7 @@ import {
   metricGroupLabel,
 } from '@/lib/api/evaluation-types'
 import { useFeatureFlagMap } from '@/lib/featureFlags'
+import { useEffect, useRef } from 'react'
 
 export interface MetricStepProps {
   /** Currently selected metric id (from `newEvaluation.metric`). */
@@ -32,6 +32,11 @@ export function MetricStep({
   const { t } = useI18n()
   // A metric of a feature flag the viewer has off is not offered.
   const flags = useFeatureFlagMap()
+  // On opening, show the chosen metric even when its group sits further down.
+  const selectedRef = useRef<HTMLButtonElement | null>(null)
+  useEffect(() => {
+    selectedRef.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [])
 
   return (
     <div className="space-y-4">
@@ -41,7 +46,9 @@ export function MetricStep({
       <p className="text-xs text-zinc-500">
         {t('evaluationBuilder.steps.metric.description')}
       </p>
-      <div className="max-h-[400px] space-y-3 overflow-y-auto">
+      {/* The dialog body scrolls, so the groups get the full width: two
+          columns from lg up. */}
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
         {getGroupedMetrics(flags).map((group) => (
           <div
             key={group.name}
@@ -62,6 +69,9 @@ export function MetricStep({
                 return (
                   <button
                     key={metric}
+                    ref={isSelected ? selectedRef : undefined}
+                    type="button"
+                    aria-pressed={isSelected}
                     onClick={() => onSelectMetric(metric)}
                     data-testid={`metric-button-${metric}`}
                     className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left transition-colors ${

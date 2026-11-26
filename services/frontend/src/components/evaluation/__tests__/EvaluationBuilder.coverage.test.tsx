@@ -505,7 +505,8 @@ describe('LLM-Judge prediction-field auto-detect', () => {
     ]
     render(<EvaluationBuilder {...defaultProps} evaluations={evaluations} />)
 
-    // Enter edit mode → wizard opens on metric step, metric = 'llm_judge'.
+    // Enter edit mode → no prediction field is stored, so the dialog opens
+    // on the prediction step, metric = 'llm_judge'.
     const editBtn = screen
       .getAllByRole('button')
       .find((b) => b.querySelector('[data-testid="pencil-icon"]'))!
@@ -516,8 +517,6 @@ describe('LLM-Judge prediction-field auto-detect', () => {
       ).toBeInTheDocument(),
     )
 
-    // Advance to prediction fields.
-    await user.click(screen.getByTestId('wizard-next-button'))
     await waitFor(() =>
       expect(
         screen.getByText('evaluationBuilder.steps.predictionFields.title'),
@@ -533,7 +532,9 @@ describe('LLM-Judge prediction-field auto-detect', () => {
     // 'model_answer'].type === 'single_choice' → template found → toast.
     // Checkbox order: 2 bulk selectors, then model-response fields, so
     // index 2 is the first model field (model:model_answer).
-    const checkboxes = screen.getAllByRole('checkbox')
+    const checkboxes = within(
+      screen.getByTestId('evaluation-wizard-body'),
+    ).getAllByRole('checkbox')
     await act(async () => {
       await user.click(checkboxes[2])
     })

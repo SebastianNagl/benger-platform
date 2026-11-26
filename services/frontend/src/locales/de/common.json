@@ -6855,24 +6855,24 @@
     },
     "steps": {
       "metric": {
-        "title": "1. Evaluierungsmetrik auswählen",
+        "title": "Evaluierungsmetrik auswählen",
         "description": "Wähle die Metrik für diese Evaluierungskonfiguration."
       },
       "predictionFields": {
-        "title": "2. Vorhersagefelder auswählen",
+        "title": "Vorhersagefelder auswählen",
         "description": "Wähle die zu evaluierenden Felder. Verwende Spezial-Selektoren für Massenauswahl."
       },
       "referenceFields": {
-        "title": "3. Referenzfelder auswählen",
+        "title": "Referenzfelder auswählen",
         "description": "Wähle die Ground-Truth-Felder zum Vergleich. Mehrere Referenzen werden unterstützt."
       },
       "parameters": {
-        "title": "4. Parameter konfigurieren",
+        "title": "Parameter konfigurieren",
         "description": "Passe metrikspezifische Parameter an.",
         "descriptionWithMetric": "Passe metrikspezifische Parameter für {metric} an."
       },
       "review": {
-        "title": "5. Konfiguration überprüfen"
+        "title": "Konfiguration überprüfen"
       }
     },
     "review": {
@@ -7104,7 +7104,21 @@
         "hint": "Geeignet für Zahlenantworten und Messwerte"
       }
     },
-    "detectedAnswerType": "Erkannt: {name}, Kriterien automatisch ausgewählt"
+    "detectedAnswerType": "Erkannt: {name}, Kriterien automatisch ausgewählt",
+    "nav": {
+      "label": "Schritte",
+      "metric": "Metrik",
+      "predictionFields": "Vorhersagefelder",
+      "referenceFields": "Referenzfelder",
+      "parameters": "Parameter",
+      "review": "Name & Überprüfung"
+    },
+    "discard": {
+      "title": "Änderungen verwerfen?",
+      "message": "Diese Evaluierungsmethode hat ungespeicherte Änderungen. Beim Schließen gehen sie verloren.",
+      "confirm": "Verwerfen",
+      "keepEditing": "Weiter bearbeiten"
+    }
   },
   "annotation": {
     "examLayout": {
