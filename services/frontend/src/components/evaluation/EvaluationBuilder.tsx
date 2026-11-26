@@ -66,7 +66,7 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { DimensionsEditor } from './DimensionsEditor'
 import { FieldMappingEditor } from './FieldMappingEditor'
 import { PromptTemplateEditor } from './PromptTemplateEditor'
@@ -186,6 +186,10 @@ export function EvaluationBuilder({
   // where the button used to live (end of this component).
   const draftDirty =
     JSON.stringify(newEvaluation) !== JSON.stringify(openedDraft)
+  // A metric editor's change to the whole method list, applied on save.
+  const saveTransform = useRef<
+    ((configs: EvaluationConfig[]) => EvaluationConfig[]) | null
+  >(null)
   const { addToast } = useToast()
 
   const renderTemperatureInput = () => (
@@ -361,6 +365,7 @@ export function EvaluationBuilder({
   // Closing keeps the draft in place, so the dialog does not flash back to
   // its first step while it fades out; opening sets a fresh draft.
   const closeWizard = useCallback(() => {
+    saveTransform.current = null
     setIsAddingNew(false)
   }, [])
 
@@ -370,6 +375,7 @@ export function EvaluationBuilder({
       id: string | null,
       step: WizardStep = 'metric',
     ) => {
+      saveTransform.current = null
       setNewEvaluation(draft)
       setOpenedDraft(draft)
       setEditingId(id)
@@ -426,15 +432,12 @@ export function EvaluationBuilder({
       created_at: new Date().toISOString(),
     }
 
-    if (editingId) {
-      // Update existing
-      onEvaluationsChange(
-        evaluations.map((e) => (e.id === editingId ? newConfig : e)),
-      )
-    } else {
-      // Add new
-      onEvaluationsChange([...evaluations, newConfig])
-    }
+    const saved = editingId
+      ? evaluations.map((e) => (e.id === editingId ? newConfig : e))
+      : [...evaluations, newConfig]
+    onEvaluationsChange(
+      saveTransform.current ? saveTransform.current(saved) : saved,
+    )
 
     closeWizard()
     addToast(
@@ -1842,6 +1845,7 @@ export function EvaluationBuilder({
                 if (ExtendedEditor) {
                   return (
                     <MetricEditorHost
+                      key={newEvaluation.metric}
                       editor={ExtendedEditor}
                       metric={newEvaluation.metric}
                       parameters={newEvaluation.metric_parameters}
@@ -1862,6 +1866,17 @@ export function EvaluationBuilder({
                           Record<string, unknown> | undefined,
                       }))}
                       projectId={projectId}
+                      onDraftChange={(draft) =>
+                        setNewEvaluation((prev) => ({
+                          ...prev,
+                          metric: draft.metric,
+                          metric_parameters: draft.metric_parameters,
+                          display_name: draft.display_name ?? prev.display_name,
+                        }))
+                      }
+                      onSaveTransform={(transform) => {
+                        saveTransform.current = transform
+                      }}
                     />
                   )
                 }
