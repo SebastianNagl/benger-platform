@@ -11,10 +11,10 @@ description = "BenGER API Gateway"
 # spaCy<3.8 ceiling was lifted (numpy 2.x + spaCy 3.8 / thinc 8.3.x).
 requires-python = ">=3.13"
 dependencies = [
-    "fastapi==0.162.5",
+    "fastapi==0.165.0",
     "uvicorn[standard]==0.54.0",
     "pydantic==2.14.1",
-    "python-multipart==0.0.33",
+    "python-multipart==0.0.34",
     "PyJWT[crypto]==2.15.1",
     "cryptography>=46.0.0,<51.0.0",
     # bcrypt 5 raises on >72-byte passwords instead of silently truncating;
@@ -35,7 +35,7 @@ dependencies = [
     # (Bitnami/Broadcom Photon rebuild) via 2026-05-18 pre-flight.
     "asyncpg==0.32.0",
     "alembic==1.20.1",
-    "email-validator==2.3.0",
+    "email-validator==2.4.0",
     # starlette version is managed by fastapi
     "anyio==4.16.0",
     # openai 3.x / anthropic 1.x speak httpx2 and verify TLS against the OS
