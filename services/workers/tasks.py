@@ -2133,6 +2133,7 @@ def run_evaluation(
                                 },
                             )
                             evaluator = None
+                            init_failure = "judge initialization failed"
                             try:
                                 from ml_evaluation.llm_judge_evaluator import create_llm_judge_for_user
 
@@ -2169,7 +2170,16 @@ def run_evaluation(
                                         f"Initialized LLM judge for config {config_id} model {judge_model} run {run_index} (key via {key_source}){mode}"
                                     )
                             except Exception as init_err:
-                                if os.environ.get("E2E_TEST_MODE") == "true":
+                                from model_availability import InactiveModelError
+
+                                if isinstance(init_err, InactiveModelError):
+                                    # A retired judge: no mock stands in, and
+                                    # the judge run says why it failed.
+                                    init_failure = str(init_err)
+                                    logger.error(
+                                        f"LLM judge for config {config_id} run {run_index}: {init_err}"
+                                    )
+                                elif os.environ.get("E2E_TEST_MODE") == "true":
                                     from ml_evaluation.llm_judge_evaluator import LLMJudgeEvaluator
 
                                     evaluator = LLMJudgeEvaluator(
@@ -2192,7 +2202,7 @@ def run_evaluation(
                                 ).first()
                                 if _jr:
                                     _jr.status = "failed"
-                                    _jr.error_message = "judge initialization failed"
+                                    _jr.error_message = init_failure
                                     _jr.completed_at = datetime.now()
                                     db.commit()
 

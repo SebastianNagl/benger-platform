@@ -234,6 +234,7 @@ def _run_grok_generate(svc, grok_json, **gen_kwargs):
         "ai_services.grok_service.aiohttp.ClientSession",
         return_value=_FakeAiohttpSession(grok_json),
     ):
+        gen_kwargs.setdefault("model_name", "grok-4.3")
         return svc.generate(prompt="p", system_prompt="s", **gen_kwargs)
 
 

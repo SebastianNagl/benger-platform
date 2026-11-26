@@ -410,8 +410,9 @@ class TestGenerationEndpoints:
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert "available_options" in body
-        assert "models" in body["available_options"]
-        assert "openai" in body["available_options"]["models"]
+        # The offered models come from the catalog, not from this endpoint.
+        assert "models" not in body["available_options"]
+        assert "presentation_modes" in body["available_options"]
         # selected_configuration should not be present when no config
         assert "selected_configuration" not in body
 

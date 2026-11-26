@@ -4,6 +4,11 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 # the idempotency dispatch_hash in run_evaluation needs it explicitly.
 from ._common import _stdjson  # noqa: F401
 from evaluation_run_models import run_model_label
+from model_availability import (
+    configured_judge_model_ids,
+    inactive_models_message,
+    inactive_official_model_ids,
+)
 from models import User as DBUser
 from services.usage_limits import check_active_runs_sync
 
@@ -386,6 +391,18 @@ def run_evaluation(
                 task_id=None,
                 started_at=datetime.now(),
                 human_eval_run_ids=human_run_ids,
+            )
+
+        # Retired judge models (model_availability): refused before a run is
+        # created, so a saved config naming one is reported here instead of
+        # failing every cell at the provider.
+        retired_judges = inactive_official_model_ids(
+            db, (j for c in llm_configs for j in configured_judge_model_ids(c.metric_parameters))
+        )
+        if retired_judges:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=inactive_models_message(retired_judges),
             )
 
         # Create evaluation record

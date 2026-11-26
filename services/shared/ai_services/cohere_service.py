@@ -89,26 +89,16 @@ def retry_with_exponential_backoff(
 class CohereService(BaseAIService):
     """Service for handling Cohere API interactions"""
 
-    # Model name mapping from display names to API names
+    # Display names of the catalog's Cohere rows -> API ids. Any other name is
+    # sent as given, so an id needs no entry. Aya Expanse is gone from
+    # Cohere's model list (Aya 8B retired 2026-04-04).
     MODEL_MAPPING = {
-        # Latest models
         "Command A": "command-a-03-2025",
-        "Command A Vision": "command-a-03-2025",
-        "Command A Reasoning": "command-a-03-2025",
+        "Command A Vision": "command-a-vision-07-2025",
+        "Command A Reasoning": "command-a-reasoning-08-2025",
+        "Command R 7B": "command-r7b-12-2024",
         "Command R+": "command-r-plus-08-2024",
-        "Command R+ 08-2024": "command-r-plus-08-2024",
         "Command R": "command-r-08-2024",
-        "Command R 08-2024": "command-r-08-2024",
-        # Aya multilingual models
-        "Aya Expanse": "aya-expanse-32b",
-        "Aya Expanse 32B": "aya-expanse-32b",
-        "Aya Expanse 8B": "aya-expanse-8b",
-        # Direct model IDs
-        "command-a-03-2025": "command-a-03-2025",
-        "command-r-plus-08-2024": "command-r-plus-08-2024",
-        "command-r-08-2024": "command-r-08-2024",
-        "aya-expanse-32b": "aya-expanse-32b",
-        "aya-expanse-8b": "aya-expanse-8b",
     }
 
     def __init__(self, api_key: Optional[str] = None):

@@ -357,11 +357,6 @@ export default function ModelsPage() {
                               <div className="text-xs text-zinc-500 dark:text-zinc-500">
                                 {model.id}
                               </div>
-                              {model.id === 'gemini-2.5-pro' && (
-                                <div className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                                  {t('models.contentPolicyWarning')}
-                                </div>
-                              )}
                               {model.parameter_constraints?.temperature &&
                                 !model.parameter_constraints.temperature
                                   .supported && (

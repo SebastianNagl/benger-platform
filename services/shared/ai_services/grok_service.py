@@ -17,7 +17,14 @@ from typing import Any, Dict, Optional
 
 import aiohttp
 
-from .base_service import BaseAIService, classify_retryable, continuation_turns, derive_refusal, derive_truncated
+from .base_service import (
+    BaseAIService,
+    classify_retryable,
+    continuation_turns,
+    derive_refusal,
+    derive_truncated,
+    require_model_name,
+)
 from .request_capture import record_request
 from .provider_capabilities import model_supports_seed
 from .reasoning import chat_completion_reasoning
@@ -67,30 +74,16 @@ def retry_with_exponential_backoff(
 class GrokService(BaseAIService):
     """Service for handling xAI Grok API interactions"""
 
-    # Model name mapping from display names to API names
+    # Display names of the catalog's Grok rows -> API ids. Any other name is
+    # sent as given (``MODEL_MAPPING.get(name, name)``), so an id needs no
+    # entry. xAI retired every Grok 2, Grok 3 and Grok 4.0/4.1 id on
+    # 2026-05-15 (its retired slugs are answered by grok-4.3 at grok-4.3
+    # rates), so none is listed.
     MODEL_MAPPING = {
-        # Grok 4 models
-        "Grok 4": "grok-4",
-        "Grok 4 Fast": "grok-4-fast",
-        "Grok 4.1 Fast": "grok-4-1-fast",
-        # Grok 3 models
-        "Grok 3": "grok-3",
-        "Grok 3 Beta": "grok-3-beta",
-        "Grok 3 Mini": "grok-3-mini",
-        "Grok 3 Mini Beta": "grok-3-mini-beta",
-        # Grok 2 models
-        "Grok 2": "grok-2-1212",
-        "Grok 2 Vision": "grok-2-vision-1212",
-        # Direct model IDs
-        "grok-4": "grok-4",
-        "grok-4-fast": "grok-4-fast",
-        "grok-4-1-fast": "grok-4-1-fast",
-        "grok-3": "grok-3",
-        "grok-3-beta": "grok-3-beta",
-        "grok-3-mini": "grok-3-mini",
-        "grok-3-mini-beta": "grok-3-mini-beta",
-        "grok-2-1212": "grok-2-1212",
-        "grok-2-vision-1212": "grok-2-vision-1212",
+        "Grok 4.7": "grok-4.7",
+        "Grok 4.6": "grok-4.6",
+        "Grok 4.5": "grok-4.5",
+        "Grok 4.3": "grok-4.3",
     }
 
     def __init__(self, api_key: Optional[str] = None):
@@ -125,7 +118,7 @@ class GrokService(BaseAIService):
         self,
         prompt: str,
         system_prompt: str = "",
-        model_name: str = "grok-3",
+        model_name: Optional[str] = None,
         max_tokens: int = 1500,
         temperature: float = 0.0,
         **kwargs
@@ -144,6 +137,7 @@ class GrokService(BaseAIService):
         Returns:
             Dict with response data including content, metadata, and usage stats
         """
+        model_name = require_model_name(model_name, "Grok")
         import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -158,12 +152,13 @@ class GrokService(BaseAIService):
         self,
         prompt: str,
         system_prompt: str = "",
-        model_name: str = "grok-3",
+        model_name: Optional[str] = None,
         max_tokens: int = 1500,
         temperature: float = 0.0,
         **kwargs
     ) -> Dict[str, Any]:
         """Async implementation of generate."""
+        model_name = require_model_name(model_name, "Grok")
         requested_seed = kwargs.get("seed", 42)
 
         # E2E Test Mode: Return mock response
@@ -313,7 +308,7 @@ class GrokService(BaseAIService):
         prompt: str,
         system_prompt: str,
         json_schema: Dict[str, Any],
-        model_name: str = "grok-3",
+        model_name: Optional[str] = None,
         max_tokens: int = 1500,
         temperature: float = 0.0,
         **kwargs
@@ -334,6 +329,7 @@ class GrokService(BaseAIService):
         Returns:
             Dict with response data. The 'content' field will be a JSON string.
         """
+        model_name = require_model_name(model_name, "Grok")
         import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -349,12 +345,13 @@ class GrokService(BaseAIService):
         prompt: str,
         system_prompt: str,
         json_schema: Dict[str, Any],
-        model_name: str = "grok-3",
+        model_name: Optional[str] = None,
         max_tokens: int = 1500,
         temperature: float = 0.0,
         **kwargs
     ) -> Dict[str, Any]:
         """Async implementation of generate_structured."""
+        model_name = require_model_name(model_name, "Grok")
         requested_seed = kwargs.get("seed", 42)
 
         # E2E Test Mode: Return mock structured response

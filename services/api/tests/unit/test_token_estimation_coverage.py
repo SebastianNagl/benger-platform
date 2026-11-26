@@ -439,7 +439,10 @@ class TestSamplePredictionInputs:
 
 
 class TestNewerOpenAIIdsUseO200k:
-    @pytest.mark.parametrize("model_id", ["gpt-5.4-mini", "gpt-5.5-pro", "o4-mini-2099", "gpt-4.1-nano-x"])
+    @pytest.mark.parametrize(
+        "model_id",
+        ["gpt-5.4-mini", "gpt-5.5-pro", "o4-mini-2099", "gpt-4.1-nano-x", "gpt-6-luna", "gpt-6.2-astra"],
+    )
     def test_unknown_ids_of_o200k_families(self, model_id):
         enc = _encoding_for_model(model_id)
         assert enc is not None and enc.name == "o200k_base"

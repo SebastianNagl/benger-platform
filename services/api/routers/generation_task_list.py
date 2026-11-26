@@ -827,6 +827,18 @@ async def start_generation(
                 detail=f"Unknown or inactive model(s): {', '.join(hidden)}",
             )
 
+    # Retired official models (model_availability): a saved config that still
+    # names one would only queue jobs that fail at the provider, or that a
+    # provider silently answers with another model.
+    from model_availability import inactive_models_message, inactive_official_model_ids_async
+
+    retired = await inactive_official_model_ids_async(db, model_ids)
+    if retired:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=inactive_models_message(retired),
+        )
+
     # BYOM guard: custom ("custom-...") model ids must exist, be active, and
     # be visible to the TRIGGERING user (creator / public / org-shared /
     # superadmin). Official catalog ids pass through untouched — they keep

@@ -44,24 +44,18 @@ async def get_generation_config(
             detail="You don't have permission to view this project's generation config",
         )
 
-    # Return config with available options
+    # Return config with available options. The models a project can use
+    # come from the catalog (GET /api/llm_models/public/models), not from
+    # here: a list in this response went stale with the first retirement.
     if not project.generation_config:
         return {
             "available_options": {
-                "models": {
-                    "openai": ["gpt-4o", "gpt-3.5-turbo"],
-                    "anthropic": ["claude-3-opus-20240229", "claude-3-sonnet-20240229"],
-                },
                 "presentation_modes": ["label_config", "template", "raw_json", "auto"],
             },
         }
 
     return {
         "available_options": {
-            "models": {
-                "openai": ["gpt-4o", "gpt-3.5-turbo"],
-                "anthropic": ["claude-3-opus-20240229", "claude-3-sonnet-20240229"],
-            },
             "presentation_modes": ["label_config", "template", "raw_json", "auto"],
         },
         "selected_configuration": project.generation_config.get("selected_configuration"),

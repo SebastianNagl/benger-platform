@@ -636,7 +636,7 @@ class OpenAIService(BaseAIService):
             "gpt-4o", "gpt-4o-mini", "gpt-4o-2024",
             "gpt-4-turbo", "gpt-4-turbo-preview",
             "gpt-4-0125-preview", "gpt-4-1106-preview",
-            "gpt-4.1", "gpt-5", "o1", "o3", "o4-mini",
+            "gpt-4.1", "gpt-5", "gpt-6", "o1", "o3", "o4-mini",
         ]
 
         # Check if model supports json_schema (check prefix match)
