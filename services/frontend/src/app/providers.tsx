@@ -1,6 +1,7 @@
 'use client'
 
 import { SessionValidator } from '@/components/auth/SessionValidator'
+import { BugReportHost } from '@/components/bugReport/BugReportHost'
 import { GlobalErrorBoundary } from '@/components/shared/GlobalErrorBoundary'
 import { ToastProvider } from '@/components/shared/Toast'
 import { AuthProvider } from '@/contexts/AuthContext'
@@ -54,7 +55,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
               <I18nProvider>
                 <ToastProvider>
                   <ProgressProvider>
-                    <DialogProvider>{children}</DialogProvider>
+                    <DialogProvider>
+                      {children}
+                      {/* "Report a problem" (flag bug_reports): one dialog
+                          for every entry, still there when a page crashed. */}
+                      <BugReportHost />
+                    </DialogProvider>
                   </ProgressProvider>
                 </ToastProvider>
               </I18nProvider>

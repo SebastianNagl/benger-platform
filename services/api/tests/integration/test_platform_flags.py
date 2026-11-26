@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from feature_flags import registry, service
-from feature_flags.registry import COMPLIANCE_RECORDS, REPORT_PAPER, VARIANT_EXPERIMENTS
+from feature_flags.registry import BUG_REPORTS, COMPLIANCE_RECORDS, REPORT_PAPER, VARIANT_EXPERIMENTS
 from feature_flags.scope import flag_scope
 from models import FeatureFlag
 from tests.fixtures.access_keys import seed_world
@@ -42,7 +42,7 @@ def _disabled(response, name=VARIANT_EXPERIMENTS):
 
 
 def test_platform_registers_its_flags_off():
-    for name in (VARIANT_EXPERIMENTS, COMPLIANCE_RECORDS, REPORT_PAPER):
+    for name in (VARIANT_EXPERIMENTS, COMPLIANCE_RECORDS, REPORT_PAPER, BUG_REPORTS):
         definition = registry.flag(name)
         assert definition is not None
         assert definition.default_state == registry.STATE_OFF
@@ -59,6 +59,7 @@ async def test_me_reports_the_flags_off(async_test_client, async_test_db, world)
     assert flags[VARIANT_EXPERIMENTS] is False
     assert flags[COMPLIANCE_RECORDS] is False
     assert flags[REPORT_PAPER] is False
+    assert flags[BUG_REPORTS] is False
 
 
 async def test_switching_the_real_row_opens_and_closes_the_routes(

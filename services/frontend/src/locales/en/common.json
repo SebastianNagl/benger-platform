@@ -12709,5 +12709,76 @@
       "planHash": "Plan spec hash {hash}",
       "planHashSaved": "Plan spec hash {hash}, saved {date}"
     }
+  },
+  "bugReport": {
+    "entry": "Report a problem",
+    "title": "Report a problem",
+    "intro": "Tell us what went wrong. Technical details about this page are attached so the problem can be reproduced; you can check them below before sending.",
+    "fields": {
+      "title": "Short summary",
+      "description": "What happened?",
+      "expected": "What did you expect instead? (optional)",
+      "contactEmail": "Contact e-mail (optional)",
+      "screenshot": "Screenshot (optional)"
+    },
+    "placeholders": {
+      "title": "For example: Saving the project does nothing",
+      "description": "What did you do, and what happened?",
+      "expected": "What should have happened?",
+      "contactEmail": "name@example.org"
+    },
+    "contactEmailHint": "Only if we may contact you about this report. It stays in the platform.",
+    "screenshotPreview": "Screenshot preview",
+    "removeScreenshot": "Remove",
+    "chooseScreenshot": "Choose image",
+    "pasteHint": "or paste a screenshot (Ctrl+V). PNG, JPEG or WebP, up to 5 MB.",
+    "attachedSummary": "What is attached",
+    "attachedHint": "Page address without query values, browser, screen size, language, time zone, versions, active features, recent errors, failed requests and page changes. No passwords, cookies or form contents.",
+    "send": "Send report",
+    "sending": "Sending...",
+    "sent": "Thank you. Your report has been sent and will be looked at.",
+    "errors": {
+      "titleRequired": "Please enter a short summary.",
+      "descriptionRequired": "Please describe what happened.",
+      "tooLong": "One of the texts is too long.",
+      "invalidEmail": "This e-mail address is not valid.",
+      "screenshotTooLarge": "The screenshot is larger than 5 MB.",
+      "screenshotType": "Please use a PNG, JPEG or WebP image.",
+      "rateLimited": "You have sent many reports in a short time. Please try again later.",
+      "contextTooLarge": "The technical details are too large to send.",
+      "generic": "The report could not be sent. Please try again.",
+      "network": "No connection to the server. Please try again."
+    },
+    "admin": {
+      "menu": "Problem reports",
+      "title": "Problem reports",
+      "description": "Reports sent with \"Report a problem\", newest first.",
+      "filterStatus": "Status",
+      "allStatuses": "All",
+      "status": {
+        "pending": "Pending",
+        "delivered": "Delivered",
+        "failed": "Failed",
+        "stored": "Stored only"
+      },
+      "loadFailed": "The reports could not be loaded.",
+      "empty": "No reports yet.",
+      "withScreenshot": "with screenshot",
+      "reporterUser": "User {id}",
+      "reporterAnonymous": "Not signed in",
+      "issue": "Issue",
+      "contactEmail": "Contact e-mail",
+      "attempts": "Delivery attempts",
+      "deliveryError": "Last error",
+      "context": "Technical context",
+      "redeliver": "Deliver again",
+      "redeliverQueued": "The delivery has been queued again.",
+      "redeliverFailed": "The delivery could not be queued.",
+      "sections": {
+        "description": "What happened",
+        "expected": "What was expected",
+        "screenshot": "Screenshot"
+      }
+    }
   }
 }

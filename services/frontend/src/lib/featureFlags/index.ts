@@ -77,6 +77,8 @@ const INITIAL: FlagState = {
 }
 
 let state: FlagState = INITIAL
+
+const NO_FLAGS: Readonly<Record<string, boolean>> = Object.freeze({})
 let generation = 0
 let lastFetchAt = 0
 let inFlight: Promise<void> | null = null
@@ -257,6 +259,15 @@ export function getFeatureFlag(name: FeatureFlagName): boolean {
 }
 
 /**
+ * Every flag of the viewer the store last loaded, outside React and without
+ * auth (the last-resort crash card renders outside every provider). Empty
+ * while loading or after an error.
+ */
+export function getFeatureFlagMap(): Readonly<Record<string, boolean>> {
+  return state.flags ?? NO_FLAGS
+}
+
+/**
  * Keep the store pointed at the signed-in user (anonymous when nobody is
  * signed in), once auth has settled. Mounted once by the app providers;
  * the flag hooks call it too, which is idempotent.
@@ -313,8 +324,6 @@ export function useFeatureFlagsReady(): boolean {
 export function useFeatureFlag(name: FeatureFlagName): boolean {
   return useFeatureFlagStatus(name) === 'on'
 }
-
-const NO_FLAGS: Readonly<Record<string, boolean>> = Object.freeze({})
 
 /**
  * Every flag of the current viewer by name (empty while loading or after an

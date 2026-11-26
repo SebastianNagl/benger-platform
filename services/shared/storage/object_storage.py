@@ -185,6 +185,9 @@ class ObjectStorageService:
             # Frame snapshots of analysis runs (Parquet): kept, like
             # submissions/, because a run's estimates point at them.
             "analysis": "analysis/{year}/{month}",
+            # Screenshots of in-app problem reports (bug_reports.py): kept,
+            # like submissions/, because a report links to its screenshot.
+            "bug_reports": "bug_reports/{year}/{month}",
         }
 
         # Presigned URL expiration times (in seconds)

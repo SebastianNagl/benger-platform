@@ -78,6 +78,13 @@ app.conf.beat_schedule = {
         "args": (),
         "kwargs": {},
     },
+    # Problem reports whose delivery was never queued (broker down at submit).
+    "sweep-pending-bug-reports": {
+        "task": "tasks.sweep_pending_bug_reports",
+        "schedule": crontab(minute=40),
+        "args": (),
+        "kwargs": {},
+    },
 }
 # Beat entries deliberately carry no ``options: {"queue": ...}``. Beat options go
 # through the same router as any other send and would override task_routes, so

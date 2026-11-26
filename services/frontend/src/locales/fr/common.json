@@ -12709,5 +12709,76 @@
       "planHash": "Hash de la spécification du plan {hash}",
       "planHashSaved": "Hash de la spécification du plan {hash}, enregistré le {date}"
     }
+  },
+  "bugReport": {
+    "entry": "Signaler un problème",
+    "title": "Signaler un problème",
+    "intro": "Décrivez brièvement ce qui n'a pas fonctionné. Des informations techniques sur cette page sont jointes pour reproduire le problème ; vous pouvez les consulter ci-dessous avant l'envoi.",
+    "fields": {
+      "title": "Résumé court",
+      "description": "Que s'est-il passé ?",
+      "expected": "Qu'attendiez-vous à la place ? (facultatif)",
+      "contactEmail": "E-mail de contact (facultatif)",
+      "screenshot": "Capture d'écran (facultatif)"
+    },
+    "placeholders": {
+      "title": "Par exemple : l'enregistrement du projet ne fait rien",
+      "description": "Qu'avez-vous fait, et que s'est-il passé ?",
+      "expected": "Que devait-il se passer ?",
+      "contactEmail": "nom@example.org"
+    },
+    "contactEmailHint": "Seulement si nous pouvons vous contacter au sujet de ce signalement. Elle reste dans la plateforme.",
+    "screenshotPreview": "Aperçu de la capture d'écran",
+    "removeScreenshot": "Retirer",
+    "chooseScreenshot": "Choisir une image",
+    "pasteHint": "ou collez une capture d'écran (Ctrl+V). PNG, JPEG ou WebP, 5 Mo au maximum.",
+    "attachedSummary": "Ce qui est joint",
+    "attachedHint": "Adresse de la page sans les valeurs de requête, navigateur, taille d'écran, langue, fuseau horaire, versions, fonctions actives, erreurs récentes, requêtes échouées et changements de page. Aucun mot de passe, cookie ni contenu de formulaire.",
+    "send": "Envoyer le signalement",
+    "sending": "Envoi en cours...",
+    "sent": "Merci. Votre signalement a bien été envoyé et sera examiné.",
+    "errors": {
+      "titleRequired": "Veuillez saisir un résumé court.",
+      "descriptionRequired": "Veuillez décrire ce qui s'est passé.",
+      "tooLong": "L'un des textes est trop long.",
+      "invalidEmail": "Cette adresse e-mail n'est pas valide.",
+      "screenshotTooLarge": "La capture d'écran dépasse 5 Mo.",
+      "screenshotType": "Veuillez utiliser une image PNG, JPEG ou WebP.",
+      "rateLimited": "Vous avez envoyé de nombreux signalements en peu de temps. Veuillez réessayer plus tard.",
+      "contextTooLarge": "Les informations techniques sont trop volumineuses pour être envoyées.",
+      "generic": "Le signalement n'a pas pu être envoyé. Veuillez réessayer.",
+      "network": "Aucune connexion au serveur. Veuillez réessayer."
+    },
+    "admin": {
+      "menu": "Signalements",
+      "title": "Signalements",
+      "description": "Signalements envoyés avec « Signaler un problème », les plus récents en premier.",
+      "filterStatus": "Statut",
+      "allStatuses": "Tous",
+      "status": {
+        "pending": "En attente",
+        "delivered": "Transmis",
+        "failed": "Échec",
+        "stored": "Enregistré seulement"
+      },
+      "loadFailed": "Les signalements n'ont pas pu être chargés.",
+      "empty": "Aucun signalement pour l'instant.",
+      "withScreenshot": "avec capture d'écran",
+      "reporterUser": "Utilisateur {id}",
+      "reporterAnonymous": "Non connecté",
+      "issue": "Issue",
+      "contactEmail": "E-mail de contact",
+      "attempts": "Tentatives de transmission",
+      "deliveryError": "Dernière erreur",
+      "context": "Contexte technique",
+      "redeliver": "Transmettre à nouveau",
+      "redeliverQueued": "La transmission a été replanifiée.",
+      "redeliverFailed": "La transmission n'a pas pu être planifiée.",
+      "sections": {
+        "description": "Ce qui s'est passé",
+        "expected": "Ce qui était attendu",
+        "screenshot": "Capture d'écran"
+      }
+    }
   }
 }

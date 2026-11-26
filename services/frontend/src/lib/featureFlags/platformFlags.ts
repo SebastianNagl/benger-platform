@@ -23,3 +23,10 @@ export const COMPLIANCE_RECORDS = 'compliance_records'
  * data, generation, human evaluation and reproducibility parts.
  */
 export const REPORT_PAPER = 'report_paper'
+
+/**
+ * In-app problem reports: the "Report a problem" entries (account menu,
+ * footer, error pages), the report dialog with its technical context and the
+ * superadmin list at /admin/bug-reports.
+ */
+export const BUG_REPORTS = 'bug_reports'
