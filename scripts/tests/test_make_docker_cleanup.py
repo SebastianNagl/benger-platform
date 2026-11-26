@@ -9,7 +9,9 @@ The oracle is Docker's CLI contract: `docker <system|image|builder|buildx|
 volume|container|network> prune` acts on the whole daemon, and a `name=`
 filter matches by substring, so neither may ever be called. Compose calls are
 scoped by `-p <project>`, and leftover listing by the compose project label
-`com.docker.compose.project=<project>`. The test project must differ from the
+`com.docker.compose.project=<project>`. Built images are kept (`down`
+without `--rmi`, only dangling images removed), so the next `up -d` needs no
+rebuild. The test project must differ from the
 dev project, otherwise `down -v` on the test stack deletes the dev database.
 Before the fix, test-prune and test-quiet ran `docker image prune -f` and
 `docker builder prune -f`, which the prune assertion rejects.
@@ -112,10 +114,13 @@ def _assert_scoped_to(calls: list[dict], project: str, *, test_stack: bool) -> N
             continue
         if argv[0] == "compose":
             assert argv[argv.index("-p") + 1] == project, argv
+            assert "--rmi" not in argv, argv
             if test_stack:
                 assert call["traefik"] == project, call
         elif argv[:2] in (["volume", "ls"], ["image", "ls"]):
             assert label in argv, argv
+            if argv[0] == "image":
+                assert "dangling=true" in argv, argv
 
 
 SCENARIOS = [

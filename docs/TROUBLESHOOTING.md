@@ -86,7 +86,7 @@ lsof -i :8080  # Native Annotation System
 df -h
 docker system df
 
-# Remove the test stack (containers, volumes, networks, locally built images)
+# Remove the test stack (containers, volumes, networks, dangling images; built images are kept)
 make test-prune
 
 # Remove the dev stack the same way (WARNING: deletes the dev database volume)

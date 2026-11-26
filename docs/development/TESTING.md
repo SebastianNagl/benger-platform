@@ -94,7 +94,8 @@ make test-seed
 make test-restart-workers
 
 # Remove what the test stack created: its containers, volumes, networks and
-# locally built images (dev data and other stacks on the host are untouched)
+# dangling images; built images are kept so the next test-start needs no
+# rebuild (dev data and other stacks on the host are untouched)
 make test-prune
 
 # Stop + clean artifacts

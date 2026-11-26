@@ -122,9 +122,9 @@ stop: ## Stop all running services
 restart: stop dev ## Restart all services
 
 .PHONY: clean-docker
-clean-docker: ## Remove the dev stack's containers, volumes, networks and locally built images (other stacks untouched)
+clean-docker: ## Remove the dev stack's containers, volumes, networks and dangling images (other stacks untouched)
 	@echo "$(BLUE)🧹 Cleaning Docker resources of compose project $(DEV_COMPOSE_PROJECT)...$(NC)"
-	@$(DOCKER_COMPOSE_DEV) down -v --remove-orphans --rmi local
+	@$(DOCKER_COMPOSE_DEV) down -v --remove-orphans
 	@$(MAKE) --no-print-directory docker-remove-project-leftovers PROJECT=$(DEV_COMPOSE_PROJECT)
 	@echo "$(GREEN)✅ Docker cleaned$(NC)"
 
@@ -342,9 +342,9 @@ test-stop: ## Stop test infrastructure
 	@echo "$(GREEN)✅ Test infrastructure stopped$(NC)"
 
 .PHONY: test-prune
-test-prune: ## Remove what the test stack created: containers, volumes, networks, locally built images (other stacks untouched)
+test-prune: ## Remove what the test stack created: containers, volumes, networks and dangling images; built images are kept (other stacks untouched)
 	@echo "$(BLUE)🧹 Removing Docker resources of compose project $(TEST_COMPOSE_PROJECT)...$(NC)"
-	@$(DOCKER_COMPOSE_TEST) --profile test down -v --remove-orphans --rmi local 2>/dev/null || true
+	@$(DOCKER_COMPOSE_TEST) --profile test down -v --remove-orphans 2>/dev/null || true
 	@$(MAKE) --no-print-directory docker-remove-project-leftovers PROJECT=$(TEST_COMPOSE_PROJECT)
 	@echo "$(GREEN)✅ Test Docker resources removed (dev data and other stacks preserved)$(NC)"
 
