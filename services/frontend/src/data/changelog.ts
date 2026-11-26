@@ -1,5 +1,6 @@
 import type { ChangelogEntry } from '@/lib/extensions/changelog'
 import {
+  BUG_REPORTS,
   REPORT_PAPER,
   VARIANT_EXPERIMENTS,
 } from '@/lib/featureFlags/platformFlags'
@@ -13,6 +14,12 @@ import {
  * behind a flag name it (`featureFlag`) and stay hidden while it is off.
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
+  {
+    id: '2026-11-26-report-a-problem',
+    date: '2026-11-26',
+    audience: 'both',
+    featureFlag: BUG_REPORTS,
+  },
   {
     id: '2026-11-24-released-grading-notification',
     date: '2026-11-24',

@@ -10,6 +10,11 @@ jest.mock('@/components/auth/SessionValidator', () => ({
   SessionValidator: () => null,
 }))
 
+const mockBugReportHost = jest.fn(() => null)
+jest.mock('@/components/bugReport/BugReportHost', () => ({
+  BugReportHost: () => mockBugReportHost(),
+}))
+
 jest.mock('@/components/shared/GlobalErrorBoundary', () => ({
   GlobalErrorBoundary: ({ children }: any) => <>{children}</>,
 }))
@@ -66,5 +71,14 @@ describe('Providers', () => {
       </Providers>,
     )
     expect(mockSync).toHaveBeenCalled()
+  })
+
+  it('mounts the problem report host next to the page', () => {
+    render(
+      <Providers>
+        <div />
+      </Providers>,
+    )
+    expect(mockBugReportHost).toHaveBeenCalled()
   })
 })

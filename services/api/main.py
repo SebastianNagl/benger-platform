@@ -500,6 +500,7 @@ from routers.coding import router as coding_router  # noqa: E402
 from routers.legacy.debug import router as debug_router  # noqa: E402
 from routers.llm_models import router as llm_models_router  # noqa: E402
 from routers.compliance_records import router as compliance_records_router  # noqa: E402
+from routers.bug_reports import router as bug_reports_router  # noqa: E402
 from routers.marketplace import admin_router as marketplace_admin_router  # noqa: E402
 from routers.marketplace import router as marketplace_router  # noqa: E402
 from routers.notifications import router as notifications_router  # noqa: E402
@@ -576,6 +577,7 @@ app.include_router(projects_router)  # Projects API
 app.include_router(share_token_router)  # Student exam sharing: /api/shares/{token} (issue #35)
 app.include_router(student_dashboard_router)  # Student dashboard reads: /api/student/* (issue #35)
 app.include_router(compliance_records_router)  # Compliance assessments, suite runs, findings (generic CRUD)
+app.include_router(bug_reports_router)  # In-app problem reports (flag bug_reports)
 app.include_router(marketplace_router)  # Vendor marketplace: /api/marketplace/* generic reads + listing CRUD
 app.include_router(marketplace_admin_router)  # Superadmin vendor approval: /api/admin/vendors
 app.include_router(grading_feedback_admin_router)  # Superadmin: grading feedback export (/api/admin/grading-feedback)

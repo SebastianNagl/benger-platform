@@ -1,12 +1,14 @@
 'use client'
 
-import { useSyncExternalStore } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 
 const subscribeNoop = () => () => {}
 
 import { VertretbarMarkIcon } from '@/components/brand/VertretbarMark'
+import { ReportProblemButton } from '@/components/bugReport/ReportProblemEntries'
 import { Button } from '@/components/shared/Button'
 import { useI18n } from '@/contexts/I18nContext'
+import { recordError } from '@/lib/bugReport/recorder'
 import { logger } from '@/lib/utils/logger'
 import { isStudentLockedHost } from '@/lib/utils/subdomain'
 
@@ -28,6 +30,10 @@ export default function GlobalError({
     isStudentLockedHost,
     () => false,
   )
+  // A problem report sent from this page carries the crash.
+  useEffect(() => {
+    if (error) recordError(error, 'error-boundary')
+  }, [error])
   // Safely log error to prevent any undefined access
   if (error) {
     try {
@@ -84,6 +90,7 @@ export default function GlobalError({
           <Button variant="secondary" onClick={() => window.location.reload()}>
             {t('errors.global.reloadPage')}
           </Button>
+          <ReportProblemButton source="error-page" />
         </div>
 
         {/* Technical details in development */}

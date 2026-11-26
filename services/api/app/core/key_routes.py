@@ -253,6 +253,8 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
         # -- compliance records (CORE 2.57) --------------------------------- #
         # Keys reach compliance data through the overlay's /api/v1 routes.
         never("/api/compliance/*", note="compliance records: browser sessions only"),
+        # -- problem reports ------------------------------------------------ #
+        never("/api/bug-reports*", note="problem reports: browser sessions only"),
         # -- marketplace (vendor listings) ----------------------------------- #
         area("/api/marketplace*", ["projects:read"], ["projects:write"], neutral=True),
         # -- files ----------------------------------------------------------- #

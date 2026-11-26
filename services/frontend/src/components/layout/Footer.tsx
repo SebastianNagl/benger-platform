@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 
+import { ReportProblemFooterLink } from '@/components/bugReport/ReportProblemEntries'
 import { useI18n } from '@/contexts/I18nContext'
 
 function GitHubIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
@@ -57,6 +58,7 @@ function SmallPrint() {
           >
             {t('layout.footer.changelog')}
           </Link>
+          <ReportProblemFooterLink />
         </div>
         <p className="text-xs text-zinc-600 dark:text-zinc-400">
           &copy; Copyright{' '}

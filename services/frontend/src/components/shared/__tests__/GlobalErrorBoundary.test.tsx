@@ -21,6 +21,17 @@ jest.mock('@/contexts/I18nContext', () => ({
   }),
 }))
 
+// The crash card reads the bug_reports flag from the store (no auth there).
+let mockBugReportsOn = false
+jest.mock('@/lib/featureFlags', () => ({
+  getFeatureFlag: () => mockBugReportsOn,
+  getFeatureFlagMap: () => ({ bug_reports: mockBugReportsOn }),
+}))
+jest.mock('@/lib/bugReport/recorder', () => ({
+  ...jest.requireActual('@/lib/bugReport/recorder'),
+  recordError: jest.fn(),
+}))
+
 // Host-branding gate: default benger (false); individual tests flip it to
 // vertretbar via the mock.
 jest.mock('@/lib/utils/subdomain', () => ({
@@ -647,6 +658,42 @@ describe('GlobalErrorBoundary', () => {
       const errorContainer = container.firstChild
       expect(errorContainer).toBeInTheDocument()
       expect(errorContainer).toHaveClass('flex', 'min-h-screen')
+    })
+  })
+
+  describe('report a problem', () => {
+    afterEach(() => {
+      mockBugReportsOn = false
+    })
+
+    it('offers no report while the flag is off', () => {
+      render(
+        <GlobalErrorBoundary>
+          <ThrowError error={new Error('boom')} />
+        </GlobalErrorBoundary>,
+      )
+      expect(screen.queryByTestId('error-report-problem')).toBeNull()
+    })
+
+    it('records the crash and opens the dialog without any provider', () => {
+      const { recordError } = require('@/lib/bugReport/recorder')
+      mockBugReportsOn = true
+      const error = new Error('boom')
+      render(
+        <GlobalErrorBoundary>
+          <ThrowError error={error} />
+        </GlobalErrorBoundary>,
+      )
+      expect(recordError).toHaveBeenCalledWith(error, 'crash')
+      fireEvent.click(screen.getByTestId('error-report-problem'))
+      expect(screen.getByTestId('bug-report-form')).toBeInTheDocument()
+      // Without a session the dialog asks for a contact address.
+      expect(
+        screen.getByLabelText('bugReport.fields.contactEmail'),
+      ).toBeInTheDocument()
+      expect(
+        JSON.parse(screen.getByTestId('bug-report-context').textContent!),
+      ).toMatchObject({ source: 'crash', feature_flags: ['bug_reports'] })
     })
   })
 })

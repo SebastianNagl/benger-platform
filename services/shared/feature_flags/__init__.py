@@ -16,6 +16,7 @@ from pkgutil import extend_path
 __path__ = extend_path(__path__, __name__)
 
 from .registry import (  # noqa: E402,F401
+    BUG_REPORTS,
     COMPLIANCE_RECORDS,
     FEATURE_DISABLED,
     FEATURE_DISABLED_MESSAGE,

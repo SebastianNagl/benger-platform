@@ -88,6 +88,11 @@ project (`any`) or only for its own projects (`bound`).
 | POST | `/api/auth/verify-email` | never |  |
 | POST | `/api/auth/verify-email-enhanced/{token}` | never |  |
 | POST | `/api/auth/verify-email/{token}` | never |  |
+| GET | `/api/bug-reports` | never |  |
+| POST | `/api/bug-reports` | never |  |
+| GET | `/api/bug-reports/{report_id}` | never |  |
+| POST | `/api/bug-reports/{report_id}/redeliver` | never |  |
+| GET | `/api/bug-reports/{report_id}/screenshot` | never |  |
 | GET | `/api/code-validations/{code_validation_id}` | `results:read` | bound |
 | GET | `/api/compliance/assessments` | never |  |
 | POST | `/api/compliance/assessments` | never |  |

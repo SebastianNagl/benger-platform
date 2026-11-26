@@ -13,6 +13,7 @@ by the platform and coupled to no overlay's master flag.
 | `variant_experiments` | off | controlled variant experiments and their analyses, see below |
 | `compliance_records` | off | the compliance records API and the `/compliance` pages |
 | `report_paper` | off | the project report as the project's paper, see below |
+| `bug_reports` | off | "Report a problem": in-app problem reports delivered as issues ([bug-reports.md](bug-reports.md)) |
 
 ## `variant_experiments`
 
@@ -100,6 +101,17 @@ Covers the generic compliance records API (`/api/compliance`: assessments,
 suite runs and findings) and the `/compliance` route shells with their
 navigation item. The compliance overlay's own UI inside those shells also
 needs the overlay's master flag `extension.compliance`.
+
+## `bug_reports`
+
+Covers "Report a problem" (account menu, footer, error pages), the report
+endpoint `POST /api/bug-reports`, the superadmin list at
+`/admin/bug-reports` with its routes, the recorder of recent errors, failed
+requests and page changes, and the changelog entry. Off: the entries are
+gone, nothing is recorded and every route answers 404 `feature_disabled`;
+stored reports stay. A report sent without a session counts as anonymous,
+so the flag reaches visitors only in state `everyone`. Details in
+[bug-reports.md](bug-reports.md).
 
 ## Who a flag is decided for
 
