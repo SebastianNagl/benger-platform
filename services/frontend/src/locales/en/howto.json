@@ -660,7 +660,7 @@
         "For every method: **prediction field** (e.g. `loesung` or *All model outputs*) and **reference field** (e.g. `task.musterloesung`). With several references the best match counts."
       ],
       "tips": [
-        "Exam projects automatically get **two** case-solution judges on two different models (e.g. *Notenpunkte (gpt-5-mini)* and *Notenpunkte (gpt-5.4-mini)*). Immediate grading runs exactly one of them. Batch evaluation runs both. This is intended.",
+        "Exam projects automatically get **two** case-solution judges on two different models (e.g. *Notenpunkte (gpt-6.1-terra)* and *Notenpunkte (gpt-5.4-mini)*). Immediate grading runs exactly one of them. Batch evaluation runs both. This is intended.",
         "Advanced settings (judge model, temperature, thinking budget, several judges as an ensemble, runs per judge) are on the project page after creation.",
         "A custom rubric is entered on the *Custom LLM Judge* as criteria with description and maximum score. With a maximum score the judge scores all criteria in one pass."
       ],
