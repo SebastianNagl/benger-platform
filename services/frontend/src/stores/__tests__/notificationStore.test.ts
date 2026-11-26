@@ -102,6 +102,61 @@ describe('NotificationStore', () => {
     })
   })
 
+  describe('toast action', () => {
+    it('keeps an action button on the toast it was added with', () => {
+      const onClick = jest.fn()
+      const id = useNotificationStore
+        .getState()
+        .addToast('saved', 'success', 5000, {
+          action: { label: 'Undo', onClick },
+        })
+
+      const toast = useNotificationStore.getState().toasts[0]
+      expect(toast.id).toBe(id)
+      expect(toast.action?.label).toBe('Undo')
+      toast.action?.onClick()
+      expect(onClick).toHaveBeenCalledTimes(1)
+    })
+
+    it('adds no action key without an action option', () => {
+      useNotificationStore.getState().addToast('plain', 'info', 5000, {})
+      expect(useNotificationStore.getState().toasts[0]).not.toHaveProperty(
+        'action',
+      )
+    })
+
+    it('clearToastAction takes the button off that toast and keeps the toast', () => {
+      const { addToast, clearToastAction } = useNotificationStore.getState()
+      const action = { label: 'Undo', onClick: jest.fn() }
+      const withAction = addToast('first', 'success', 5000, { action })
+      const other = addToast('second', 'success', 5000, { action })
+      const plain = addToast('third', 'info')
+      const plainBefore = useNotificationStore
+        .getState()
+        .toasts.find((t) => t.id === plain)
+
+      clearToastAction(withAction)
+
+      const toasts = useNotificationStore.getState().toasts
+      expect(toasts).toHaveLength(3)
+      const cleared = toasts.find((t) => t.id === withAction)
+      expect(cleared).toMatchObject({ message: 'first', type: 'success' })
+      expect(cleared).not.toHaveProperty('action')
+      expect(toasts.find((t) => t.id === other)?.action).toBe(action)
+      // A toast without a button is passed through unchanged.
+      expect(toasts.find((t) => t.id === plain)).toBe(plainBefore)
+    })
+
+    it('clearToastAction is a no-op for an unknown id', () => {
+      const action = { label: 'Undo', onClick: jest.fn() }
+      useNotificationStore
+        .getState()
+        .addToast('saved', 'success', 5000, { action })
+      useNotificationStore.getState().clearToastAction('missing')
+      expect(useNotificationStore.getState().toasts[0].action).toBe(action)
+    })
+  })
+
   describe('flash / consumeFlashes', () => {
     it('flash() pushes onto pendingFlashes without touching toasts', () => {
       const { flash } = useNotificationStore.getState()
@@ -190,6 +245,24 @@ describe('NotificationStore', () => {
       expect(persisted.state.toasts).toHaveLength(1)
       expect(persisted.state.toasts[0].message).toBe('live-toast')
       expect(typeof persisted.state.toasts[0].createdAt).toBe('number')
+    })
+
+    it('drops action buttons from persisted toasts but keeps the toast', async () => {
+      useNotificationStore.getState().addToast('saved', 'success', 5000, {
+        action: { label: 'Undo', onClick: jest.fn() },
+      })
+      await Promise.resolve()
+
+      const persisted = JSON.parse(
+        sessionStorage.getItem('benger-notifications') as string,
+      )
+      expect(persisted.state.toasts).toHaveLength(1)
+      expect(persisted.state.toasts[0].message).toBe('saved')
+      expect(persisted.state.toasts[0]).not.toHaveProperty('action')
+      // The live toast in memory still has its button.
+      expect(useNotificationStore.getState().toasts[0].action?.label).toBe(
+        'Undo',
+      )
     })
   })
 })
