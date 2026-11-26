@@ -26,6 +26,7 @@ let mockFlagOn = false
 let mockUser: any = { id: 'u1', is_superadmin: false }
 jest.mock('@/lib/featureFlags', () => ({
   useFeatureFlag: () => mockFlagOn,
+  useFeatureFlagStatus: () => (mockFlagOn ? 'on' : 'off'),
   getFeatureFlagMap: () => ({ bug_reports: mockFlagOn }),
 }))
 jest.mock('@/contexts/AuthContext', () => ({

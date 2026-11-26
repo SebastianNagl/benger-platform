@@ -2,10 +2,12 @@
  * What a problem report attaches beyond the form: the last frontend errors,
  * the last failed API requests and the last page changes of this tab.
  *
- * Small ring buffers in module state, filled while the `bug_reports` flag is
- * on (BugReportHost installs the listeners then and removes them when it
- * goes off). Nothing here leaves the browser by itself; the report dialog
- * shows the collected context before it is sent.
+ * Small ring buffers in module state. BugReportHost starts recording when
+ * the app loads, before the `bug_reports` flag has answered, so the errors
+ * and failed requests of the first page load are kept; when the flag reads
+ * off it stops and drops what was recorded. Nothing here leaves the browser
+ * by itself; the report dialog shows the collected context before it is
+ * sent.
  *
  * Kept on purpose: methods, paths, statuses, request ids, error messages and
  * stacks. Never kept: query strings, fragments, request or response bodies,
@@ -267,10 +269,15 @@ export function installBugReportRecorder(): () => void {
   return uninstall
 }
 
-export function resetBugReportRecorderForTests(): void {
+/** Stop recording and forget everything recorded so far. */
+export function stopBugReportRecorder(): void {
   installed?.()
   installed = null
   errors = []
   requests = []
   navigation = []
+}
+
+export function resetBugReportRecorderForTests(): void {
+  stopBugReportRecorder()
 }

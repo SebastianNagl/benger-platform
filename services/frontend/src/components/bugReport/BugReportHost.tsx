@@ -3,10 +3,12 @@
 /**
  * The app-wide problem report dialog and its recorder. Mounted once in the
  * providers, next to the page, so the dialog also opens from the error page
- * that replaces a crashed page. While the `bug_reports` flag is on it
- * records the last errors, failed API requests and page changes
- * (lib/bugReport/recorder.ts); with the flag off it renders nothing and
- * records nothing.
+ * that replaces a crashed page. It records the last errors, failed API
+ * requests and page changes (lib/bugReport/recorder.ts) from the moment the
+ * app loads, because the flag only answers after auth and the failures of
+ * the first page load are often what a report is about. Once the
+ * `bug_reports` flag reads off it renders nothing, stops recording and
+ * drops what it had.
  */
 
 import { useParams, usePathname } from 'next/navigation'
@@ -16,16 +18,25 @@ import { useResolvedUiMode } from '@/hooks/useResolvedUiMode'
 import {
   installBugReportRecorder,
   recordNavigation,
+  stopBugReportRecorder,
 } from '@/lib/bugReport/recorder'
 import { closeBugReport, useBugReportDialog } from '@/lib/bugReport/store'
-import { useFeatureFlag } from '@/lib/featureFlags'
+import { useFeatureFlagStatus } from '@/lib/featureFlags'
 import { BUG_REPORTS } from '@/lib/featureFlags/platformFlags'
 
 import { BugReportDialog } from './BugReportDialog'
 
+// Before any component effect runs: the page's first requests start in
+// effects, while the flag is still loading.
+installBugReportRecorder()
+
 export function BugReportHost() {
-  const enabled = useFeatureFlag(BUG_REPORTS)
-  if (!enabled) return null
+  const status = useFeatureFlagStatus(BUG_REPORTS)
+  useEffect(() => {
+    if (status === 'off') stopBugReportRecorder()
+    else if (status === 'on') installBugReportRecorder()
+  }, [status])
+  if (status !== 'on') return null
   return <EnabledBugReportHost />
 }
 
@@ -35,7 +46,6 @@ function EnabledBugReportHost() {
   const uiMode = useResolvedUiMode()
   const { open, source } = useBugReportDialog()
 
-  useEffect(() => installBugReportRecorder(), [])
   useEffect(() => {
     if (pathname) recordNavigation(pathname)
   }, [pathname])
