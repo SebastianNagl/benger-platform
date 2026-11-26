@@ -13,7 +13,13 @@ from typing import Any, Dict, Optional
 import anthropic
 
 from .attachments import anthropic_content
-from .base_service import BaseAIService, classify_retryable, continuation_turns, derive_truncated
+from .base_service import (
+    BaseAIService,
+    classify_retryable,
+    continuation_turns,
+    derive_truncated,
+    require_model_name,
+)
 from .request_capture import record_request
 from .reasoning import thinking_blocks
 from .provider_capabilities import calculate_cost
@@ -107,7 +113,7 @@ class AnthropicService(BaseAIService):
         self,
         prompt: str,
         system_prompt: str = "",
-        model_name: str = "claude-sonnet-4-20250514",
+        model_name: Optional[str] = None,
         max_tokens: int = 1000,
         temperature: float = 0.0,
         **kwargs
@@ -126,6 +132,7 @@ class AnthropicService(BaseAIService):
         Returns:
             Dict with response data including content, metadata, and usage stats
         """
+        model_name = require_model_name(model_name, "Anthropic")
         # E2E Test Mode: Return mock response
         if os.getenv("E2E_TEST_MODE") == "true":
             logger.info(f"🧪 E2E Test Mode: Returning mock response for {model_name}")
@@ -278,7 +285,7 @@ class AnthropicService(BaseAIService):
         prompt: str,
         system_prompt: str,
         json_schema: Dict[str, Any],
-        model_name: str = "claude-sonnet-4-20250514",
+        model_name: Optional[str] = None,
         max_tokens: int = 1000,
         temperature: float = 0.0,
         **kwargs
@@ -308,6 +315,7 @@ class AnthropicService(BaseAIService):
         Returns:
             Dict with response data. The 'content' field is a JSON text string.
         """
+        model_name = require_model_name(model_name, "Anthropic")
         import json
 
         # E2E Test Mode: Return mock structured response
@@ -431,7 +439,7 @@ class AnthropicService(BaseAIService):
         system_prompt: str,
         instruction_prompt: str,
         case_data: str,
-        model_name: str = "claude-sonnet-4-20250514",
+        model_name: Optional[str] = None,
         max_tokens: int = 1000,
         temperature: float = 0.0,
         **kwargs
@@ -452,6 +460,7 @@ class AnthropicService(BaseAIService):
         Returns:
             Dictionary with response data and metadata
         """
+        model_name = require_model_name(model_name, "Anthropic")
         # Combine prompts for Claude
         user_message = f"{instruction_prompt}\n\nCase to analyze:\n{case_data}"
 

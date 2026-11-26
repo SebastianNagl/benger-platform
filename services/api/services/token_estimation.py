@@ -68,7 +68,7 @@ class TokenEstimate:
 #: that existed when it was released; a newer id of the same family
 #: (``gpt-5.4-mini``) must not silently fall back to cl100k, which counts German
 #: text ~15 % higher than the tokenizer the provider bills with.
-_O200K_PREFIXES = ("gpt-4o", "gpt-4.1", "gpt-4.5", "gpt-5", "chatgpt-", "o1", "o3", "o4")
+_O200K_PREFIXES = ("gpt-4o", "gpt-4.1", "gpt-4.5", "gpt-5", "gpt-6", "chatgpt-", "o1", "o3", "o4")
 
 
 def _encoding_for_model(model_id: str):

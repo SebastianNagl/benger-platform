@@ -15,7 +15,13 @@ from google import genai
 from google.genai import types
 
 from .attachments import google_contents
-from .base_service import BaseAIService, classify_retryable, continuation_turns, derive_truncated
+from .base_service import (
+    BaseAIService,
+    classify_retryable,
+    continuation_turns,
+    derive_truncated,
+    require_model_name,
+)
 from .request_capture import record_request
 from .reasoning import google_thoughts
 from .provider_capabilities import calculate_cost
@@ -142,7 +148,7 @@ class GoogleService(BaseAIService):
         self,
         prompt: str,
         system_prompt: str = "",
-        model_name: str = "gemini-2.0-flash",
+        model_name: Optional[str] = None,
         max_tokens: int = 1000,
         temperature: float = 0.0,
         **kwargs
@@ -161,6 +167,7 @@ class GoogleService(BaseAIService):
         Returns:
             Dict with response data including content, metadata, and usage stats
         """
+        model_name = require_model_name(model_name, "Google")
         # E2E Test Mode: Return mock response
         if os.getenv("E2E_TEST_MODE") == "true":
             logger.info(
@@ -443,7 +450,7 @@ class GoogleService(BaseAIService):
         prompt: str,
         system_prompt: str,
         json_schema: Dict[str, Any],
-        model_name: str = "gemini-2.0-flash",
+        model_name: Optional[str] = None,
         max_tokens: int = 1000,
         temperature: float = 0.0,
         **kwargs
@@ -464,6 +471,7 @@ class GoogleService(BaseAIService):
         Returns:
             Dict with response data. The 'content' field will be a JSON string.
         """
+        model_name = require_model_name(model_name, "Google")
         import json
 
         # E2E Test Mode: Return mock structured response
@@ -690,7 +698,7 @@ class GoogleService(BaseAIService):
         system_prompt: str,
         instruction_prompt: str,
         case_data: str,
-        model_name: str = "gemini-2.0-flash",
+        model_name: Optional[str] = None,
         max_tokens: int = 1000,
         temperature: float = 0.0,
         **kwargs
@@ -711,6 +719,7 @@ class GoogleService(BaseAIService):
         Returns:
             Dictionary with response data and metadata
         """
+        model_name = require_model_name(model_name, "Google")
         # Combine instruction and case data
         user_message = f"{instruction_prompt}\n\nCase to analyze:\n{case_data}"
 

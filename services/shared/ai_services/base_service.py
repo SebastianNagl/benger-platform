@@ -23,6 +23,21 @@ TRUNCATED_FINISH_REASONS = frozenset({
 })
 
 
+def require_model_name(model_name: Optional[str], provider: str) -> str:
+    """``model_name``, or a ValueError when the caller named no model.
+
+    The provider services used to fall back to a hard-coded model when the
+    caller passed none, and those fallbacks went stale as providers retired
+    the models (``claude-sonnet-4-20250514``, ``gemini-2.0-flash``,
+    ``grok-3``). Every platform caller names the catalog model it runs, so a
+    missing name is a caller bug: it fails here, not with a 404 from the
+    provider for a model nobody chose.
+    """
+    if not model_name:
+        raise ValueError(f"{provider}: model_name is required")
+    return model_name
+
+
 def derive_truncated(finish_reason: Optional[str]) -> bool:
     """True if the model stopped because it hit the output-token limit."""
     if not finish_reason:

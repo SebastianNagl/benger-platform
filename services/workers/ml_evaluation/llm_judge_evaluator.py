@@ -2444,24 +2444,32 @@ def create_llm_judge_for_user(
     if parent_shared not in sys.path:
         sys.path.insert(0, parent_shared)
 
+    # BYOM: resolve the judge model's DB row first. A custom judge
+    # (is_official=False) must route to its OpenAI-compatible endpoint
+    # with the EVALUATING user's per-model credential — the provider
+    # string alone can't express that (and the heuristic used to
+    # misroute custom-<uuid> ids to OpenAI). Official rows keep the
+    # provider-keyed path unchanged.
+    judge_model_row = None
+    try:
+        from models import LLMModel as DBLLMModel
+
+        judge_model_row = (
+            db.query(DBLLMModel).filter(DBLLMModel.id == judge_model).first()
+        )
+    except Exception:
+        judge_model_row = None
+
+    # A retired official judge (model_availability) is refused outright,
+    # outside the fallback below: an evaluator without a service would
+    # only fail every cell with a vaguer error.
+    from model_availability import InactiveModelError, row_is_inactive_official
+
+    if row_is_inactive_official(judge_model_row):
+        raise InactiveModelError([judge_model])
+
     try:
         from ai_services.user_aware_ai_service import user_aware_ai_service
-
-        # BYOM: resolve the judge model's DB row first. A custom judge
-        # (is_official=False) must route to its OpenAI-compatible endpoint
-        # with the EVALUATING user's per-model credential — the provider
-        # string alone can't express that (and the heuristic used to
-        # misroute custom-<uuid> ids to OpenAI). Official rows keep the
-        # provider-keyed path unchanged.
-        judge_model_row = None
-        try:
-            from models import LLMModel as DBLLMModel
-
-            judge_model_row = (
-                db.query(DBLLMModel).filter(DBLLMModel.id == judge_model).first()
-            )
-        except Exception:
-            judge_model_row = None
 
         if judge_model_row is not None and not getattr(
             judge_model_row, "is_official", True

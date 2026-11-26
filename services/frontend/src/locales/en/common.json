@@ -8235,7 +8235,6 @@
     "copyJson": "Copy JSON",
     "close": "Close",
     "modelCount": "{count} models",
-    "contentPolicyWarning": "May block legal/academic content due to strict content policies",
     "fetchFailed": "Failed to fetch models",
     "unknownError": "Unknown error",
     "detail": {

@@ -416,27 +416,6 @@ describe('ModelsPage', () => {
     expect(screen.getByText(/\$60,00/)).toBeInTheDocument()
   })
 
-  it('should show content policy warning for gemini-2.5-pro', async () => {
-    global.fetch = jest
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockModels),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({}),
-      }) as any
-
-    render(<ModelsPage />)
-
-    await waitFor(() => {
-      expect(
-        screen.getByText('models.contentPolicyWarning'),
-      ).toBeInTheDocument()
-    })
-  })
-
   it('should open model settings modal when clicking a model', async () => {
     const user = userEvent.setup()
     global.fetch = jest

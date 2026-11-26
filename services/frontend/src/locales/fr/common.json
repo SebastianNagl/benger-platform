@@ -8356,7 +8356,6 @@
     "copyJson": "Copier le JSON",
     "close": "Fermer",
     "modelCount": "{count} modèles",
-    "contentPolicyWarning": "Peut bloquer des contenus juridiques ou académiques en raison de règles de contenu strictes",
     "fetchFailed": "Impossible de charger les modèles",
     "unknownError": "Erreur inconnue",
     "detail": {

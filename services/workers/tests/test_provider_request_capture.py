@@ -189,6 +189,33 @@ def test_openai_prompt_json_fallback_sends_the_schema_not_a_placeholder():
     assert json.dumps(SCHEMA, indent=2) in system
 
 
+@pytest.mark.parametrize("model", ["gpt-6-astra", "gpt-6.1-terra", "gpt-6.2-sol"])
+def test_openai_gpt6_judges_get_native_json_schema_output(model):
+    """GPT-6 ids were missing from the json_schema prefix list, so a GPT-6
+    judge fell back to the schema pasted into the system prompt. They now
+    get native structured output, in the GPT-5 request shape."""
+    from openai import OpenAI
+
+    from ai_services.openai_service import OpenAIService
+
+    with mock_chat_server() as server:
+        server.reply('{"anteil": 30}')
+        service = OpenAIService(api_key="test-key")
+        service.client = OpenAI(
+            api_key="test-key", base_url=server.base_url, max_retries=0
+        )
+        result, _ = _call(
+            service, structured=True, model_name=model, temperature=0.0, max_tokens=300
+        )
+    assert result["success"], result.get("error")
+    [wire] = server.json_bodies()
+    assert wire["response_format"]["type"] == "json_schema"
+    assert wire["response_format"]["json_schema"]["schema"] == SCHEMA
+    assert wire["messages"][0]["content"] == SYSTEM
+    assert wire["temperature"] == 1.0
+    assert "top_p" not in wire
+
+
 # ----------------------------------------------------------------- SDK clients
 #
 # Each SDK client is pointed at the mock server; the mock answers in the
