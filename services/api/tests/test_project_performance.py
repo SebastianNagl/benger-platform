@@ -24,6 +24,7 @@ from sqlalchemy.engine import Engine
 
 from auth_module.dependencies import require_user
 from auth_module.models import User as AuthUser
+from feature_flags import service as flag_service
 from main import app
 from models import User
 from project_models import Annotation, Project, Task
@@ -137,6 +138,14 @@ async def test_list_projects_query_count(async_test_client, async_test_db):
 
     await async_test_db.commit()
 
+    # The feature flag snapshot costs a few statements once per process (the
+    # registry sync on the first load) and once per cache expiry (two
+    # SELECTs), never per project. Whether this test pays it depended on
+    # whether an earlier test in the same xdist worker had loaded it, so the
+    # count flipped with test distribution. Load it first so only the
+    # endpoint's own per-request statements are counted.
+    await flag_service.load_snapshot(async_test_db)
+
     # Set up query counter (class-level — catches the async engine's queries via
     # its sync_engine).
     counter = QueryCounter()
@@ -165,7 +174,8 @@ async def test_list_projects_query_count(async_test_client, async_test_db):
         assert counter.count <= 15, (
             f"Too many queries: {counter.count}. "
             f"Expected <= 15, got {counter.count}. "
-            "This indicates N+1 query problem."
+            "This indicates N+1 query problem. Queries:\n"
+            + "\n---\n".join(counter.queries)
         )
 
         # Verify response contains at least our test projects
