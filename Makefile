@@ -11,20 +11,33 @@ help: ## Show this help message
 # ==================== VARIABLES ====================
 # Auto-detect docker compose command (v2 plugin "docker compose" vs v1 standalone "docker-compose")
 DOCKER_COMPOSE_CMD := $(shell docker compose version >/dev/null 2>&1 && echo "docker compose" || echo "docker-compose")
-DOCKER_COMPOSE := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.yml
-DOCKER_COMPOSE_DEV := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.yml -f infra/docker-compose.dev.yml
-DOCKER_COMPOSE_TEST := $(DOCKER_COMPOSE_CMD) -f $(CURDIR)/infra/docker-compose.test.yml
+# Compose project names, passed with -p so the cleanup targets can scope every
+# removal to exactly the project they started. The dev stack is
+# COMPOSE_PROJECT_NAME (parallel worktree stacks), else the file's `name:`
+# (benger); the test stack is $(COMPOSE_PROJECT_NAME)-test, else benger-test.
+# They must differ: test cleanup removes every volume of the test project.
+# Several stacks share one Docker daemon: never prune host-wide here
+# (scripts/tests/test_make_docker_cleanup.py checks it).
+DEV_COMPOSE_PROJECT := $(or $(COMPOSE_PROJECT_NAME),benger)
+TEST_COMPOSE_PROJECT := $(if $(COMPOSE_PROJECT_NAME),$(COMPOSE_PROJECT_NAME)-test,benger-test)
+ifeq ($(DEV_COMPOSE_PROJECT),$(TEST_COMPOSE_PROJECT))
+$(error DEV_COMPOSE_PROJECT and TEST_COMPOSE_PROJECT are both "$(DEV_COMPOSE_PROJECT)"; test cleanup would delete the dev stack's containers and volumes, so give them distinct names)
+endif
+DOCKER_COMPOSE := $(DOCKER_COMPOSE_CMD) -p $(DEV_COMPOSE_PROJECT) -f infra/docker-compose.yml
+DOCKER_COMPOSE_DEV := $(DOCKER_COMPOSE_CMD) -p $(DEV_COMPOSE_PROJECT) -f infra/docker-compose.yml -f infra/docker-compose.dev.yml
+DOCKER_COMPOSE_TEST := BENGER_TRAEFIK_PROJECT=$(TEST_COMPOSE_PROJECT) $(DOCKER_COMPOSE_CMD) -p $(TEST_COMPOSE_PROJECT) -f $(CURDIR)/infra/docker-compose.test.yml
+TEST_PROJECT_FILTER := label=com.docker.compose.project=$(TEST_COMPOSE_PROJECT)
 API_DIR := services/api
 FRONTEND_DIR := services/frontend
 WORKERS_DIR := services/workers
 TIMESTAMP := $(shell date +%Y%m%d_%H%M%S)
 
 # Colors for output
-RED := \033[0;31m
-GREEN := \033[0;32m
-YELLOW := \033[1;33m
-BLUE := \033[0;34m
-NC := \033[0m # No Color
+RED := $(shell printf '\033[0;31m')
+GREEN := $(shell printf '\033[0;32m')
+YELLOW := $(shell printf '\033[1;33m')
+BLUE := $(shell printf '\033[0;34m')
+NC := $(shell printf '\033[0m')
 
 # ==================== SETUP & INSTALLATION ====================
 
@@ -109,11 +122,21 @@ stop: ## Stop all running services
 restart: stop dev ## Restart all services
 
 .PHONY: clean-docker
-clean-docker: ## Clean Docker resources
-	@echo "$(BLUE)🧹 Cleaning Docker resources...$(NC)"
-	@$(DOCKER_COMPOSE) down -v --remove-orphans
-	@docker system prune -f
+clean-docker: ## Remove the dev stack's containers, volumes, networks and dangling images (other stacks untouched)
+	@echo "$(BLUE)🧹 Cleaning Docker resources of compose project $(DEV_COMPOSE_PROJECT)...$(NC)"
+	@$(DOCKER_COMPOSE_DEV) down -v --remove-orphans
+	@$(MAKE) --no-print-directory docker-remove-project-leftovers PROJECT=$(DEV_COMPOSE_PROJECT)
 	@echo "$(GREEN)✅ Docker cleaned$(NC)"
+
+# Removes the volumes and dangling (superseded) images that still carry the
+# label of compose project PROJECT after `down`, e.g. from services whose
+# profile was not active. Build cache carries no project label, so it is left
+# alone: pruning the builder cache would clear every stack's cache on the host.
+.PHONY: docker-remove-project-leftovers
+docker-remove-project-leftovers:
+	@test -n "$(PROJECT)" || { echo "$(RED)PROJECT is required$(NC)"; exit 1; }
+	@docker volume ls -q --filter "label=com.docker.compose.project=$(PROJECT)" 2>/dev/null | xargs -r docker volume rm 2>/dev/null || true
+	@docker image ls -q --filter dangling=true --filter "label=com.docker.compose.project=$(PROJECT)" 2>/dev/null | xargs -r docker image rm 2>/dev/null || true
 
 # ==================== DATABASE ====================
 
@@ -189,7 +212,7 @@ test: ## Run full test suite (clean -> build -> seed -> test all -> stop -> prun
 	@$(DOCKER_COMPOSE_TEST) up -d --build 2>&1 | grep -v "orphan\|Running\|Creating\|Starting\|Started\|Created\|Pulling\|Network\|Volume\|Container\|Building" || true
 	@echo "$(YELLOW)⏳ Waiting for services to be healthy...$(NC)"
 	@timeout=300; while [ $$timeout -gt 0 ]; do \
-		healthy=$$(docker ps --filter "name=benger-test" --filter "health=healthy" --format "{{.Names}}" 2>/dev/null | wc -l); \
+		healthy=$$(docker ps --filter "$(TEST_PROJECT_FILTER)" --filter "health=healthy" --format "{{.Names}}" 2>/dev/null | wc -l); \
 		if [ "$$healthy" -ge 7 ]; then \
 			echo "$(GREEN)  All 7 services healthy!$(NC)"; \
 			break; \
@@ -207,7 +230,7 @@ test: ## Run full test suite (clean -> build -> seed -> test all -> stop -> prun
 		sleep 3; \
 	done
 	@echo "$(BLUE)🔧 Initializing database...$(NC)"
-	@docker exec benger-test-test-api-1 python init_complete.py > /tmp/test-init.log 2>&1; \
+	@$(DOCKER_COMPOSE_TEST) exec -T test-api python init_complete.py > /tmp/test-init.log 2>&1; \
 	if [ $$? -ne 0 ]; then \
 		echo "$(RED)  Database initialization FAILED:$(NC)"; \
 		tail -5 /tmp/test-init.log; \
@@ -227,7 +250,7 @@ test-start: ## Start test infrastructure (all services)
 	@$(DOCKER_COMPOSE_TEST) up -d 2>&1 | grep -v "orphan\|Running\|Creating\|Starting\|Started\|Created\|Pulling\|Network\|Volume\|Container\|Building" || true
 	@echo "$(YELLOW)⏳ Waiting for services to be healthy...$(NC)"
 	@timeout=300; while [ $$timeout -gt 0 ]; do \
-		healthy=$$(docker ps --filter "name=benger-test" --filter "health=healthy" --format "{{.Names}}" 2>/dev/null | wc -l); \
+		healthy=$$(docker ps --filter "$(TEST_PROJECT_FILTER)" --filter "health=healthy" --format "{{.Names}}" 2>/dev/null | wc -l); \
 		if [ "$$healthy" -ge 7 ]; then \
 			echo "$(GREEN)  All 7 services healthy!$(NC)"; \
 			break; \
@@ -245,7 +268,7 @@ test-start: ## Start test infrastructure (all services)
 		sleep 3; \
 	done
 	@echo "$(BLUE)🔧 Initializing database...$(NC)"
-	@docker exec benger-test-test-api-1 python init_complete.py > /tmp/test-init.log 2>&1; \
+	@$(DOCKER_COMPOSE_TEST) exec -T test-api python init_complete.py > /tmp/test-init.log 2>&1; \
 	if [ $$? -ne 0 ]; then \
 		echo "$(RED)  Database initialization FAILED:$(NC)"; \
 		tail -5 /tmp/test-init.log; \
@@ -319,24 +342,20 @@ test-stop: ## Stop test infrastructure
 	@echo "$(GREEN)✅ Test infrastructure stopped$(NC)"
 
 .PHONY: test-prune
-test-prune: ## Clean up Docker resources after tests (safe for dev data)
-	@echo "$(BLUE)🧹 Pruning test Docker resources...$(NC)"
-	@# Remove dangling images (untagged images from old builds)
-	@docker image prune -f 2>/dev/null || true
-	@# Remove build cache
-	@docker builder prune -f 2>/dev/null || true
-	@# Remove only test-related volumes (NOT dev volumes like benger-postgres-data)
-	@docker volume ls -q --filter "name=benger-test" 2>/dev/null | xargs -r docker volume rm 2>/dev/null || true
-	@echo "$(GREEN)✅ Docker resources pruned (dev data preserved)$(NC)"
+test-prune: ## Remove what the test stack created: containers, volumes, networks and dangling images; built images are kept (other stacks untouched)
+	@echo "$(BLUE)🧹 Removing Docker resources of compose project $(TEST_COMPOSE_PROJECT)...$(NC)"
+	@$(DOCKER_COMPOSE_TEST) --profile test down -v --remove-orphans 2>/dev/null || true
+	@$(MAKE) --no-print-directory docker-remove-project-leftovers PROJECT=$(TEST_COMPOSE_PROJECT)
+	@echo "$(GREEN)✅ Test Docker resources removed (dev data and other stacks preserved)$(NC)"
 
 .PHONY: test-status
 test-status: ## Check test infrastructure health
 	@echo "$(BLUE)🔍 Checking test infrastructure status...$(NC)"
 	@echo ""
-	@if docker ps | grep -q "benger-test-test-api-1"; then \
+	@if [ -n "$$($(DOCKER_COMPOSE_TEST) ps -q test-api 2>/dev/null)" ]; then \
 		echo "$(GREEN)✅ Test infrastructure is running$(NC)"; \
 		echo ""; \
-		docker ps --filter "name=test-" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"; \
+		docker ps --filter "$(TEST_PROJECT_FILTER)" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"; \
 	else \
 		echo "$(YELLOW)⚠️  Test infrastructure is not running$(NC)"; \
 		echo "$(YELLOW)💡 Run 'make test-start' to start it$(NC)"; \
@@ -346,7 +365,7 @@ test-status: ## Check test infrastructure health
 .PHONY: test-seed
 test-seed: ## Re-seed test database
 	@echo "$(BLUE)🌱 Re-seeding test database...$(NC)"
-	@docker exec benger-test-test-api-1 python init_complete.py
+	@$(DOCKER_COMPOSE_TEST) exec -T test-api python init_complete.py
 	@echo "$(GREEN)✅ Database re-seeded$(NC)"
 
 .PHONY: reseed-llm-models
@@ -387,12 +406,12 @@ test-all: ## Run all tests (requires test-start first)
 	$(DOCKER_COMPOSE_TEST) up -d 2>/dev/null; \
 	echo "  Waiting for containers to be healthy..."; \
 	timeout=300; while [ $$timeout -gt 0 ]; do \
-		healthy=$$(docker ps --filter "name=benger-test" --filter "health=healthy" --format "{{.Names}}" 2>/dev/null | wc -l | tr -d ' '); \
+		healthy=$$(docker ps --filter "$(TEST_PROJECT_FILTER)" --filter "health=healthy" --format "{{.Names}}" 2>/dev/null | wc -l | tr -d ' '); \
 		if [ "$$healthy" -ge 5 ]; then echo "  $$healthy containers healthy"; break; fi; \
 		if [ $$((timeout % 30)) -eq 0 ]; then echo "  $$healthy/5 healthy ($${timeout}s remaining)"; fi; \
 		sleep 5; timeout=$$((timeout - 5)); \
 	done; \
-	docker exec benger-test-test-api-1 python init_complete.py > /dev/null 2>&1 || true; \
+	$(DOCKER_COMPOSE_TEST) exec -T test-api python init_complete.py > /dev/null 2>&1 || true; \
 	echo "$(BLUE)4️⃣  E2E Tests (Playwright)$(NC)"; \
 	cd $(CURDIR)/services/frontend && \
 	E2E_ISOLATED=true \
@@ -561,7 +580,7 @@ test-quiet: ## Run tests with minimal output (for agents/CI)
 	echo "Starting infrastructure..."; \
 	$(DOCKER_COMPOSE_TEST) up -d 2>/dev/null; \
 	sleep 30; \
-	docker exec benger-test-test-api-1 python init_complete.py 2>&1 | grep -E "✅|🎯" || true; \
+	$(DOCKER_COMPOSE_TEST) exec -T test-api python init_complete.py 2>&1 | grep -E "✅|🎯" || true; \
 	\
 	echo "Running tests..."; \
 	$(DOCKER_COMPOSE_TEST) --profile test run --rm test-api-runner 2>&1 | tail -5 && API_RESULT=0 || API_RESULT=1; \
@@ -570,9 +589,7 @@ test-quiet: ## Run tests with minimal output (for agents/CI)
 	cd $(CURDIR)/services/frontend && E2E_ISOLATED=true PLAYWRIGHT_BASE_URL=http://benger-test.localhost:8090 \
 	npx playwright test --reporter=dot 2>&1 | tail -10 && E2E_RESULT=0 || E2E_RESULT=1; \
 	\
-	$(DOCKER_COMPOSE_TEST) down -v 2>/dev/null; \
-	docker image prune -f 2>/dev/null || true; \
-	docker builder prune -f 2>/dev/null || true; \
+	$(MAKE) -C $(CURDIR) --no-print-directory test-prune >/dev/null 2>&1 || true; \
 	\
 	echo ""; \
 	echo "=== RESULTS ==="; \

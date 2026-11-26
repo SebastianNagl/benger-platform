@@ -8,6 +8,11 @@ import * as path from 'path'
 // "spawn sh ENOENT" before it could run anything.
 const infraDir = path.resolve(process.cwd(), '../../infra')
 
+// Same test project name as the Makefile's TEST_COMPOSE_PROJECT.
+const testComposeProject = process.env.COMPOSE_PROJECT_NAME
+  ? `${process.env.COMPOSE_PROJECT_NAME}-test`
+  : 'benger-test'
+
 /**
  * Execute a command with timeout protection to prevent hangs
  * Uses spawn instead of execSync to allow forced termination
@@ -62,7 +67,7 @@ async function globalTeardown() {
 
       // Use 60 second timeout - if Docker is stuck, force kill and continue
       const result = await executeWithTimeout(
-        'docker compose -f docker-compose.test.yml down',
+        `docker compose -p ${testComposeProject} -f docker-compose.test.yml down`,
         infraDir,
         60000,
       )

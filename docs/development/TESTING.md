@@ -62,6 +62,10 @@ Dev and test environments run in parallel on separate Docker networks and ports:
 **Dev network:** `benger-network` (project name: `benger`)
 **Test network:** `benger-test-network` (project name: `benger-test`)
 
+With `COMPOSE_PROJECT_NAME=<name>` set (parallel worktree stacks), the Makefile
+runs the dev stack as project `<name>` and the test stack as `<name>-test`, so
+`make test-prune` never touches the dev stack's volumes.
+
 ### Infrastructure Commands
 
 ```bash
@@ -89,7 +93,9 @@ make test-seed
 # Restart test workers after code changes
 make test-restart-workers
 
-# Clean up Docker resources after tests (safe for dev data)
+# Remove what the test stack created: its containers, volumes, networks and
+# dangling images; built images are kept so the next test-start needs no
+# rebuild (dev data and other stacks on the host are untouched)
 make test-prune
 
 # Stop + clean artifacts
