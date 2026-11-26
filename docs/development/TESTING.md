@@ -89,7 +89,8 @@ make test-seed
 # Restart test workers after code changes
 make test-restart-workers
 
-# Clean up Docker resources after tests (safe for dev data)
+# Remove what the test stack created: its containers, volumes, networks and
+# locally built images (dev data and other stacks on the host are untouched)
 make test-prune
 
 # Stop + clean artifacts
