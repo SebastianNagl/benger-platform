@@ -127,6 +127,10 @@ TASK_QUEUES: dict[str, str] = {
     "tasks.cleanup_project_data": MAINTENANCE,
     "tasks.cleanup_api_key_usage_events": MAINTENANCE,
     "tasks.purge_stale_wizard_drafts": MAINTENANCE,
+    # In-app problem reports: one issue-tracker call per report, and the
+    # hourly sweep of reports whose first send was lost. Nobody waits on it.
+    "tasks.deliver_bug_report": MAINTENANCE,
+    "tasks.sweep_pending_bug_reports": MAINTENANCE,
     "tasks.get_supported_metrics": MAINTENANCE,
     # --- generation: one LLM call per task, minutes each ---
     "tasks.generate_response": GENERATION,

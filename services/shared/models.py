@@ -4632,3 +4632,61 @@ class CodeValidation(Base):
             f"<CodeValidation(id={self.id}, project={self.project_id}, "
             f"status={self.status})>"
         )
+
+
+class BugReport(Base):
+    """A problem report sent from inside the app ("Report a problem").
+
+    - ``reporter_id``: the signed-in reporter (SET NULL when the account is
+      deleted, so the report itself survives); null for a report sent
+      without a session, which may carry ``contact_email`` instead.
+    - ``title`` / ``description`` / ``expected``: what the reporter wrote.
+    - ``context``: the technical context the browser attached and the
+      server completed (page path, browser, versions, recent errors and
+      failed requests, ...), already reduced by ``bug_reports.clean_context``
+      to the keys and sizes it allows.
+    - ``screenshot_key``: the optional screenshot in object storage (durable
+      ``bug_reports/`` prefix), served only to superadmins.
+    - ``status``: ``pending`` (waiting for delivery), ``delivered`` (an
+      issue exists, ``issue_url``), ``failed`` (``delivery_error``) or
+      ``stored`` (no delivery target configured, the report is only kept).
+
+    Platform owns the table (migration 160); delivery lives in
+    ``services/shared/bug_reports.py``.
+    """
+
+    __tablename__ = "bug_reports"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    reporter_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    contact_email = Column(String(254), nullable=True)
+    title = Column(String(200), nullable=False)
+    description = Column(Text, nullable=False)
+    expected = Column(Text, nullable=True)
+    context = Column(JSONB, nullable=False, default=dict, server_default=sa.text("'{}'::jsonb"))
+    screenshot_key = Column(String, nullable=True)
+    screenshot_content_type = Column(String(64), nullable=True)
+    screenshot_size = Column(Integer, nullable=True)
+    status = Column(String(16), nullable=False, default="pending", server_default="pending")
+    delivery_attempts = Column(Integer, nullable=False, default=0, server_default="0")
+    delivery_error = Column(Text, nullable=True)
+    issue_url = Column(String, nullable=True)
+    issue_number = Column(Integer, nullable=True)
+    delivered_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'delivered', 'failed', 'stored')",
+            name="ck_bug_reports_status",
+        ),
+        Index("ix_bug_reports_created", "created_at"),
+        Index("ix_bug_reports_status_created", "status", "created_at"),
+        Index("ix_bug_reports_reporter", "reporter_id"),
+    )
+
+    def __repr__(self):
+        return f"<BugReport(id={self.id}, status={self.status})>"

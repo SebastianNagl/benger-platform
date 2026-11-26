@@ -5431,6 +5431,55 @@ def run_code_validation(self, validation_id: str) -> Dict[str, Any]:
         return fail_escaped_validation(validation_id, exc, session_factory=SessionLocal)
 
 
+# In-app problem reports (services/shared/bug_reports.py): one attempt to
+# create the report's issue. Transient errors (network, 5xx, rate limits)
+# retry with back-off up to MAX_DELIVERY_RETRIES times; the report records
+# the issue URL or the last error. Without a configured target the report is
+# only kept (status ``stored``).
+@app.task(
+    name="tasks.deliver_bug_report",
+    bind=True,
+    acks_late=True,
+    max_retries=None,
+)
+def deliver_bug_report(self, report_id: str) -> Dict[str, Any]:
+    import bug_reports
+
+    retries = self.request.retries or 0
+    db = SessionLocal()
+    try:
+        outcome = bug_reports.deliver_report(
+            db, report_id, final=retries >= bug_reports.MAX_DELIVERY_RETRIES
+        )
+    except Exception:
+        db.rollback()
+        logger.exception("deliver_bug_report %s failed", report_id)
+        raise
+    finally:
+        db.close()
+    if outcome.retry:
+        raise self.retry(countdown=bug_reports.retry_countdown(retries))
+    return {"report_id": report_id, "status": outcome.state, "error": outcome.error}
+
+
+# Pending problem reports untouched for an hour (their first send was lost)
+# are queued again. Hourly, via beat.
+@app.task(name="tasks.sweep_pending_bug_reports", bind=True)
+def sweep_pending_bug_reports(self) -> Dict[str, Any]:
+    import bug_reports
+
+    db = SessionLocal()
+    try:
+        queued = bug_reports.requeue_stale(
+            db, lambda report_id: app.send_task("tasks.deliver_bug_report", args=[report_id])
+        )
+    finally:
+        db.close()
+    if queued:
+        logger.info("sweep_pending_bug_reports: %d delivery(ies) queued again", len(queued))
+    return {"queued": queued}
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Extracted implementations (structural decomposition of this module).
 #

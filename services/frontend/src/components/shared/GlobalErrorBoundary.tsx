@@ -1,9 +1,13 @@
 'use client'
 
 import { VertretbarMarkIcon } from '@/components/brand/VertretbarMark'
+import { BugReportDialog } from '@/components/bugReport/BugReportDialog'
 import { useI18n } from '@/contexts/I18nContext'
+import { recordError } from '@/lib/bugReport/recorder'
+import { getFeatureFlag } from '@/lib/featureFlags'
+import { BUG_REPORTS } from '@/lib/featureFlags/platformFlags'
 import { isStudentLockedHost } from '@/lib/utils/subdomain'
-import { Component, ReactNode, useSyncExternalStore } from 'react'
+import { Component, ReactNode, useState, useSyncExternalStore } from 'react'
 
 const subscribeNoop = () => () => {}
 
@@ -26,6 +30,9 @@ interface State {
  */
 function GlobalErrorContent({ error }: { error?: Error }) {
   const { t } = useI18n()
+  // The app's dialog host is gone with the crashed tree: this card renders
+  // its own "Report a problem" dialog (flag bug_reports).
+  const [reporting, setReporting] = useState(false)
   // Resolved after mount (same pattern as the auth pages) so the SSR/first
   // paint is deterministic and never hydration-mismatches.
   // Host resolved on the client only: the server snapshot stays neutral so
@@ -70,7 +77,26 @@ function GlobalErrorContent({ error }: { error?: Error }) {
         >
           {t('errors.global.reloadPage')}
         </button>
+        {/* No auth here, so the flag is read from the store as it was
+            loaded before the crash. */}
+        {getFeatureFlag(BUG_REPORTS) && (
+          <button
+            type="button"
+            onClick={() => setReporting(true)}
+            data-testid="error-report-problem"
+            className="mt-3 h-8 w-full rounded-full px-4 text-sm font-medium text-zinc-700 ring-1 ring-zinc-900/10 transition ring-inset hover:bg-zinc-900/2.5 dark:text-zinc-300 dark:ring-white/10 dark:hover:bg-white/5"
+          >
+            {t('bugReport.entry')}
+          </button>
+        )}
       </div>
+      {reporting && (
+        <BugReportDialog
+          open
+          onClose={() => setReporting(false)}
+          source="crash"
+        />
+      )}
     </div>
   )
 }
@@ -87,6 +113,7 @@ export class GlobalErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('Module initialization error:', error, errorInfo)
+    recordError(error, 'crash')
 
     // Log webpack-specific errors with more detail
     if (error.message?.includes('Cannot read properties of undefined')) {

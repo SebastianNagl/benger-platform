@@ -3,6 +3,7 @@
 import { FeatureFlagsMenuEntry } from '@/components/admin/featureFlags/FeatureFlagsMenuEntry'
 import { LoginModal } from '@/components/auth/LoginModal'
 import { SignupModal } from '@/components/auth/SignupModal'
+import { ReportProblemMenuEntry } from '@/components/bugReport/ReportProblemEntries'
 import { useIsPublicShell } from '@/components/layout/ShellVariant'
 import { Button } from '@/components/shared/Button'
 import { useAuth } from '@/contexts/AuthContext'
@@ -208,6 +209,12 @@ export function AuthButton() {
               )}
 
               <hr className="my-1 border-zinc-200 dark:border-zinc-700" />
+
+              {/* "Report a problem" (flag bug_reports), and for
+                  superadmins the list of reports. */}
+              <ReportProblemMenuEntry
+                onNavigate={() => setDropdownOpen(false)}
+              />
 
               <button
                 onClick={() => {

@@ -96,7 +96,10 @@ class TestMigration152:
     def test_the_flags_it_rolls_out_are_the_registered_platform_flags(self):
         from feature_flags import registry
 
-        platform = {d.name for d in registry.platform_flags()} - {registry.PUBLIC_API}
+        # Flags registered after this migration (bug_reports) are not part of
+        # its rollout: they start off everywhere until an admin switches them.
+        later = {registry.BUG_REPORTS}
+        platform = {d.name for d in registry.platform_flags()} - {registry.PUBLIC_API} - later
         assert platform == set(FLAGS)
         for name in FLAGS:
             assert registry.flag(name).default_state == registry.STATE_OFF

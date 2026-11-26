@@ -90,6 +90,12 @@ COMPLIANCE_RECORDS = "compliance_records"
 #: have none of those parts.
 REPORT_PAPER = "report_paper"
 
+#: In-app problem reports: the "Report a problem" entries, the
+#: report endpoint, the delivery of each report as an issue of the
+#: configured tracker and the superadmin list. Off: the entries are gone and
+#: the routes answer 404 ``feature_disabled``; stored reports stay.
+BUG_REPORTS = "bug_reports"
+
 
 # ---------------------------------------------------------------------------
 # Multi-owner registry
@@ -323,6 +329,16 @@ def platform_flags() -> Tuple[FlagDefinition, ...]:
             "Reproduzierbarkeit. Aus: nur Superadmins schreiben Berichte, ein "
             "Bericht braucht Aufgaben, LLM-Generierungen und abgeschlossene "
             "Evaluationen, und neue Snapshots haben diese Teile nicht.",
+            STATE_OFF,
+        ),
+        FlagDefinition(
+            BUG_REPORTS,
+            "Problem melden: Einträge im Kontomenü, in der Fußzeile und auf der "
+            "Fehlerseite, ein kurzes Formular mit technischem Kontext und "
+            "optionalem Screenshot, die Übergabe jeder Meldung als Issue an den "
+            "eingerichteten Tracker und die Liste der Meldungen für Superadmins. "
+            "Aus: Einträge fehlen, Routen antworten mit 404; gespeicherte "
+            "Meldungen bleiben erhalten.",
             STATE_OFF,
         ),
     )

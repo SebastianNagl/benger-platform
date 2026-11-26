@@ -12709,5 +12709,76 @@
       "planHash": "Spec-Hash des Plans {hash}",
       "planHashSaved": "Spec-Hash des Plans {hash}, gespeichert {date}"
     }
+  },
+  "bugReport": {
+    "entry": "Problem melden",
+    "title": "Problem melden",
+    "intro": "Beschreib kurz, was schiefgelaufen ist. Technische Angaben zu dieser Seite werden mitgeschickt, damit sich das Problem nachstellen lässt; du kannst sie unten vor dem Senden ansehen.",
+    "fields": {
+      "title": "Kurze Zusammenfassung",
+      "description": "Was ist passiert?",
+      "expected": "Was hättest du stattdessen erwartet? (optional)",
+      "contactEmail": "Kontakt-E-Mail (optional)",
+      "screenshot": "Screenshot (optional)"
+    },
+    "placeholders": {
+      "title": "Zum Beispiel: Speichern des Projekts tut nichts",
+      "description": "Was hast du gemacht, und was ist passiert?",
+      "expected": "Was hätte passieren sollen?",
+      "contactEmail": "name@example.org"
+    },
+    "contactEmailHint": "Nur wenn wir dich zu dieser Meldung kontaktieren dürfen. Sie bleibt in der Plattform.",
+    "screenshotPreview": "Vorschau des Screenshots",
+    "removeScreenshot": "Entfernen",
+    "chooseScreenshot": "Bild auswählen",
+    "pasteHint": "oder Screenshot einfügen (Strg+V). PNG, JPEG oder WebP, bis 5 MB.",
+    "attachedSummary": "Was mitgeschickt wird",
+    "attachedHint": "Seitenadresse ohne Abfragewerte, Browser, Bildschirmgröße, Sprache, Zeitzone, Versionen, aktive Funktionen, letzte Fehler, fehlgeschlagene Anfragen und Seitenwechsel. Keine Passwörter, Cookies oder Formularinhalte.",
+    "send": "Meldung senden",
+    "sending": "Wird gesendet...",
+    "sent": "Danke! Deine Meldung ist angekommen und wird angeschaut.",
+    "errors": {
+      "titleRequired": "Bitte gib eine kurze Zusammenfassung ein.",
+      "descriptionRequired": "Bitte beschreib, was passiert ist.",
+      "tooLong": "Einer der Texte ist zu lang.",
+      "invalidEmail": "Diese E-Mail-Adresse ist nicht gültig.",
+      "screenshotTooLarge": "Der Screenshot ist größer als 5 MB.",
+      "screenshotType": "Bitte nimm ein PNG-, JPEG- oder WebP-Bild.",
+      "rateLimited": "Du hast in kurzer Zeit viele Meldungen geschickt. Bitte versuch es später noch einmal.",
+      "contextTooLarge": "Die technischen Angaben sind zu groß zum Senden.",
+      "generic": "Die Meldung konnte nicht gesendet werden. Bitte versuch es noch einmal.",
+      "network": "Keine Verbindung zum Server. Bitte versuch es noch einmal."
+    },
+    "admin": {
+      "menu": "Problemmeldungen",
+      "title": "Problemmeldungen",
+      "description": "Mit \"Problem melden\" gesendete Meldungen, die neuesten zuerst.",
+      "filterStatus": "Status",
+      "allStatuses": "Alle",
+      "status": {
+        "pending": "Ausstehend",
+        "delivered": "Übergeben",
+        "failed": "Fehlgeschlagen",
+        "stored": "Nur gespeichert"
+      },
+      "loadFailed": "Die Meldungen konnten nicht geladen werden.",
+      "empty": "Noch keine Meldungen.",
+      "withScreenshot": "mit Screenshot",
+      "reporterUser": "Person {id}",
+      "reporterAnonymous": "Nicht angemeldet",
+      "issue": "Issue",
+      "contactEmail": "Kontakt-E-Mail",
+      "attempts": "Übergabeversuche",
+      "deliveryError": "Letzter Fehler",
+      "context": "Technischer Kontext",
+      "redeliver": "Erneut übergeben",
+      "redeliverQueued": "Die Übergabe wurde erneut eingeplant.",
+      "redeliverFailed": "Die Übergabe konnte nicht eingeplant werden.",
+      "sections": {
+        "description": "Was passiert ist",
+        "expected": "Was erwartet wurde",
+        "screenshot": "Screenshot"
+      }
+    }
   }
 }
