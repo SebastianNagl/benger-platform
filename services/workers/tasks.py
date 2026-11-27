@@ -2951,12 +2951,17 @@ def _run_grading_finalize_hook(evaluation_run_id: str, success: bool) -> None:
 
 def _stamp_immediate_grading_basis(task_evals, configs) -> None:
     """Record on each row of an immediate grading the grading scheme its
-    config graded it on (``grading_basis.stamp_grading_basis``).
+    config graded it on and, for a config that holds its grading on submit
+    (``auto_release: false``), the held draft review
+    (``grading_basis.stamp_grading_basis(..., on_submit=True)``).
 
     The config jobs write their rows in their own sessions, some through an
     extension package's writer, so the stamp is applied here once they are
-    all in; the caller commits. Never raises: a missing stamp only makes the
-    row count as current until the next grading.
+    all in; the caller commits it together with the run's completion, before
+    any notice or finalize hook reads the rows. Never raises: a missing
+    fingerprint only makes the row count as current until the next grading.
+    A failed stamp leaves a held config's rows without their draft, so it is
+    logged as an error.
     """
     try:
         from sqlalchemy.orm.attributes import flag_modified
@@ -2968,7 +2973,7 @@ def _stamp_immediate_grading_basis(task_evals, configs) -> None:
             config = by_id.get(str(row.evaluation_config_id))
             if config is None:
                 continue
-            stamped = stamp_grading_basis(row.metrics, config)
+            stamped = stamp_grading_basis(row.metrics, config, on_submit=True)
             if stamped is not row.metrics:
                 row.metrics = stamped
                 flag_modified(row, "metrics")
