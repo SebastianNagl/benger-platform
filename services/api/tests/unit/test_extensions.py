@@ -244,7 +244,9 @@ class TestExtensionLoader:
         # inactive_official_model_ids_async).
         # 2.91 adds project questionnaires (QuestionnairePrompt,
         # BeforeTaskQuestionnaireGate, before_task_questionnaire_pending).
-        assert CORE_API_VERSION == "2.91"
+        # 2.92 adds grading_review_events (GradingReviewEvent) and the held
+        # grading on submit (grading_basis.holds_first_grading, held_review).
+        assert CORE_API_VERSION == "2.92"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
