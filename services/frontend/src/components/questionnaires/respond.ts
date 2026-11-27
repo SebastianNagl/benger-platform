@@ -53,11 +53,7 @@ export async function respondToQuestionnaire(
   } catch (err) {
     const conflict = answerConflict(err)
     if (conflict === 'version_changed') {
-      const status = await questionnairesAPI.status(
-        projectId,
-        trigger,
-        subject,
-      )
+      const status = await questionnairesAPI.status(projectId, trigger, subject)
       return status.due ? status.questionnaire : null
     }
     if (conflict !== 'already_answered') throw err

@@ -315,7 +315,8 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   // undefined while they load. Loaded alongside the project, so a project
   // without questionnaires adds no wait.
   const [projectQuestionnaires, setProjectQuestionnaires] = useState<
-    { projectId: string; byTrigger: Record<string, ProjectQuestionnaire> } | undefined
+    | { projectId: string; byTrigger: Record<string, ProjectQuestionnaire> }
+    | undefined
   >(undefined)
   useEffect(() => {
     let cancelled = false
@@ -889,9 +890,8 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     showInstructionsModal &&
     (currentProject?.instructions || selectedVariantId) &&
     (() => {
-      const conditionalVariants =
-        currentProject?.conditional_instructions as
-          { id: string; content: string; weight: number }[] | undefined
+      const conditionalVariants = currentProject?.conditional_instructions as
+        { id: string; content: string; weight: number }[] | undefined
       const variantContent = conditionalVariants?.find(
         (v) => v.id === selectedVariantId,
       )?.content
@@ -916,26 +916,21 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                 </p>
               </div>
             </div>
-            {!isAlwaysVisible &&
-              !variantContent &&
-              !manualInstructionsOpen && (
-                <div className="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-700">
-                  <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-                    <input
-                      type="checkbox"
-                      checked={dontShowAgain}
-                      onChange={(e) => setDontShowAgain(e.target.checked)}
-                      className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                    />
-                    {t('annotation.instructions.dontShowAgain')}
-                  </label>
-                </div>
-              )}
+            {!isAlwaysVisible && !variantContent && !manualInstructionsOpen && (
+              <div className="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-700">
+                <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+                  <input
+                    type="checkbox"
+                    checked={dontShowAgain}
+                    onChange={(e) => setDontShowAgain(e.target.checked)}
+                    className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                  />
+                  {t('annotation.instructions.dontShowAgain')}
+                </label>
+              </div>
+            )}
             <div className="mt-4 flex justify-end">
-              <Button
-                onClick={handleInstructionsModalClose}
-                variant="filled"
-              >
+              <Button onClick={handleInstructionsModalClose} variant="filled">
                 {manualInstructionsOpen
                   ? t('annotation.instructions.close')
                   : t('annotation.instructions.startAnnotating')}

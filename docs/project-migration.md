@@ -405,6 +405,7 @@ keys; the NDJSON export carries the same data as one record per line.
   "likert_scale_evaluations": [...],
   "korrektur_comments": [...],
   "grading_feedback": [...],
+  "questionnaire_responses": [...],
   "post_annotation_responses": [...],
   "users": [...],
   "statistics": {
@@ -439,6 +440,14 @@ per-task data export carries the same log under `rubric_review_events` next to
 each task's `rubrics`. A merge import leaves the log out. An import into an
 existing project that requires the check (nested or merge) brings an exported
 active sheet that is not confirmed in as a candidate.
+
+`project.questionnaires` holds the project's questionnaires (one per moment:
+`before_task`, `after_submit`, `korrektur`) with every saved version, and
+`questionnaire_responses` all their answers; each answer names its moment
+(`trigger`), its task, submission or Korrektur, and the questionnaire version
+it answered. `post_annotation_responses` repeats the `after_submit` answers in
+the older shape for one release so earlier importers still find them; the
+import reads it only for answers `questionnaire_responses` lacks.
 
 ## Security Considerations
 

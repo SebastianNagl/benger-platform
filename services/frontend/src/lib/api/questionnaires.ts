@@ -21,9 +21,7 @@ export const QUESTIONNAIRE_TRIGGERS: QuestionnaireTrigger[] = [
 ]
 
 export type QuestionnaireFrequency =
-  | 'once_per_project'
-  | 'once_per_task'
-  | 'once_per_submission'
+  'once_per_project' | 'once_per_task' | 'once_per_submission'
 
 export interface ProjectQuestionnaire {
   trigger: QuestionnaireTrigger
@@ -101,9 +99,12 @@ export const questionnairesAPI = {
     trigger: QuestionnaireTrigger,
     subject: QuestionnaireSubject,
   ): Promise<QuestionnaireStatus> =>
-    apiClient.get(`${base(projectId)}/${trigger}/status${query({ ...subject })}`, {
-      cache: 'no-store',
-    } as any),
+    apiClient.get(
+      `${base(projectId)}/${trigger}/status${query({ ...subject })}`,
+      {
+        cache: 'no-store',
+      } as any,
+    ),
 
   /** `version`: the `version` of the questionnaire that was rendered. */
   answer: async (
