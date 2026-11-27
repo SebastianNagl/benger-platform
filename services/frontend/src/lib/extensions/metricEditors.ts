@@ -11,6 +11,7 @@
  * metric logs a warning (see ./owner.ts).
  */
 
+import type { EvaluationConfig } from '@/lib/api/evaluation-types'
 import type { ComponentType } from 'react'
 import { isOwnerActive } from './active'
 import {
@@ -49,6 +50,25 @@ export interface MetricEditorProps {
    * compatibility with editors that don't fetch.
    */
   projectId?: string
+  /**
+   * Replaces the edited draft's metric and parameters, so the dialog
+   * re-renders with the new metric's editor. Omitted display_name keeps
+   * the draft's current name.
+   */
+  onDraftChange?: (draft: {
+    metric: string
+    metric_parameters: Record<string, unknown>
+    display_name?: string
+  }) => void
+  /**
+   * Registers a change to the whole method list that the dialog applies
+   * when it saves, after writing the edited method; null removes it. The
+   * dialog drops it when it closes, opens another method, or the user
+   * picks another metric (an onDraftChange swap keeps it).
+   */
+  onSaveTransform?: (
+    transform: ((configs: EvaluationConfig[]) => EvaluationConfig[]) | null,
+  ) => void
 }
 
 const editors: RegistrationStacks<ComponentType<MetricEditorProps>> = new Map()
