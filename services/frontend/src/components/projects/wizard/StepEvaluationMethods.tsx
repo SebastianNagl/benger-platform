@@ -4,6 +4,7 @@ import { Alert } from '@/components/shared/Alert'
 import { Badge } from '@/components/shared/Badge'
 import { Input } from '@/components/shared/Input'
 import { Label } from '@/components/shared/Label'
+import { renderProviderGroupedOptions } from '@/components/shared/ProviderGroupedOptions'
 import {
   Select,
   SelectContent,
@@ -521,6 +522,7 @@ export function StepEvaluationMethods({
                                 </Label>
                                 <Select
                                   searchable
+                                  keepOrder
                                   value={
                                     (config.metric_parameters as any)
                                       ?.judge_model ||
@@ -552,11 +554,14 @@ export function StepEvaluationMethods({
                                     />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {models.map((m) => (
-                                      <SelectItem key={m.id} value={m.id}>
-                                        {m.name}
-                                      </SelectItem>
-                                    ))}
+                                    {renderProviderGroupedOptions(
+                                      models,
+                                      (m) => (
+                                        <SelectItem key={m.id} value={m.id}>
+                                          {m.name}
+                                        </SelectItem>
+                                      ),
+                                    )}
                                   </SelectContent>
                                 </Select>
                               </div>

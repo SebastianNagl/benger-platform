@@ -123,17 +123,6 @@ registerProjectSettingRisks()
 
 // providerColors is shared with ModelSelectionSection — imported above.
 
-// Provider sort order
-const providerOrder: Record<string, number> = {
-  OpenAI: 1,
-  Anthropic: 2,
-  Google: 3,
-  DeepInfra: 4,
-  Mistral: 5,
-  Cohere: 6,
-  Grok: 7,
-}
-
 // ReasoningConfig is shared with ModelSelectionSection — imported above.
 // Thinking-preset shape for the provider preset tables below.
 interface ThinkingPreset {
@@ -365,16 +354,9 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
     enabled: !!user?.is_superadmin || !!currentProject?.can_edit,
   })
 
-  // Sort models by provider for better organization
-  const sortedModels = useMemo(() => {
-    if (!availableModels) return null
-    return [...availableModels].sort((a, b) => {
-      const orderA = providerOrder[a.provider] ?? 99
-      const orderB = providerOrder[b.provider] ?? 99
-      if (orderA !== orderB) return orderA - orderB
-      return a.name.localeCompare(b.name)
-    })
-  }, [availableModels])
+  // The API lists the models in catalog order, grouped by provider and
+  // newest first (lib/modelOrder), the order every model picker shows.
+  const sortedModels = availableModels ?? null
 
   // Recommended-value consensus across the project's selected models, scoped
   // to a usage mode (generation vs evaluation). Mirrors the pattern in

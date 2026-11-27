@@ -19,7 +19,9 @@ import { Input } from '@/components/shared/Input'
 import { useI18n } from '@/contexts/I18nContext'
 import type { Model } from '@/hooks/useModels'
 import { DEFAULT_MODEL_ID } from '@/lib/modelDefaults'
+import { groupModelsByProvider } from '@/lib/modelOrder'
 import Link from 'next/link'
+import { Fragment } from 'react'
 
 interface BuilderStateWithParameters {
   metric_parameters: Record<string, any>
@@ -113,8 +115,9 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
         </label>
         <div className="grid grid-cols-2 gap-2">
           {(() => {
-            // BYOM: officials first, then a "Custom" sub-heading + custom
-            // models with badge. Missing is_official counts as official.
+            // Officials under their providers in catalog order
+            // (lib/modelOrder), then a "Custom" sub-heading + custom models
+            // with badge (BYOM). Missing is_official counts as official.
             const selectable = judgeModels.filter((m) => m.id !== primaryJudge)
             const officials = selectable.filter((m) => m.is_official !== false)
             const customs = selectable.filter((m) => m.is_official === false)
@@ -178,7 +181,14 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
 
             return (
               <>
-                {officials.map(renderEntry)}
+                {groupModelsByProvider(officials).map((group) => (
+                  <Fragment key={group.provider}>
+                    <div className="col-span-2 pt-1 text-xs font-semibold tracking-wider text-zinc-400 uppercase">
+                      {group.provider}
+                    </div>
+                    {group.models.map(renderEntry)}
+                  </Fragment>
+                ))}
                 {customs.length > 0 && (
                   <div className="col-span-2 pt-1 text-xs font-semibold tracking-wider text-zinc-400 uppercase">
                     {t('customModels.picker.customSection')}

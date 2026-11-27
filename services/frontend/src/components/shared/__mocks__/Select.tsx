@@ -25,6 +25,7 @@ interface SelectContextType {
   value: string | string[]
   onValueChange: (value: any) => void
   searchable: boolean
+  keepOrder: boolean
   multiple: boolean
   disabled?: boolean
   displayValue?: string
@@ -37,8 +38,8 @@ const SelectContext = createContext<SelectContextType | null>(null)
 
 /**
  * Like the real Select, `searchable` (and `multiple`, which implies it) sorts
- * the options alphabetically with pinned ones first, so tests see the order
- * users see. The search field itself has no native counterpart.
+ * the options alphabetically with pinned ones first (or keeps their order,
+ * with `keepOrder`), so tests see the order users see. The search field itself has no native counterpart.
  */
 export function Select({
   value,
@@ -47,6 +48,7 @@ export function Select({
   displayValue,
   children,
   searchable = false,
+  keepOrder = false,
   multiple = false,
 }: {
   value: string | string[]
@@ -55,6 +57,7 @@ export function Select({
   displayValue?: string
   children: ReactNode
   searchable?: boolean
+  keepOrder?: boolean
   multiple?: boolean
   searchPlaceholder?: string
   emptyMessage?: string
@@ -66,6 +69,7 @@ export function Select({
         value,
         onValueChange,
         searchable: searchable || multiple,
+        keepOrder,
         multiple,
         disabled,
         displayValue,
@@ -115,7 +119,7 @@ function orderedItems(context: SelectContextType): React.ReactElement[] {
   const isGroupLabel = (element: React.ReactElement) =>
     element.type === SelectGroupLabel
   const ordered = context.searchable
-    ? arrangeOptions(collected, { isGroupLabel })
+    ? arrangeOptions(collected, { isGroupLabel, keepOrder: context.keepOrder })
     : collected
   // A heading is not an option and has no place inside a native <select>.
   return ordered.filter((element) => !isGroupLabel(element))

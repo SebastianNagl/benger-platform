@@ -10,7 +10,13 @@
  * picker shows.
  */
 import '@testing-library/jest-dom'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react'
 
 import {
   type EvaluationConfig,
@@ -19,7 +25,7 @@ import {
 import { DEFAULT_MODEL_ID } from '@/lib/modelDefaults'
 import { StepEvaluationMethods } from '../StepEvaluationMethods'
 
-let mockModels: { id: string; name: string }[] = []
+let mockModels: { id: string; name: string; provider?: string }[] = []
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
@@ -100,5 +106,42 @@ describe('StepEvaluationMethods: judge model of a toggled judge', () => {
     mockModels = [{ id: DEFAULT_MODEL_ID, name: 'Default model' }]
     const cfg = toggleAndCapture('rouge')
     expect((cfg.metric_parameters as any)?.judge_model).toBeUndefined()
+  })
+})
+
+describe('StepEvaluationMethods: order of the judge model picker', () => {
+  afterEach(() => {
+    mockModels = []
+  })
+
+  it('keeps the catalog order within a provider, not the name order', () => {
+    // Catalog order lists the newest model first; by name "GPT-4o" would
+    // sort before "Omega 9".
+    mockModels = [
+      { id: 'o9-omega', name: 'Omega 9', provider: 'openai' },
+      { id: 'gpt-4o', name: 'GPT-4o', provider: 'openai' },
+      { id: 'claude-sonnet-4', name: 'Claude Sonnet 4', provider: 'anthropic' },
+    ]
+    const cfg = toggleAndCapture('llm_judge_classic')
+    cleanup()
+    render(
+      <StepEvaluationMethods
+        evaluationConfigs={[cfg]}
+        onEvaluationConfigsChange={jest.fn()}
+        immediateEvaluationEnabled={false}
+        onImmediateEvaluationChange={jest.fn()}
+        annotationFields={[{ name: 'loesung', type: 'TextArea' } as any]}
+        dataColumns={['musterloesung']}
+        selectedModelIds={[]}
+      />,
+    )
+    const row = screen.getByTestId('wizard-metric-llm_judge_classic')
+    fireEvent.click(within(row).getAllByRole('button')[0])
+    const judgeSelect = (
+      document.querySelector('option[value="o9-omega"]') as HTMLOptionElement
+    ).parentElement as HTMLSelectElement
+    expect(
+      Array.from(judgeSelect.options, (o) => o.value).filter(Boolean),
+    ).toEqual(['o9-omega', 'gpt-4o', 'claude-sonnet-4'])
   })
 })

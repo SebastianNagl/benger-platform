@@ -287,6 +287,43 @@ describe('searchable Select', () => {
     expect(screen.getByText('Nothing')).toBeInTheDocument()
   })
 
+  it('keeps the given order with keepOrder and still filters', async () => {
+    // Model pickers: the catalog order (newest first) is not alphabetical.
+    render(
+      <Select searchable keepOrder value="" onValueChange={jest.fn()}>
+        <SelectTrigger data-testid="trigger">
+          <SelectValue placeholder="Judge" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroupLabel>OpenAI</SelectGroupLabel>
+          <SelectItem value="g62">GPT-6.2 Astra</SelectItem>
+          <SelectItem value="g6">GPT-6 Astra</SelectItem>
+          <SelectItem value="g41">GPT-4.1</SelectItem>
+          <SelectGroupLabel>Anthropic</SelectGroupLabel>
+          <SelectItem value="o55">Claude Opus 5.5</SelectItem>
+          <SelectItem value="h55">Claude Haiku 5.5</SelectItem>
+        </SelectContent>
+      </Select>,
+    )
+    const listbox = await open()
+    expect(
+      Array.from(listbox.children).map((child) => child.textContent),
+    ).toEqual([
+      'OpenAI',
+      'GPT-6.2 Astra',
+      'GPT-6 Astra',
+      'GPT-4.1',
+      'Anthropic',
+      'Claude Opus 5.5',
+      'Claude Haiku 5.5',
+    ])
+
+    await userEvent.type(screen.getByRole('combobox'), 'astra')
+    expect(
+      Array.from(listbox.children).map((child) => child.textContent),
+    ).toEqual(['OpenAI', 'GPT-6.2 Astra', 'GPT-6 Astra'])
+  })
+
   it('uses the given search placeholder', async () => {
     render(
       <Select

@@ -19,6 +19,7 @@ from models import (
     OrganizationGroup,
     OrganizationGroupMembership,
     OrganizationMembership,
+    llm_model_display_order,
 )
 from services.org_api_key_service import org_api_key_service
 
@@ -427,7 +428,11 @@ async def get_org_available_models(
         db, current_user.id, org_id
     )
 
-    result = await db.execute(select(DBLLMModel).where(DBLLMModel.is_active == True))  # noqa: E712
+    result = await db.execute(
+        select(DBLLMModel)
+        .where(DBLLMModel.is_active == True)  # noqa: E712
+        .order_by(*llm_model_display_order())
+    )
     models = result.scalars().all()
 
     # Catalog entries that belong to a feature flag (catalog_flags): offered
