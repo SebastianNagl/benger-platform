@@ -36,8 +36,7 @@ list, with 161's ``REPLACEMENTS`` mapping (loaded from 161, not copied):
 Records of the past are not touched: ``rubric_selector`` picks the sheets a
 generator produced, so its ``generator_model_id`` must keep naming the model
 that produced them, and a ``skipped`` list records which models a selection
-passed over. A future retirement adds its ids to a mapping and calls
-:func:`rewrite_model_references` with it.
+passed over.
 
 Counts per column, per retired id and per key path are printed. Idempotent:
 a second run finds no retired id. Downgrade is a no-op, since the retired
@@ -67,7 +66,9 @@ depends_on = None
 
 def _load_161():
     path = Path(__file__).with_name("161_retired_model_references.py")
-    spec = importlib.util.spec_from_file_location("_migration_161_retired_model_references", path)
+    spec = importlib.util.spec_from_file_location(
+        "_migration_161_retired_model_references", path
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -196,7 +197,9 @@ class _Walk:
                 seen = set()
                 deduped = []
                 for entry in judges:
-                    judge = entry.get("judge_model_id") if isinstance(entry, dict) else None
+                    judge = (
+                        entry.get("judge_model_id") if isinstance(entry, dict) else None
+                    )
                     if judge is not None and judge in seen:
                         continue
                     if judge is not None:
@@ -206,7 +209,9 @@ class _Walk:
             for label_key in ("display_name", "displayName"):
                 label = out.get(label_key)
                 if isinstance(label, str):
-                    new_label = _rename_in_label(label, replaced_here, self.replacements)
+                    new_label = _rename_in_label(
+                        label, replaced_here, self.replacements
+                    )
                     if new_label != label:
                         out[label_key] = new_label
                         self.paths[f"{path}.{label_key}" if path else label_key] += 1
@@ -296,7 +301,9 @@ def upgrade() -> None:
     for table in ("projects", "organizations", "project_wizard_drafts"):
         _rewrite_table(conn, table, per_id, per_path, counts)
     ocr = 0
-    if "handwriting_ocr_model" in {c["name"] for c in inspect(conn).get_columns("projects")}:
+    if "handwriting_ocr_model" in {
+        c["name"] for c in inspect(conn).get_columns("projects")
+    }:
         for retired, replacement in REPLACEMENTS.items():
             n = conn.execute(
                 sa.text(

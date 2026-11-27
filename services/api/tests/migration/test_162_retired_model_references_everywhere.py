@@ -28,7 +28,9 @@ VERSIONS = os.path.normpath(
 
 
 def _load(name):
-    spec = importlib.util.spec_from_file_location(f"mig_{name}", os.path.join(VERSIONS, name))
+    spec = importlib.util.spec_from_file_location(
+        f"mig_{name}", os.path.join(VERSIONS, name)
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -69,7 +71,10 @@ def _sheet_judge_config():
                 "id": "notenpunkte",
                 "metric": "llm_judge_classic",
                 "display_name": "Notenpunkte (gpt-5-mini)",
-                "metric_parameters": {"judge_model": "gpt-5-mini", "score_scale": "0-18"},
+                "metric_parameters": {
+                    "judge_model": "gpt-5-mini",
+                    "score_scale": "0-18",
+                },
             },
             {
                 "id": "bewertungsbogen",
@@ -84,7 +89,9 @@ def _sheet_judge_config():
                         "source": "chosen",
                         "reason": None,
                         "recommended": "gpt-5.6-luna",
-                        "skipped": [{"provider": "openai", "model_id": "o3", "key": "missing"}],
+                        "skipped": [
+                            {"provider": "openai", "model_id": "o3", "key": "missing"}
+                        ],
                     },
                     "rubric_prompt_key": "rubric",
                     "custom_prompt_template": "Grade like o3 would: {answer}",
@@ -102,7 +109,10 @@ class TestMigration162:
     def test_revision_chains_after_161_and_shares_its_mapping(self, migration):
         assert migration.revision == "162_retired_model_references_everywhere"
         assert migration.down_revision == "161_retired_model_references"
-        assert migration.REPLACEMENTS == _load("161_retired_model_references.py").REPLACEMENTS
+        assert (
+            migration.REPLACEMENTS
+            == _load("161_retired_model_references.py").REPLACEMENTS
+        )
 
     def test_saved_references_at_any_key_move_to_the_replacements(
         self, test_db, migration, capsys
@@ -116,7 +126,10 @@ class TestMigration162:
             name="Org",
             display_name="Org",
             slug=f"org-{_uid()[:8]}",
-            settings={"handwriting_ocr_model": "gpt-6.1-terra", "default_judge_model": "o3"},
+            settings={
+                "handwriting_ocr_model": "gpt-6.1-terra",
+                "default_judge_model": "o3",
+            },
         )
         test_db.add(org)
         exam = Project(
@@ -134,7 +147,9 @@ class TestMigration162:
             created_by=user.id,
             llm_model_ids=["gpt-6.1-terra", "gpt-5-mini"],
             generation_config={
-                "prompt_structures": {"s": {"name": "gpt-5", "user_prompt": "Act as o3."}},
+                "prompt_structures": {
+                    "s": {"name": "gpt-5", "user_prompt": "Act as o3."}
+                },
                 "selected_configuration": {
                     "models": ["gpt-6.1-terra"],
                     "model_configs": {"gpt-5-nano": {"max_tokens": 4000}},
@@ -148,8 +163,12 @@ class TestMigration162:
             llm_model_ids=["gpt-5.4-mini"],
             evaluation_config={
                 "evaluation_configs": [
-                    {"id": "a", "metric": "llm_judge_classic", "display_name": "o3",
-                     "metric_parameters": {"judge_model": "gpt-5.4-mini"}},
+                    {
+                        "id": "a",
+                        "metric": "llm_judge_classic",
+                        "display_name": "o3",
+                        "metric_parameters": {"judge_model": "gpt-5.4-mini"},
+                    },
                 ]
             },
         )
@@ -164,8 +183,11 @@ class TestMigration162:
                 "selectedModelIds": ["gpt-5", "gpt-6.1-sol"],
                 "modelConfigs": {"gpt-5": {"temperature": 0.1}},
                 "evaluationConfigs": [
-                    {"id": "x", "displayName": "Judge (gpt-5)",
-                     "metric_parameters": {"judge_model": "gpt-5"}},
+                    {
+                        "id": "x",
+                        "displayName": "Judge (gpt-5)",
+                        "metric_parameters": {"judge_model": "gpt-5"},
+                    },
                 ],
             },
         )
@@ -177,7 +199,9 @@ class TestMigration162:
             migration.upgrade()
         test_db.commit()
         out = capsys.readouterr().out
-        summary = out.split("162: rewrote retired model references: ")[1].splitlines()[0]
+        summary = out.split("162: rewrote retired model references: ")[1].splitlines()[
+            0
+        ]
         counts = dict(item.split("=") for item in summary.split(", "))
         assert {k: v for k, v in counts.items() if v != "0"} == {
             "organizations.settings": "1",
@@ -215,7 +239,9 @@ class TestMigration162:
         assert selection["model_id"] == "gpt-6.1-terra"
         # Records of the past stay: the sheets gpt-5 produced, the rung a
         # selection skipped, the recommendation it was made against.
-        assert selection["skipped"] == [{"provider": "openai", "model_id": "o3", "key": "missing"}]
+        assert selection["skipped"] == [
+            {"provider": "openai", "model_id": "o3", "key": "missing"}
+        ]
         assert selection["recommended"] == "gpt-5.6-luna"
         assert params["rubric_selector"] == {"generator_model_id": "gpt-5"}
         # A string equal to a retired id under a non-model key stays.
@@ -243,7 +269,10 @@ class TestMigration162:
         assert state["selectedModelIds"] == ["gpt-6.1-sol"]
         assert state["modelConfigs"] == {"gpt-6.1-sol": {"temperature": 0.1}}
         assert state["evaluationConfigs"][0]["displayName"] == "Judge (gpt-6.1-sol)"
-        assert state["evaluationConfigs"][0]["metric_parameters"]["judge_model"] == "gpt-6.1-sol"
+        assert (
+            state["evaluationConfigs"][0]["metric_parameters"]["judge_model"]
+            == "gpt-6.1-sol"
+        )
 
         # Idempotent: a second run finds nothing left to rewrite.
         with patch.object(migration.op, "get_bind", return_value=test_db.connection()):
@@ -258,32 +287,63 @@ class TestMigration162:
         unchanged = (None, set(), {})
         # Key shapes: a model key, a list under one, nested at any depth.
         out, retired, paths = rewrite(
-            {"a": [{"b": {"judge_model_id": "o3", "judge_models": ["o3-pro", "gpt-5"]}}]},
+            {
+                "a": [
+                    {"b": {"judge_model_id": "o3", "judge_models": ["o3-pro", "gpt-5"]}}
+                ]
+            },
             "evaluation_config",
         )
-        assert out == {"a": [{"b": {"judge_model_id": "gpt-6.1-sol", "judge_models": ["gpt-6.1-sol"]}}]}
+        assert out == {
+            "a": [
+                {
+                    "b": {
+                        "judge_model_id": "gpt-6.1-sol",
+                        "judge_models": ["gpt-6.1-sol"],
+                    }
+                }
+            ]
+        }
         assert retired == {"o3", "o3-pro", "gpt-5"}
         assert paths["evaluation_config.a[].b.judge_models[]"] == 2
         # A judges list that now names a model twice keeps its first entry.
         out, _, _ = rewrite(
-            {"judges": [{"judge_model_id": "o3", "runs": 2}, {"judge_model_id": "gpt-6.1-sol"}]},
+            {
+                "judges": [
+                    {"judge_model_id": "o3", "runs": 2},
+                    {"judge_model_id": "gpt-6.1-sol"},
+                ]
+            },
             "metric_parameters",
         )
         assert out == {"judges": [{"judge_model_id": "gpt-6.1-sol", "runs": 2}]}
         # Strings equal to a retired id elsewhere, and longer ids, stay.
-        assert rewrite({"name": "o3", "label": ["gpt-5"], "note": "gpt-5"}, "settings") == unchanged
+        assert (
+            rewrite({"name": "o3", "label": ["gpt-5"], "note": "gpt-5"}, "settings")
+            == unchanged
+        )
         assert rewrite({"model": "gpt-5.4-mini"}, "settings") == unchanged
         assert rewrite(["gpt-5", "o3"], "korrektur_config") == unchanged
         assert rewrite(None, "evaluation_config") == unchanged
-        assert rewrite({"model_id": "gpt-5", "skipped": [{"model_id": "gpt-5"}]}, "x")[0] == {
+        assert rewrite({"model_id": "gpt-5", "skipped": [{"model_id": "gpt-5"}]}, "x")[
+            0
+        ] == {
             "model_id": "gpt-6.1-sol",
             "skipped": [{"model_id": "gpt-5"}],
         }
 
     def test_a_future_retirement_only_needs_its_mapping(self, migration):
         out, retired, _ = migration.rewrite_model_references(
-            {"evaluation_configs": [{"display_name": "Votum (gpt-6.1-terra)",
-                                     "metric_parameters": {"rubric_generator_model_id": "gpt-6.1-terra"}}]},
+            {
+                "evaluation_configs": [
+                    {
+                        "display_name": "Votum (gpt-6.1-terra)",
+                        "metric_parameters": {
+                            "rubric_generator_model_id": "gpt-6.1-terra"
+                        },
+                    }
+                ]
+            },
             "evaluation_config",
             {"gpt-6.1-terra": "gpt-7-terra"},
         )
@@ -293,9 +353,27 @@ class TestMigration162:
         assert entry["display_name"] == "Votum (gpt-7-terra)"
 
     def test_model_key_names(self, migration):
-        for key in ("model", "models", "model_id", "model_ids", "judge_model", "judge_model_id",
-                    "generator_model_id", "rubric_generator_model_id", "llm_model_ids",
-                    "handwriting_ocr_model", "selectedModelIds", "judgeModel"):
+        for key in (
+            "model",
+            "models",
+            "model_id",
+            "model_ids",
+            "judge_model",
+            "judge_model_id",
+            "generator_model_id",
+            "rubric_generator_model_id",
+            "llm_model_ids",
+            "handwriting_ocr_model",
+            "selectedModelIds",
+            "judgeModel",
+        ):
             assert migration.is_model_key(key), key
-        for key in ("name", "display_name", "model_configs", "modelling", "remodel_note", 3):
+        for key in (
+            "name",
+            "display_name",
+            "model_configs",
+            "modelling",
+            "remodel_note",
+            3,
+        ):
             assert not migration.is_model_key(key), key
