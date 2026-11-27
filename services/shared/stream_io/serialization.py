@@ -60,6 +60,7 @@ def empty_export_stats() -> dict:
         "total_members": 0,
         "total_assignments": 0,
         "total_post_annotation_responses": 0,
+        "total_questionnaire_responses": 0,
         "total_grading_feedback": 0,
     }
 
@@ -302,7 +303,68 @@ def serialize_likert_scale_evaluation_row(lk) -> dict:
     }
 
 
+def serialize_project_questionnaires(db, project_id) -> list:
+    """The project's questionnaires (every moment) with all their versions.
+
+    Rides in the exported ``project`` payload as ``questionnaires``; the
+    import recreates them, so the answers keep pointing at the version text
+    they answered."""
+    from project_models import ProjectQuestionnaire
+
+    rows = (
+        db.query(ProjectQuestionnaire)
+        .filter(ProjectQuestionnaire.project_id == project_id)
+        .order_by(ProjectQuestionnaire.trigger)
+        .all()
+    )
+    return [
+        {
+            "id": q.id,
+            "trigger": q.trigger,
+            "enabled": bool(q.enabled),
+            "config": q.config,
+            "required": bool(q.required),
+            "frequency": q.frequency,
+            "version": q.version,
+            "created_at": _iso(q.created_at),
+            "updated_at": _iso(q.updated_at),
+            "versions": [
+                {
+                    "version": v.version,
+                    "config": v.config,
+                    "config_hash": v.config_hash,
+                    "created_at": _iso(v.created_at),
+                }
+                for v in q.versions
+            ],
+        }
+        for q in rows
+    ]
+
+
+def serialize_questionnaire_response_row(r) -> dict:
+    """One ``questionnaire_responses`` row (any moment)."""
+    return {
+        "id": r.id,
+        "questionnaire_id": r.questionnaire_id,
+        "trigger": r.trigger,
+        "questionnaire_version": r.questionnaire_version,
+        "config_hash": r.config_hash,
+        "project_id": r.project_id,
+        "user_id": r.user_id,
+        "task_id": r.task_id,
+        "annotation_id": r.annotation_id,
+        "task_evaluation_id": r.task_evaluation_id,
+        "subject_key": r.subject_key,
+        "skipped": bool(r.skipped),
+        "result": r.result,
+        "created_at": _iso(r.created_at),
+    }
+
+
 def serialize_post_annotation_response_row(r) -> dict:
+    """An after_submit answer in the #1208 ``post_annotation_responses``
+    shape, which exports keep carrying for one release."""
     return {
         "id": r.id,
         "annotation_id": r.annotation_id,

@@ -104,7 +104,9 @@ from project_models import (
     Annotation,
     GradingFeedback,
     KorrekturComment,
-    PostAnnotationResponse,
+    ProjectQuestionnaire,
+    ProjectQuestionnaireVersion,
+    QuestionnaireResponse,
     Project,
     ProjectOrganization,
     Task,
@@ -121,6 +123,14 @@ from evaluation_run_models import (
 )
 from exam_tools import portable_exam_tools
 from human_graded_metrics import is_human_graded_metric, run_metric
+from questionnaires import (
+    AFTER_SUBMIT,
+    ALLOWED_FREQUENCIES,
+    DEFAULT_REQUIRED,
+    QUESTIONNAIRE_TRIGGERS,
+    config_hash as questionnaire_config_hash,
+    default_frequency,
+)
 from serializers import (
     CALL_TELEMETRY_FIELDS,
     TASK_RUBRIC_REVIEW_EVENT_FIELDS,
@@ -1136,19 +1146,27 @@ def run_nested_import(
             db.add(annotation)
             created_annotations += 1
 
-            # Import questionnaire response if present
+            # Import questionnaire response if present (the after_submit answer)
             qr_data = ann_data.get("questionnaire_response")
             if qr_data and isinstance(qr_data, dict) and qr_data.get("result"):
-                qr = PostAnnotationResponse(
-                    id=str(uuid.uuid4()),
-                    annotation_id=annotation_id,
-                    task_id=task_id,
-                    project_id=project_id,
-                    user_id=ann_data.get("completed_by", user_id),
-                    result=qr_data["result"],
-                    config_hash=qr_data.get("config_hash"),
+                after_submit = _after_submit_questionnaire(db, project_id)
+                db.add(
+                    QuestionnaireResponse(
+                        id=str(uuid.uuid4()),
+                        project_id=project_id,
+                        questionnaire_id=after_submit.id,
+                        trigger=AFTER_SUBMIT,
+                        questionnaire_version=None,
+                        config_hash=qr_data.get("config_hash"),
+                        user_id=ann_data.get("completed_by", user_id),
+                        task_id=task_id,
+                        annotation_id=annotation_id,
+                        subject_key=f"annotation:{annotation_id}",
+                        skipped=False,
+                        result=qr_data["result"],
+                        **_timestamps(qr_data, "created_at"),
+                    )
                 )
-                db.add(qr)
                 created_questionnaire_responses += 1
 
         # Flush so the new annotation rows land before TaskEvaluation rows
@@ -1752,7 +1770,8 @@ class _FullImportContext:
         "catchall_judge_runs",
         "matched_user_ids",
         "grading_feedback_seen",
-        "questionnaire_annotations_seen",
+        "questionnaire_by_trigger",
+        "questionnaire_subjects_seen",
         "active_rubric_tasks",
         "rubric_review_required",
         "rubric_review_events",
@@ -1803,6 +1822,11 @@ class _FullImportContext:
             "preference_rankings": {},
             "likert_scale_evaluations": {},
             "post_annotation_responses": {},
+            # Questionnaires (old id -> new) and their answers (old id -> new).
+            "questionnaires": {},
+            "questionnaire_responses": {},
+            # old task_evaluation id -> new, for the Korrektur answers' links.
+            "task_evaluations": {},
             # old task_rubric id -> new. Filled before any grading is imported
             # so `_insert_task_evaluation` can repoint `details.rubric_id`.
             "task_rubrics": {},
@@ -1822,10 +1846,10 @@ class _FullImportContext:
         # opinion (see _insert_grading_feedback).
         self.matched_user_ids: Dict[str, str] = {}
         self.grading_feedback_seen: set = set()
-        # New annotation ids that already received a questionnaire response:
-        # the table holds one per annotation (unique index, migration 164),
-        # so a file carrying two keeps the first instead of failing.
-        self.questionnaire_annotations_seen: Set[str] = set()
+        # Questionnaire trigger -> new questionnaire id, and the
+        # (questionnaire, user, subject) keys already imported (unique).
+        self.questionnaire_by_trigger: Dict[str, str] = {}
+        self.questionnaire_subjects_seen: Set[tuple] = set()
         # (new task id, new user id) of imported active annotations. Several
         # exported accounts can map to the same user (the importer fallback),
         # and the table allows one such row per pair
@@ -2698,8 +2722,9 @@ def _insert_task_evaluation(ctx: _FullImportContext, te_data: dict) -> None:
     # te_seen counts every row in the payload (imported or skipped) to reproduce
     # the old len(import_data["task_evaluations"]) stat without holding the array.
     ctx.te_seen += 1
-    te_data.get("id", str(uuid.uuid4()))
     new_te_id = str(uuid.uuid4())
+    if te_data.get("id"):
+        ctx.id_mappings["task_evaluations"][te_data["id"]] = new_te_id
 
     evaluation_id = ctx.id_mappings["evaluations"].get(te_data.get("evaluation_id"))
     task_id = ctx.id_mappings["tasks"].get(te_data.get("task_id"))
@@ -3031,29 +3056,238 @@ def _insert_task_assignment(ctx: _FullImportContext, assignment_data: dict) -> N
     )
 
 
-def _insert_post_annotation_response(ctx: _FullImportContext, par_data: dict) -> None:
-    old_par_id = par_data.get("id", str(uuid.uuid4()))
-    new_par_id = str(uuid.uuid4())
-    ctx.id_mappings["post_annotation_responses"][old_par_id] = new_par_id
+def _after_submit_questionnaire(db, project_id: str) -> ProjectQuestionnaire:
+    """The project's after_submit questionnaire, created (switched off, no
+    config) when an imported answer needs one to belong to."""
+    row = (
+        db.query(ProjectQuestionnaire)
+        .filter(
+            ProjectQuestionnaire.project_id == project_id,
+            ProjectQuestionnaire.trigger == AFTER_SUBMIT,
+        )
+        .first()
+    )
+    if row is None:
+        row = ProjectQuestionnaire(
+            id=str(uuid.uuid4()),
+            project_id=project_id,
+            trigger=AFTER_SUBMIT,
+            enabled=False,
+            config=None,
+            required=DEFAULT_REQUIRED[AFTER_SUBMIT],
+            frequency=default_frequency(AFTER_SUBMIT),
+            version=0,
+        )
+        db.add(row)
+        db.flush()
+    return row
 
+
+def _import_questionnaires(ctx: _FullImportContext, project_data: dict) -> None:
+    """Recreate the exported questionnaires with every version.
+
+    Exports from before the questionnaire store carry only the project's
+    ``questionnaire_enabled`` / ``questionnaire_config``: that becomes the
+    after_submit questionnaire (version 1), as the migration did."""
+    exported = project_data.get("questionnaires")
+    if not isinstance(exported, list):
+        config = project_data.get("questionnaire_config")
+        enabled = bool(project_data.get("questionnaire_enabled"))
+        if not enabled and not (config or "").strip():
+            return
+        exported = [
+            {
+                "trigger": AFTER_SUBMIT,
+                "enabled": enabled,
+                "config": config,
+                "required": True,
+                "frequency": default_frequency(AFTER_SUBMIT),
+                "version": 1 if (config or "").strip() else 0,
+                "versions": (
+                    [{"version": 1, "config": config}] if (config or "").strip() else []
+                ),
+            }
+        ]
+    for q in exported:
+        trigger = q.get("trigger") if isinstance(q, dict) else None
+        if trigger not in QUESTIONNAIRE_TRIGGERS:
+            continue
+        if trigger in ctx.questionnaire_by_trigger:
+            continue
+        frequency = q.get("frequency")
+        if frequency not in ALLOWED_FREQUENCIES[trigger]:
+            frequency = default_frequency(trigger)
+        new_id = str(uuid.uuid4())
+        row = ProjectQuestionnaire(
+            id=new_id,
+            project_id=ctx.new_project_id,
+            trigger=trigger,
+            enabled=bool(q.get("enabled")) and bool((q.get("config") or "").strip()),
+            config=q.get("config") or None,
+            required=bool(q.get("required", DEFAULT_REQUIRED[trigger])),
+            frequency=frequency,
+            version=int(q.get("version") or 0),
+            updated_by=ctx.user_id,
+        )
+        ctx.db.add(row)
+        for v in q.get("versions") or []:
+            if not isinstance(v, dict) or not v.get("config") or v.get("version") is None:
+                continue
+            ctx.db.add(
+                ProjectQuestionnaireVersion(
+                    id=str(uuid.uuid4()),
+                    questionnaire_id=new_id,
+                    version=int(v["version"]),
+                    config=v["config"],
+                    config_hash=v.get("config_hash") or questionnaire_config_hash(v["config"]),
+                    created_by=ctx.user_id,
+                    **_timestamps(v, "created_at"),
+                )
+            )
+        if q.get("id"):
+            ctx.id_mappings["questionnaires"][q["id"]] = new_id
+        ctx.questionnaire_by_trigger[trigger] = new_id
+    # Mirror the after_submit one into the #1208 project fields (kept for one
+    # release), so an imported project reads the same through both.
+    project = ctx.db.query(Project).filter(Project.id == ctx.new_project_id).first()
+    after = next((q for q in exported if isinstance(q, dict) and q.get("trigger") == AFTER_SUBMIT), None)
+    if project is not None and after is not None:
+        project.questionnaire_enabled = bool(after.get("enabled")) and bool(
+            (after.get("config") or "").strip()
+        )
+        project.questionnaire_config = after.get("config") or None
+    ctx.db.flush()
+
+
+def _questionnaire_for(ctx: _FullImportContext, trigger: str, old_id: Optional[str]) -> Optional[str]:
+    new_id = ctx.id_mappings["questionnaires"].get(old_id) if old_id else None
+    if new_id:
+        return new_id
+    new_id = ctx.questionnaire_by_trigger.get(trigger)
+    if new_id:
+        return new_id
+    if trigger == AFTER_SUBMIT:
+        new_id = _after_submit_questionnaire(ctx.db, ctx.new_project_id).id
+        ctx.questionnaire_by_trigger[AFTER_SUBMIT] = new_id
+        return new_id
+    return None
+
+
+def _remap_subject_key(ctx: _FullImportContext, key: Optional[str]) -> Optional[str]:
+    """The exported subject key with its ids moved to the new rows."""
+    if not key:
+        return None
+    base, sep, dup = key.partition("#")
+    kind, _, old = base.partition(":")
+    table = {
+        "task": "tasks",
+        "annotation": "annotations",
+        "generation": "generations",
+        "evaluation": "task_evaluations",
+    }.get(kind)
+    if kind == "project":
+        new_base = "project"
+    elif table and old:
+        new = ctx.id_mappings[table].get(old)
+        if not new:
+            return None
+        new_base = f"{kind}:{new}"
+    else:
+        return None
+    return new_base + (f"#{uuid.uuid4()}" if sep else "")
+
+
+def _insert_questionnaire_response(ctx: _FullImportContext, data: dict) -> None:
+    """One exported answer (any moment). Answers whose subject did not
+    come along (a task or submission not imported) are left out."""
+    old_id = data.get("id")
+    if old_id and old_id in ctx.id_mappings["questionnaire_responses"]:
+        return
+    trigger = data.get("trigger")
+    if trigger not in QUESTIONNAIRE_TRIGGERS:
+        return
+    questionnaire_id = _questionnaire_for(ctx, trigger, data.get("questionnaire_id"))
+    key = _remap_subject_key(ctx, data.get("subject_key"))
+    if not questionnaire_id or not key:
+        return
+    task_id = ctx.id_mappings["tasks"].get(data.get("task_id")) if data.get("task_id") else None
+    annotation_id = (
+        ctx.id_mappings["annotations"].get(data.get("annotation_id"))
+        if data.get("annotation_id")
+        else None
+    )
+    if (data.get("task_id") and not task_id) or (data.get("annotation_id") and not annotation_id):
+        return
+    user_id = ctx.id_mappings["users"].get(data.get("user_id"), ctx.user_id)
+    seen = (questionnaire_id, user_id, key)
+    if seen in ctx.questionnaire_subjects_seen:
+        return  # two exported authors collapsed onto one user
+    ctx.questionnaire_subjects_seen.add(seen)
+    new_id = str(uuid.uuid4())
+    if old_id:
+        ctx.id_mappings["questionnaire_responses"][old_id] = new_id
+    ctx.db.add(
+        QuestionnaireResponse(
+            id=new_id,
+            project_id=ctx.new_project_id,
+            questionnaire_id=questionnaire_id,
+            trigger=trigger,
+            questionnaire_version=data.get("questionnaire_version"),
+            config_hash=data.get("config_hash"),
+            user_id=user_id,
+            task_id=task_id,
+            annotation_id=annotation_id,
+            task_evaluation_id=(
+                ctx.id_mappings["task_evaluations"].get(data.get("task_evaluation_id"))
+                if data.get("task_evaluation_id")
+                else None
+            ),
+            subject_key=key,
+            skipped=bool(data.get("skipped")),
+            result=data.get("result") or [],
+            **_timestamps(data, "created_at"),
+        )
+    )
+
+
+def _insert_post_annotation_response(ctx: _FullImportContext, par_data: dict) -> None:
+    """An answer in the #1208 shape: exports from before the questionnaire
+    store, and the copy newer exports keep for one release (skipped here
+    when the ``questionnaire_responses`` section already brought it)."""
+    old_par_id = par_data.get("id")
+    if old_par_id and old_par_id in ctx.id_mappings["questionnaire_responses"]:
+        return
     annotation_id = ctx.id_mappings["annotations"].get(par_data.get("annotation_id"))
     task_id = ctx.id_mappings["tasks"].get(par_data.get("task_id"))
+    if not (annotation_id and task_id):
+        return
+    questionnaire_id = _questionnaire_for(ctx, AFTER_SUBMIT, None)
     par_user_id = ctx.id_mappings["users"].get(par_data.get("user_id"), ctx.user_id)
-
-    if annotation_id and task_id and annotation_id not in ctx.questionnaire_annotations_seen:
-        ctx.questionnaire_annotations_seen.add(annotation_id)
-        new_par = PostAnnotationResponse(
+    key = f"annotation:{annotation_id}"
+    if (questionnaire_id, par_user_id, key) in ctx.questionnaire_subjects_seen:
+        return
+    ctx.questionnaire_subjects_seen.add((questionnaire_id, par_user_id, key))
+    new_par_id = str(uuid.uuid4())
+    ctx.id_mappings["post_annotation_responses"][old_par_id or new_par_id] = new_par_id
+    if old_par_id:
+        ctx.id_mappings["questionnaire_responses"][old_par_id] = new_par_id
+    ctx.db.add(
+        QuestionnaireResponse(
             id=new_par_id,
-            annotation_id=annotation_id,
-            task_id=task_id,
             project_id=ctx.new_project_id,
-            user_id=par_user_id,
-            result=par_data.get("result", []),
+            questionnaire_id=questionnaire_id,
+            trigger=AFTER_SUBMIT,
+            questionnaire_version=None,
             config_hash=par_data.get("config_hash"),
+            user_id=par_user_id,
+            task_id=task_id,
+            annotation_id=annotation_id,
+            subject_key=key,
+            skipped=False,
+            result=par_data.get("result", []),
             **_timestamps(par_data, "created_at"),
         )
-
-        ctx.db.add(new_par)
+    )
 
 
 def _setting(project_data: dict, key: str, default):
@@ -3492,6 +3726,8 @@ def _create_imported_project(
 
     ctx.db.add(new_project)
     ctx.db.flush()  # Flush so FK references to project work
+    ctx.new_project_id = new_project_id
+    _import_questionnaires(ctx, project_data)
 
     if owning_organization_id is not None:
         ctx.db.add(
@@ -3577,6 +3813,7 @@ def _build_full_import_stats(
             "project_members": 0,
             "task_assignments": len(ctx.id_mappings["task_assignments"]),
             "post_annotation_responses": len(ctx.id_mappings["post_annotation_responses"]),
+            "questionnaire_responses": len(ctx.id_mappings["questionnaire_responses"]),
             "grading_feedback": len(ctx.grading_feedback_seen),
             "task_rubrics": len(ctx.id_mappings["task_rubrics"]),
             "task_rubric_review_events": ctx.rubric_review_events,
@@ -3635,6 +3872,7 @@ _NDJSON_INSERT_DISPATCH = {
     "korrektur_comment": _insert_korrektur_comment,
     "grading_feedback": _insert_grading_feedback,
     "task_assignment": _insert_task_assignment,
+    "questionnaire_response": _insert_questionnaire_response,
     "post_annotation_response": _insert_post_annotation_response,
 }
 
@@ -4138,6 +4376,8 @@ def run_full_project_import(
     for assignment_data in _stream_rows(db, fileobj, "task_assignments.item"):
         _insert_task_assignment(ctx, assignment_data)
 
+    for qr_data in _stream_rows(db, fileobj, "questionnaire_responses.item"):
+        _insert_questionnaire_response(ctx, qr_data)
     for par_data in _stream_rows(db, fileobj, "post_annotation_responses.item"):
         _insert_post_annotation_response(ctx, par_data)
     ctx.variant_designs.finalize()

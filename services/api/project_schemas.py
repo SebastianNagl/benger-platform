@@ -883,6 +883,43 @@ class AnnotationWithdraw(BaseModel):
         return value
 
 
+# Project questionnaires (before_task, after_submit, korrektur)
+class QuestionnaireUpdate(BaseModel):
+    """Settings of one moment's questionnaire (``PUT /questionnaires/{trigger}``)."""
+
+    enabled: bool = Field(False, description="Show the questionnaire at its moment")
+    config: Optional[str] = Field(
+        None,
+        description="Label-config XML; omitted keeps the saved text, empty clears it",
+    )
+    required: Optional[bool] = Field(
+        None, description="False lets the participant skip the whole questionnaire"
+    )
+    frequency: Optional[str] = Field(
+        None, description="once_per_project, once_per_task or once_per_submission"
+    )
+
+
+class QuestionnaireConfigValidate(BaseModel):
+    config: str = Field(..., description="Label-config XML to check")
+
+
+class QuestionnaireAnswerCreate(BaseModel):
+    """One answer (``POST /questionnaires/{trigger}/responses``)."""
+
+    task_id: Optional[str] = Field(None, description="The task (before_task, after_submit)")
+    annotation_id: Optional[str] = Field(
+        None, description="The caller's submission (after_submit)"
+    )
+    task_evaluation_id: Optional[str] = Field(
+        None, description="The Korrektur grade row the grader saved (korrektur)"
+    )
+    result: List[Dict[str, Any]] = Field(
+        default_factory=list, description="Answers in Label Studio result format"
+    )
+    skipped: bool = Field(False, description="Skip an optional questionnaire")
+
+
 # Post-annotation questionnaire schemas (Issue #1208)
 class PostAnnotationResponseCreate(BaseModel):
     """Schema for submitting a post-annotation questionnaire response"""

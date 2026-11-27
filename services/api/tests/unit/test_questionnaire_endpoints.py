@@ -26,7 +26,13 @@ from auth_module import require_user
 from auth_module.models import User as AuthUser
 from main import app
 from models import User
-from project_models import Annotation, PostAnnotationResponse, Project, Task
+from project_models import (
+    Annotation,
+    Project,
+    ProjectQuestionnaire,
+    QuestionnaireResponse,
+    Task,
+)
 
 
 def _uid() -> str:
@@ -153,12 +159,15 @@ class TestQuestionnaireEndpoints:
         from sqlalchemy import select
         row = (
             await async_test_db.execute(
-                select(PostAnnotationResponse).where(
-                    PostAnnotationResponse.annotation_id == annotation.id
+                select(QuestionnaireResponse).where(
+                    QuestionnaireResponse.annotation_id == annotation.id
                 )
             )
         ).scalar_one_or_none()
+        # Stored in the shared answer store as the after_submit answer.
         assert row is not None
+        assert row.trigger == "after_submit"
+        assert row.subject_key == f"annotation:{annotation.id}"
 
     async def test_submit_duplicate_rejected(self, async_test_client, async_test_db):
         """Duplicate responses rejected (400)."""
@@ -168,13 +177,25 @@ class TestQuestionnaireEndpoints:
         annotation = await _make_annotation(
             async_test_db, task_id=task.id, project_id=project.id, completed_by=user.id
         )
+        questionnaire = ProjectQuestionnaire(
+            id=_uid(),
+            project_id=project.id,
+            trigger="after_submit",
+            enabled=True,
+            frequency="once_per_submission",
+        )
+        async_test_db.add(questionnaire)
+        await async_test_db.flush()
         async_test_db.add(
-            PostAnnotationResponse(
+            QuestionnaireResponse(
                 id=_uid(),
+                project_id=project.id,
+                questionnaire_id=questionnaire.id,
+                trigger="after_submit",
                 annotation_id=annotation.id,
                 task_id=task.id,
-                project_id=project.id,
                 user_id=user.id,
+                subject_key=f"annotation:{annotation.id}",
                 result=[{"answer": "prior"}],
             )
         )
