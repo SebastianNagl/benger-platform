@@ -48,17 +48,24 @@ generation has nobody to release it to and keeps no review.
 ``metric_filters.row_awaits_release`` keeps the grading notices from
 announcing such a draft.
 
-Held gradings on submit (core 2.92): a config whose ``metric_parameters``
-say ``auto_release: false`` holds its first AI grading for a teacher. The
-immediate-eval worker writes each row of such a config that did not fail
-as a draft (``details.review = {"status": "draft", "reason": "held"}``,
-:func:`held_review`): the platform writers in the commit that writes the
-row, an overlay writer's row right after it returns, and a failed run's
-committed rows before the run is marked failed. :func:`holds_first_grading`
+Held gradings (core 2.92): a config whose ``metric_parameters`` say
+``auto_release: false`` holds the AI grading of a submission for a
+teacher, on submit and in batch runs. Each row of a submitted answer of
+such a config that did not fail is written as a draft
+(``details.review = {"status": "draft", "reason": "held"}``,
+:func:`held_review`). On submit, the immediate-eval worker's platform
+writers store it in the commit that writes the row, an overlay writer's
+row gets it right after the writer returns, and a failed run's committed
+rows get it before the run is marked failed. A batch run stamps its row
+dicts before the cell writes them (:func:`stamp_rows`); a re-grade run
+writes its re-grade draft instead, and a model generation's row is never
+held, there is nobody to release it to. A batch run over an answer that
+already has a released grading writes a held draft next to it, which
+readers skip until a teacher releases it. :func:`holds_first_grading`
 tells an overlay writer whose config holds, so it can store the draft in
 its own commit. A row whose writer already stored a review (an overlay judge that
 holds or releases by itself) keeps it. A config without the key, or with
-``auto_release: true``, releases on submit as before. The rule is the same
+``auto_release: true``, releases as before. The rule is the same
 for every method: the platform knows no judge-specific release policy.
 
 Sync ``Session`` code over the shared models; the api runs it in the
@@ -266,8 +273,9 @@ def stamp_grading_basis(
 ) -> Any:
     """``metrics`` with the config's fingerprint stamped into the details of
     its metric and the draft review on a result that did not fail: for
-    ``regrade`` always (:func:`regrade_review`), for ``on_submit`` (the
-    grading on submit) when the config holds it (:func:`holds_first_grading`,
+    ``regrade`` always (:func:`regrade_review`), for ``on_submit`` (an AI
+    grading of a submitted answer, on submit or in a batch run) when the
+    config holds it (:func:`holds_first_grading`,
     :func:`held_review`) and the writer stored no review of its own. Returns
     ``metrics`` itself when there is nothing to stamp (a method without a
     scheme and no draft, a row that holds no result of the config's
@@ -319,14 +327,17 @@ def stamp_rows(
 ) -> None:
     """Stamp the bulk row dicts of one cell in place (``metrics`` of each
     row, by its ``evaluation_config_id``). Only rows of a submitted answer
-    become re-grade drafts."""
+    become drafts: re-grade drafts in a re-grade run, held drafts of a
+    config that holds its AI grading (:func:`holds_first_grading`)
+    otherwise."""
     by_id = {str(c.get("id")): c for c in configs or () if isinstance(c, Mapping) and c.get("id")}
     for row in rows or ():
         config = by_id.get(str(row.get("evaluation_config_id")))
         if config is None:
             continue
+        answer = bool(row.get("annotation_id"))
         row["metrics"] = stamp_grading_basis(
-            row.get("metrics"), config, regrade=regrade and bool(row.get("annotation_id"))
+            row.get("metrics"), config, regrade=regrade and answer, on_submit=answer
         )
 
 

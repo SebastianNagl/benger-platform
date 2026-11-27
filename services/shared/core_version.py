@@ -2198,10 +2198,11 @@ API change).
     NDJSON) carry the history (``grading_review_events``, only when the
     project has one); imports point it at the imported rows, merge imports
     leave it out.
-  - The held grading on submit, judge-agnostic: a config whose
+  - The held AI grading, judge-agnostic: a config whose
     ``metric_parameters`` set ``auto_release`` to exactly ``False`` holds
-    its first AI grading for a teacher. The immediate-eval worker stores
-    each of its rows that did not fail as a draft,
+    the AI grading of a submission for a teacher, on submit and in batch
+    runs. The worker stores each of its rows of a submitted answer that
+    did not fail as a draft,
     ``details.review = {"status": "draft", "reason": "held"}``
     (``grading_basis.held_review``, ``HELD_REASON``; in the flat
     ``<metric>_details`` sibling for a flat row). The platform writers
@@ -2210,7 +2211,14 @@ API change).
     inline judges) the config job stores it right after the writer
     returns, in the job's own session, before the run completes. The run's
     completion stamps every row once more, and a run that fails stores it
-    on the rows it already committed before it is marked failed. So
+    on the rows it already committed before it is marked failed. A batch
+    run (``run_evaluation``, also "missing only") stamps its row dicts
+    through ``grading_basis.stamp_rows`` before the cell writes them, so
+    its first grading of an answer is held the same way and the batch
+    notice announces nothing for it; a batch run over an answer with an
+    earlier released grading adds a held draft that readers skip, so the
+    student keeps reading the released one until a teacher releases the
+    new one. Rows of a model generation are never held. So
     ``metric_filters.row_awaits_release`` and ``metric_awaits_release``
     keep it from every attempt score and notice until the overlay releases
     it. The row keeps the judge's
@@ -2219,8 +2227,9 @@ API change).
     it ``details.feedback_only`` as today. A row whose writer stored a
     review itself keeps it (the feedback judge, which holds unless
     ``auto_release: true``, is unchanged). A config without the key, or with
-    ``auto_release: true``, releases on submit exactly as before; re-grade
-    drafts (``reason: "regrade"``) are unchanged. An overlay writer that
+    ``auto_release: true``, releases exactly as before; re-grade drafts
+    (``reason: "regrade"``) are unchanged and take the place of the held
+    draft in a re-grade run. An overlay writer that
     stores the held draft in its own commit closes the short window before
     the config job's stamp; ``grading_basis.holds_first_grading(config)``
     tells it whose config holds. ``grading_basis.stamp_grading_basis(metrics, config, *, regrade=False,
