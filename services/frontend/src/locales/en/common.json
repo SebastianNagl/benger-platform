@@ -12795,7 +12795,10 @@
         "enabledHelp": "Participants answer it before they see the task. In timed exams, also in Safe Exam Browser, the time only starts after the questionnaire.",
         "frequencyHelp": "Once per project or before every task.",
         "promptTitle": "Before you start",
-        "promptDescription": "Please answer this short questionnaire first. The task appears afterwards, and only then does any time limit start."
+        "promptDescription": "Please answer this short questionnaire first. The task appears afterwards, and only then does any time limit start.",
+        "checkErrorTitle": "The questionnaire could not be checked",
+        "checkErrorDescription": "We could not check whether a questionnaire is due before this task. The task appears once that check succeeds.",
+        "checkRetry": "Try again"
       },
       "after_submit": {
         "title": "After submission",

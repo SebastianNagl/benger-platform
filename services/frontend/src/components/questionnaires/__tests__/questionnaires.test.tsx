@@ -1,14 +1,16 @@
 /**
  * @jest-environment jsdom
  *
- * The questionnaire settings card (three alike blocks) and the prompt that
+ * The questionnaire settings card (three alike blocks), the prompt that
  * asks a questionnaire after an action (after a submission, after a
- * Korrektur).
+ * Korrektur) and the gate that holds a task back until the before-task
+ * questionnaire is answered.
  */
 
 import '@testing-library/jest-dom'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
+import { BeforeTaskQuestionnaireGate } from '../BeforeTaskQuestionnaire'
 import { QuestionnairePrompt } from '../QuestionnairePrompt'
 import { QuestionnairesSettings } from '../QuestionnairesSettings'
 import { QUESTIONNAIRE_TEMPLATES } from '../templates'
@@ -478,5 +480,50 @@ describe('QuestionnairePrompt (Korrektur)', () => {
       2,
     )
     expect(onDone).toHaveBeenCalledWith('answered')
+  })
+})
+
+describe('BeforeTaskQuestionnaireGate fails closed', () => {
+  const BEFORE = block('before_task', {
+    enabled: true,
+    config: XML,
+    version: 1,
+    active: true,
+  })
+  const renderGate = (known?: any) =>
+    render(
+      <BeforeTaskQuestionnaireGate projectId="p1" taskId="t1" known={known}>
+        <div data-testid="task">task and timer</div>
+      </BeforeTaskQuestionnaireGate>,
+    )
+
+  it('with the list unknown and the check failing it shows an error with retry, never the task', async () => {
+    mockAPI.status.mockRejectedValueOnce(new Error('network down'))
+    mockAPI.status.mockResolvedValueOnce({ due: true, questionnaire: BEFORE })
+    renderGate('unknown')
+
+    await screen.findByTestId('before-task-questionnaire-error')
+    expect(screen.queryByTestId('task')).toBeNull()
+
+    fireEvent.click(screen.getByText('Try again'))
+    await screen.findByTestId('before-task-questionnaire')
+    expect(screen.queryByTestId('task')).toBeNull()
+    expect(mockAPI.status).toHaveBeenCalledTimes(2)
+  })
+
+  it('with the list unknown it asks the server and lets the task through when none is due', async () => {
+    mockAPI.status.mockResolvedValueOnce({ due: false, questionnaire: null })
+    renderGate('unknown')
+    await screen.findByTestId('task')
+    expect(mockAPI.status).toHaveBeenCalledWith('p1', 'before_task', {
+      task_id: 't1',
+    })
+  })
+
+  it('with the questionnaire known and the check failing it asks the questionnaire', async () => {
+    mockAPI.status.mockRejectedValueOnce(new Error('network down'))
+    renderGate(BEFORE)
+    await screen.findByTestId('before-task-questionnaire')
+    expect(screen.queryByTestId('task')).toBeNull()
   })
 })

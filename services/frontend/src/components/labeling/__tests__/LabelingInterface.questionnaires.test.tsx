@@ -139,6 +139,7 @@ jest.mock('date-fns', () => ({ formatDistanceToNow: () => '1 minute' }))
 jest.mock('@/stores/projectStore', () => ({ useProjectStore: jest.fn() }))
 
 import { useAuth } from '@/contexts/AuthContext'
+import { questionnairesAPI } from '@/lib/api/questionnaires'
 
 const mockApiGet = jest.fn()
 
@@ -204,6 +205,14 @@ beforeEach(() => {
     server_time: new Date().toISOString(),
     session: null,
   })
+  // Reset, not only clear: a once-queued failure must not leak into the
+  // next test.
+  ;(questionnairesAPI.list as jest.Mock)
+    .mockReset()
+    .mockImplementation(() =>
+      Promise.resolve({ questionnaires: mockList, can_edit: false }),
+    )
+  mockStatus.mockReset()
   mockStatus.mockImplementation(async (_p: string, trigger: string) => {
     const q = mockList.find((x) => x.trigger === trigger)
     return mockDue[trigger] && q
@@ -333,6 +342,107 @@ describe('before-task questionnaire', () => {
     render(<LabelingInterface projectId="proj-1" />)
     await screen.findByTestId('dynamic-annotation-interface')
     expect(screen.queryByTestId('before-task-questionnaire')).toBeNull()
+  })
+})
+
+// The hard rule behind the before-task questionnaire: nobody sees the task
+// or runs its timer before a required one is answered. A server that cannot
+// be reached must therefore hold the task back, never let it through.
+describe('before-task questionnaire fails closed', () => {
+  const listFailure = () => Promise.reject(new Error('network down'))
+
+  it('a single failed list load asks the server per task and the questionnaire still comes first', async () => {
+    mockList = [BEFORE]
+    mockDue = { before_task: true }
+    ;(questionnairesAPI.list as jest.Mock).mockImplementationOnce(listFailure)
+    setup()
+
+    render(<LabelingInterface projectId="proj-1" />)
+
+    await screen.findByTestId('before-task-questionnaire')
+    expect(questionnairesAPI.list).toHaveBeenCalledTimes(1)
+    expect(mockStatus).toHaveBeenCalledWith('proj-1', 'before_task', {
+      task_id: 'task-1',
+    })
+    expect(screen.queryByTestId('dynamic-annotation-interface')).toBeNull()
+    expect(screen.queryByTestId('timer')).toBeNull()
+    expect(timeline).toEqual([])
+  })
+
+  it('a failed list load leaves the decision to the per-task check', async () => {
+    mockList = [BEFORE]
+    mockDue = { before_task: true }
+    ;(questionnairesAPI.list as jest.Mock).mockImplementation(listFailure)
+    setup()
+
+    render(<LabelingInterface projectId="proj-1" />)
+
+    await screen.findByTestId('before-task-questionnaire')
+    expect(mockStatus).toHaveBeenCalledWith('proj-1', 'before_task', {
+      task_id: 'task-1',
+    })
+    expect(screen.queryByTestId('dynamic-annotation-interface')).toBeNull()
+    expect(screen.queryByTestId('timer')).toBeNull()
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('before-form-submit'))
+    })
+    await screen.findByTestId('timer')
+    expect(timeline).toEqual(['before_task-answered', 'timer-start'])
+  })
+
+  it('when the list and the per-task check both fail it shows an error with retry, never the task or the timer', async () => {
+    mockList = [BEFORE]
+    mockDue = { before_task: true }
+    ;(questionnairesAPI.list as jest.Mock).mockImplementationOnce(listFailure)
+    mockStatus.mockRejectedValueOnce(new Error('network down'))
+    setup()
+
+    render(<LabelingInterface projectId="proj-1" />)
+
+    await screen.findByTestId('before-task-questionnaire-error')
+    expect(
+      screen.getByText('The questionnaire could not be checked'),
+    ).toBeInTheDocument()
+    expect(screen.queryByTestId('dynamic-annotation-interface')).toBeNull()
+    expect(screen.queryByTestId('timer')).toBeNull()
+    expect(timeline).toEqual([])
+
+    // The server answers again: the retry shows the questionnaire.
+    await act(async () => {
+      fireEvent.click(screen.getByText('Try again'))
+    })
+    await screen.findByTestId('before-task-questionnaire')
+    expect(screen.queryByTestId('timer')).toBeNull()
+    expect(timeline).toEqual([])
+  })
+
+  it('a timer start refused because the questionnaire is owed shows the questionnaire', async () => {
+    // The list said none was switched on (it was switched on afterwards),
+    // so the task came straight away; the server refuses the timer start.
+    mockList = []
+    mockSlots.TimerIntegration = function RefusingTimer({
+      onBeforeTaskQuestionnairePending,
+    }: any) {
+      useEffect(() => {
+        timeline.push('timer-refused')
+        mockList = [BEFORE]
+        mockDue = { before_task: true }
+        onBeforeTaskQuestionnairePending()
+      }, [onBeforeTaskQuestionnairePending])
+      return <div data-testid="timer" />
+    }
+    setup()
+
+    render(<LabelingInterface projectId="proj-1" />)
+
+    await screen.findByTestId('before-task-questionnaire')
+    expect(timeline).toEqual(['timer-refused'])
+    expect(screen.queryByTestId('dynamic-annotation-interface')).toBeNull()
+    expect(screen.queryByTestId('timer')).toBeNull()
+    expect(mockStatus).toHaveBeenCalledWith('proj-1', 'before_task', {
+      task_id: 'task-1',
+    })
   })
 })
 

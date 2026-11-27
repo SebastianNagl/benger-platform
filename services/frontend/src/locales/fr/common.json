@@ -12795,7 +12795,10 @@
         "enabledHelp": "Les participants y répondent avant de voir la tâche. Pour les examens chronométrés, y compris dans Safe Exam Browser, le temps ne commence qu'après le questionnaire.",
         "frequencyHelp": "Une fois par projet ou avant chaque tâche.",
         "promptTitle": "Avant de commencer",
-        "promptDescription": "Veuillez d'abord répondre à ce court questionnaire. La tâche apparaît ensuite, et c'est seulement alors qu'une limite de temps commence."
+        "promptDescription": "Veuillez d'abord répondre à ce court questionnaire. La tâche apparaît ensuite, et c'est seulement alors qu'une limite de temps commence.",
+        "checkErrorTitle": "Le questionnaire n'a pas pu être vérifié",
+        "checkErrorDescription": "Nous n'avons pas pu vérifier si un questionnaire est prévu avant cette tâche. La tâche apparaît dès que cette vérification réussit.",
+        "checkRetry": "Réessayer"
       },
       "after_submit": {
         "title": "Après la remise",

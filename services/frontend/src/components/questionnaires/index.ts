@@ -12,10 +12,14 @@
  *   questionnaire is answered, skipped (when optional) or not due, so it
  *   never counts toward the time. A host that needs a callback uses
  *   `useBeforeTaskQuestionnaire` and mounts its timer only when
- *   `phase === 'done'`.
+ *   `phase === 'done'`. Both fail closed (core 2.93): a host whose
+ *   questionnaire list failed passes `known: 'unknown'`, and a failed check
+ *   is `phase === 'error'` (`BeforeTaskQuestionnaireError` with `retry`),
+ *   never the task.
  */
 
 export {
+  BeforeTaskQuestionnaireError,
   BeforeTaskQuestionnaireGate,
   BeforeTaskQuestionnaireScreen,
   useBeforeTaskQuestionnaire,
