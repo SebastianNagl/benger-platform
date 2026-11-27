@@ -108,6 +108,8 @@ function QuestionnaireBlock({
   const saved = useMemo(() => draftOf(questionnaire), [questionnaire])
   const [draft, setDraft] = useState<Draft>(saved)
   const [errors, setErrors] = useState<string[]>([])
+  // Why the last save failed; any change to the draft clears it.
+  const [saveErrors, setSaveErrors] = useState<string[]>([])
   const [checking, setChecking] = useState(false)
   const [saving, setSaving] = useState(false)
   const [preview, setPreview] = useState(saved.config)
@@ -120,6 +122,10 @@ function QuestionnaireBlock({
     setPreview(saved.config)
     setErrors([])
   }, [saved])
+
+  useEffect(() => {
+    setSaveErrors([])
+  }, [draft])
 
   const dirty = !sameDraft(draft, saved)
   const configChanged = draft.config !== saved.config
@@ -162,12 +168,11 @@ function QuestionnaireBlock({
     setSaving(true)
     try {
       const result = await questionnairesAPI.save(projectId, trigger, draft)
-      setErrors([])
       onSaved(result)
       addToast(t('questionnaires.settings.saved'), 'success')
     } catch (err) {
       const messages = serverErrors(err)
-      setErrors(
+      setSaveErrors(
         messages.length ? messages : [t('questionnaires.settings.saveFailed')],
       )
     } finally {
@@ -356,18 +361,27 @@ function QuestionnaireBlock({
               </ul>
             </Alert>
           )}
+          {saveErrors.length > 0 && (
+            <Alert variant="error">
+              <ul className="list-disc pl-5" data-testid={id('save-errors')}>
+                {saveErrors.map((e) => (
+                  <li key={e}>{e}</li>
+                ))}
+              </ul>
+            </Alert>
+          )}
         </SettingsGroup>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4 dark:border-zinc-700">
-          <a
-            href={questionnairesAPI.csvUrl(projectId, trigger)}
-            className="flex items-center gap-2 text-sm text-emerald-700 hover:underline dark:text-emerald-400"
-            data-testid={id('csv')}
-          >
-            <ArrowDownTrayIcon className="h-4 w-4" />
-            {t('questionnaires.settings.downloadCsv')}
-          </a>
-          {canEdit && (
+        {canEdit && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4 dark:border-zinc-700">
+            <a
+              href={questionnairesAPI.csvUrl(projectId, trigger)}
+              className="flex items-center gap-2 text-sm text-emerald-700 hover:underline dark:text-emerald-400"
+              data-testid={id('csv')}
+            >
+              <ArrowDownTrayIcon className="h-4 w-4" />
+              {t('questionnaires.settings.downloadCsv')}
+            </a>
             <div className="flex items-center gap-2">
               {checking && (
                 <span className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -394,8 +408,8 @@ function QuestionnaireBlock({
                   : t('questionnaires.settings.save')}
               </Button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </SettingsGroupStack>
     </SubSection>
   )
@@ -488,16 +502,18 @@ export function QuestionnairesSettings({
           />
         ) : null
       })}
-      <div className="flex justify-end pt-2">
-        <a
-          href={questionnairesAPI.csvUrl(projectId, 'all')}
-          className="flex items-center gap-2 text-sm text-emerald-700 hover:underline dark:text-emerald-400"
-          data-testid="questionnaire-csv-all"
-        >
-          <ArrowDownTrayIcon className="h-4 w-4" />
-          {t('questionnaires.settings.downloadCsvAll')}
-        </a>
-      </div>
+      {canEdit && (
+        <div className="flex justify-end pt-2">
+          <a
+            href={questionnairesAPI.csvUrl(projectId, 'all')}
+            className="flex items-center gap-2 text-sm text-emerald-700 hover:underline dark:text-emerald-400"
+            data-testid="questionnaire-csv-all"
+          >
+            <ArrowDownTrayIcon className="h-4 w-4" />
+            {t('questionnaires.settings.downloadCsvAll')}
+          </a>
+        </div>
+      )}
     </div>
   )
 }

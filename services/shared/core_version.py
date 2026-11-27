@@ -2150,10 +2150,25 @@ API change).
     (``trigger`` ``after_submit`` with ``subject={{ annotation_id }}`` once a
     submission is final, or ``korrektur`` with
     ``subject={{ task_evaluation_id }}`` once a Korrektur is saved; shows no
-    task data), ``BeforeTaskQuestionnaireGate`` / ``useBeforeTaskQuestionnaire``
-    (mount a task view and its timer only once the before-task questionnaire
-    is answered or skipped), ``QuestionnaireDialog``, ``QuestionnaireForm``;
-    API client ``@/lib/api/questionnaires``.
+    task data), ``QuestionnaireDialog``, ``QuestionnaireForm``; API client
+    ``@/lib/api/questionnaires`` (an answer sends the ``version`` it
+    rendered; a version replaced meanwhile is refused with 409
+    ``questionnaire_version_changed`` and the client reloads the current
+    one).
+  - Before-task contract for an overlay's own task views (the exam attempt
+    and its Safe Exam Browser variant): render
+    ``<BeforeTaskQuestionnaireGate projectId taskId known? disabled?
+    actions?>`` around the task view INCLUDING its timer component. It
+    mounts its children only once the before-task questionnaire is
+    answered, skipped (when optional) or not due, and shows a spinner while
+    it checks, so the questionnaire never counts toward the time. A host
+    that needs a callback instead uses ``useBeforeTaskQuestionnaire(projectId,
+    taskId, {known, disabled})``, whose ``phase`` is ``'checking'`` |
+    ``'due'`` | ``'done'`` (``BeforeTaskQuestionnaireScreen`` shows it while
+    ``due``), and must mount the timer (``start-timer``) only when ``phase
+    === 'done'``. Read-only views pass ``disabled``. On the server,
+    ``before_task_questionnaire_pending`` (above) lets the timer route
+    refuse a start while the questionnaire is owed.
 """
 
 import os

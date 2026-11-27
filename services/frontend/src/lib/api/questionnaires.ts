@@ -105,26 +105,31 @@ export const questionnairesAPI = {
       cache: 'no-store',
     } as any),
 
+  /** `version`: the `version` of the questionnaire that was rendered. */
   answer: async (
     projectId: string,
     trigger: QuestionnaireTrigger,
     subject: QuestionnaireSubject,
     result: AnnotationResult[],
+    version: number,
   ): Promise<QuestionnaireAnswer> =>
     apiClient.post(`${base(projectId)}/${trigger}/responses`, {
       ...subject,
       result,
+      questionnaire_version: version,
     }),
 
   skip: async (
     projectId: string,
     trigger: QuestionnaireTrigger,
     subject: QuestionnaireSubject,
+    version: number,
   ): Promise<QuestionnaireAnswer> =>
     apiClient.post(`${base(projectId)}/${trigger}/responses`, {
       ...subject,
       result: [],
       skipped: true,
+      questionnaire_version: version,
     }),
 
   /** Href of the wide CSV (one row per answer, one column per question). */

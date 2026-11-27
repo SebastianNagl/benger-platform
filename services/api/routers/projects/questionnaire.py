@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from auth_module import require_user
 from auth_module.models import User as AuthUser
 from database import get_async_db
-from project_models import ProjectQuestionnaireVersion, QuestionnaireResponse
+from project_models import QuestionnaireResponse
 from project_schemas import (
     PostAnnotationResponseCreate,
     PostAnnotationResponseOut,
@@ -50,6 +50,7 @@ from routers.projects.helpers import (
     require_write_tier,
 )
 from services import questionnaire_service as qs
+from spreadsheet_cells import formula_safe
 
 router = APIRouter()
 
@@ -139,42 +140,6 @@ async def update_project_questionnaire(
     await db.commit()
     await db.refresh(row)
     return qs.serialize_questionnaire(trigger, row)
-
-
-@router.get("/{project_id}/questionnaires/{trigger}/versions")
-async def list_questionnaire_versions(
-    project_id: str,
-    trigger: str,
-    db: AsyncSession = Depends(get_async_db),
-    access: ProjectAccess = Depends(require_project_access(**_EDIT)),
-):
-    """Every saved text of one moment's questionnaire, newest first."""
-    try:
-        qs.check_trigger(trigger)
-    except qs.QuestionnaireError as exc:
-        _raise(exc)
-    row = await qs.get_questionnaire(db, project_id, trigger)
-    if row is None:
-        return {"versions": []}
-    versions = (
-        await db.execute(
-            select(ProjectQuestionnaireVersion)
-            .where(ProjectQuestionnaireVersion.questionnaire_id == row.id)
-            .order_by(ProjectQuestionnaireVersion.version.desc())
-        )
-    ).scalars().all()
-    return {
-        "versions": [
-            {
-                "version": v.version,
-                "config": v.config,
-                "config_hash": v.config_hash,
-                "created_at": v.created_at.isoformat() if v.created_at else None,
-                "created_by": v.created_by,
-            }
-            for v in versions
-        ]
-    }
 
 
 # --------------------------------------------------------------------------- #
@@ -298,6 +263,7 @@ async def submit_questionnaire_answer(
             subject,
             result=payload.result,
             skipped=payload.skipped,
+            version=payload.questionnaire_version,
         )
     except qs.QuestionnaireError as exc:
         _raise(exc)
@@ -380,11 +346,10 @@ async def export_questionnaire_responses_csv(
         for name in question_columns(r.result for r in rows if r.trigger == t):
             question_cols.setdefault(column(t, name), None)
 
+    header = [*WIDE_CSV_BASE_COLUMNS, *question_cols]
     buffer = io.StringIO()
-    writer = csv.DictWriter(
-        buffer, fieldnames=[*WIDE_CSV_BASE_COLUMNS, *question_cols], extrasaction="ignore"
-    )
-    writer.writeheader()
+    writer = csv.writer(buffer)
+    writer.writerow([formula_safe(name) for name in header])
     for r in rows:
         line: Dict[str, Any] = {
             "response_id": r.id,
@@ -400,7 +365,7 @@ async def export_questionnaire_responses_csv(
         }
         for name, value in wide_row(r.result).items():
             line[column(r.trigger, name)] = value
-        writer.writerow(line)
+        writer.writerow([formula_safe(line.get(name, "")) for name in header])
 
     filename = f"questionnaire-responses-{project_id}-{trigger}.csv"
     return StreamingResponse(

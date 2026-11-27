@@ -17,6 +17,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { useI18n } from '@/contexts/I18nContext'
 import {
   questionnairesAPI,
   type ProjectQuestionnaire,
@@ -26,6 +27,7 @@ import {
 import type { AnnotationResult } from '@/lib/labelConfig/dataBinding'
 
 import { QuestionnaireDialog } from './QuestionnaireDialog'
+import { respondToQuestionnaire } from './respond'
 
 export type QuestionnaireOutcome = 'answered' | 'skipped' | 'not_due'
 
@@ -37,11 +39,6 @@ export interface QuestionnairePromptProps {
   onDone: (outcome: QuestionnaireOutcome) => void
 }
 
-function alreadyAnswered(err: any): boolean {
-  const status = err?.response?.status ?? err?.status
-  return status === 409
-}
-
 export function QuestionnairePrompt({
   projectId,
   trigger,
@@ -49,6 +46,7 @@ export function QuestionnairePrompt({
   open,
   onDone,
 }: QuestionnairePromptProps) {
+  const { t } = useI18n()
   // The questionnaire to show, for the subject it was asked for.
   const [asked, setAsked] = useState<{
     subjectKey: string
@@ -88,29 +86,33 @@ export function QuestionnairePrompt({
     onDoneRef.current(outcome)
   }, [])
 
-  const handleSubmit = useCallback(
-    async (result: AnnotationResult[]) => {
-      try {
-        await questionnairesAPI.answer(projectId, trigger, subject, result)
-      } catch (err) {
-        if (!alreadyAnswered(err)) throw err
-      }
-      finish('answered')
-    },
-    [projectId, trigger, subject, finish],
-  )
-
-  const handleSkip = useCallback(async () => {
-    try {
-      await questionnairesAPI.skip(projectId, trigger, subject)
-    } catch (err) {
-      if (!alreadyAnswered(err)) throw err
-    }
-    finish('skipped')
-  }, [projectId, trigger, subject, finish])
-
   const questionnaire =
     open && asked?.subjectKey === subjectKey ? asked.questionnaire : null
+
+  const respond = useCallback(
+    async (result: AnnotationResult[] | null) => {
+      if (!questionnaire) return
+      const current = await respondToQuestionnaire(
+        projectId,
+        trigger,
+        subject,
+        questionnaire,
+        result,
+      )
+      if (current) {
+        setAsked({ subjectKey, questionnaire: current })
+        throw new Error(t('questionnaires.answer.versionChanged'))
+      }
+      finish(result ? 'answered' : 'skipped')
+    },
+    [projectId, trigger, subject, subjectKey, questionnaire, finish, t],
+  )
+  const handleSubmit = useCallback(
+    (result: AnnotationResult[]) => respond(result),
+    [respond],
+  )
+  const handleSkip = useCallback(() => respond(null), [respond])
+
   if (!questionnaire) return null
   return (
     <QuestionnaireDialog
@@ -118,6 +120,7 @@ export function QuestionnairePrompt({
       trigger={trigger}
       config={questionnaire.config}
       required={questionnaire.required}
+      formKey={String(questionnaire.version)}
       onSubmit={handleSubmit}
       onSkip={questionnaire.required ? undefined : handleSkip}
     />

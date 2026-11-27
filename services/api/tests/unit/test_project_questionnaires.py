@@ -24,6 +24,7 @@ from project_models import (
     Annotation,
     Project,
     ProjectQuestionnaire,
+    ProjectQuestionnaireVersion,
     QuestionnaireResponse,
     Task,
 )
@@ -199,13 +200,19 @@ class TestSettings:
             first = await _save(async_test_client, w, "before_task", config=BEFORE)
             same = await _save(async_test_client, w, "before_task", config=BEFORE, required=False)
             edited = await _save(async_test_client, w, "before_task", config=BEFORE.replace("Vorab", "Vor dem Start"))
-            versions = await async_test_client.get(f"{_base(w)}/before_task/versions")
         assert first.status_code == 200, first.text
         assert first.json()["version"] == 1 and first.json()["active"] is True
         assert same.json()["version"] == 1 and same.json()["required"] is False
         assert edited.json()["version"] == 2
-        assert [v["version"] for v in versions.json()["versions"]] == [2, 1]
-        assert versions.json()["versions"][1]["config"] == BEFORE
+        versions = (await async_test_db.execute(
+            select(ProjectQuestionnaireVersion.version, ProjectQuestionnaireVersion.config)
+            .join(ProjectQuestionnaire,
+                  ProjectQuestionnaireVersion.questionnaire_id == ProjectQuestionnaire.id)
+            .where(ProjectQuestionnaire.project_id == w["pid"])
+            .order_by(ProjectQuestionnaireVersion.version)
+        )).all()
+        assert [v for v, _ in versions] == [1, 2]
+        assert versions[0][1] == BEFORE
 
     async def test_frequency_must_fit_the_moment(self, async_test_client, async_test_db):
         w = await _world(async_test_db)
@@ -329,6 +336,38 @@ class TestBeforeTask:
         assert skip.status_code == 200
         assert skip.json()["skipped"] is True and skip.json()["result"] == []
         assert due.json()["due"] is False
+
+    async def test_an_answer_to_a_replaced_version_is_refused(self, async_test_client, async_test_db):
+        """A student who rendered v1 while the editor saved v2 is told to
+        reload instead of having the v1 answers stored as v2."""
+        w = await _world(async_test_db)
+        t0 = w["tasks"][0]
+        edited = BEFORE.replace("Vorab", "Vor dem Start")
+        with _as(w["owner"], can_edit=True):
+            await _save(async_test_client, w, "before_task", config=BEFORE)
+        with _as(w["student"], tier="participant"):
+            shown = (await self._status(async_test_client, w, t0)).json()["questionnaire"]
+        with _as(w["owner"], can_edit=True):
+            await _save(async_test_client, w, "before_task", config=edited)
+        with _as(w["student"], tier="participant"):
+            stale = await async_test_client.post(
+                f"{_base(w)}/before_task/responses",
+                json={"task_id": t0.id, "result": MOTIVATION,
+                      "questionnaire_version": shown["version"]},
+            )
+            reloaded = (await self._status(async_test_client, w, t0)).json()["questionnaire"]
+            current = await async_test_client.post(
+                f"{_base(w)}/before_task/responses",
+                json={"task_id": t0.id, "result": MOTIVATION,
+                      "questionnaire_version": reloaded["version"]},
+            )
+        assert shown["version"] == 1
+        assert stale.status_code == 409
+        assert stale.json()["detail"]["code"] == "questionnaire_version_changed"
+        assert stale.json()["detail"]["current_version"] == 2
+        assert reloaded["config"] == edited
+        assert current.status_code == 200, current.text
+        assert current.json()["questionnaire_version"] == 2
 
     async def test_switched_off_is_never_due(self, async_test_client, async_test_db):
         w = await _world(async_test_db)
@@ -533,6 +572,36 @@ class TestReading:
         by = {r["trigger"]: r for r in rows}
         assert by["before_task"]["before_task.motivation"] == "5"
         assert by["after_submit"]["after_submit.confidence"] == "4"
+
+    async def test_wide_csv_cells_never_run_as_formulas(self, async_test_client, async_test_db):
+        """Free text a participant typed (and the question names in the
+        answer they sent) reach the CSV as text, not as spreadsheet
+        formulas (OWASP CSV injection: = + - @ tab CR start a formula)."""
+        w = await _world(async_test_db)
+        payload = '=HYPERLINK("http://x","klick")'
+        result = [
+            *MOTIVATION,
+            {"from_name": "note", "to_name": "note", "type": "textarea",
+             "value": {"text": [payload]}},
+            {"from_name": "@evil", "to_name": "@evil", "type": "textarea",
+             "value": {"text": ["+1"]}},
+        ]
+        with _as(w["owner"], can_edit=True):
+            await _save(async_test_client, w, "before_task", config=BEFORE)
+        with _as(w["student"], tier="participant"):
+            answered = await async_test_client.post(
+                f"{_base(w)}/before_task/responses",
+                json={"task_id": w["tasks"][0].id, "result": result})
+        url = f"/api/projects/{w['project'].id}/questionnaire-responses/export.csv"
+        with _as(w["owner"], can_edit=True):
+            one = await async_test_client.get(url, params={"trigger": "before_task"})
+        assert answered.status_code == 200, answered.text
+        header = next(csv.reader(io.StringIO(one.text)))
+        assert "'@evil" in header and "@evil" not in header
+        row = next(csv.DictReader(io.StringIO(one.text)))
+        assert row["note"] == "'" + payload
+        assert row["'@evil"] == "'+1"
+        assert row["motivation"] == "5"
 
     async def test_only_editors_read_answers(self, async_test_client, async_test_db):
         w = await _world(async_test_db)

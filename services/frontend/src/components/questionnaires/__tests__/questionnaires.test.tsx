@@ -28,9 +28,12 @@ jest.mock('@/components/labeling/DynamicAnnotationInterface', () => ({
         <button
           data-testid="answer-submit"
           onClick={() =>
-            onSubmit([
-              { from_name: 'q', to_name: 'q', type: 'rating', value: 4 },
-            ])
+            // Like the real interface: a refused submit keeps the answers.
+            Promise.resolve(
+              onSubmit([
+                { from_name: 'q', to_name: 'q', type: 'rating', value: 4 },
+              ]),
+            ).catch(() => {})
           }
         >
           submit
@@ -204,6 +207,45 @@ describe('QuestionnairesSettings', () => {
     ).toBeInTheDocument()
   })
 
+  it('a failed save does not block a retry, and a change clears its message', async () => {
+    const err: any = new Error('HTTP error! status: 500')
+    err.response = { status: 500, data: null }
+    mockAPI.save.mockRejectedValueOnce(err).mockResolvedValueOnce(
+      block('after_submit', {
+        enabled: true,
+        config: XML,
+        version: 1,
+        active: true,
+        required: false,
+      }),
+    )
+    render(<QuestionnairesSettings projectId="p1" canEdit />)
+    await openBlock('after_submit')
+    fireEvent.click(screen.getByTestId('questionnaire-after_submit-required'))
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('questionnaire-after_submit-save'))
+    })
+    expect(
+      await screen.findByTestId('questionnaire-after_submit-save-errors'),
+    ).toHaveTextContent('HTTP error! status: 500')
+    expect(
+      screen.getByTestId('questionnaire-after_submit-save'),
+    ).not.toBeDisabled()
+
+    fireEvent.click(screen.getByTestId('questionnaire-after_submit-enabled'))
+    expect(
+      screen.queryByTestId('questionnaire-after_submit-save-errors'),
+    ).toBeNull()
+    fireEvent.click(screen.getByTestId('questionnaire-after_submit-enabled'))
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('questionnaire-after_submit-save'))
+    })
+    expect(mockAPI.save).toHaveBeenCalledTimes(2)
+    expect(
+      screen.queryByTestId('questionnaire-after_submit-save-errors'),
+    ).toBeNull()
+  })
+
   it('loads an uploaded .xml file into the editor and previews it', async () => {
     render(<QuestionnairesSettings projectId="p1" canEdit />)
     await openBlock('before_task')
@@ -245,6 +287,9 @@ describe('QuestionnairesSettings', () => {
       screen.getByTestId('questionnaire-after_submit-enabled'),
     ).toBeDisabled()
     expect(screen.queryByTestId('questionnaire-after_submit-save')).toBeNull()
+    // Reading the answers needs edit rights, so no CSV link is offered.
+    expect(screen.queryByTestId('questionnaire-after_submit-csv')).toBeNull()
+    expect(screen.queryByTestId('questionnaire-csv-all')).toBeNull()
   })
 })
 
@@ -285,6 +330,7 @@ describe('QuestionnairePrompt (Korrektur)', () => {
       'korrektur',
       { task_evaluation_id: 'te-1' },
       expect.any(Array),
+      1,
     )
     expect(onDone).toHaveBeenCalledWith('answered')
   })
@@ -306,9 +352,12 @@ describe('QuestionnairePrompt (Korrektur)', () => {
     await act(async () => {
       fireEvent.click(screen.getByTestId('questionnaire-skip'))
     })
-    expect(mockAPI.skip).toHaveBeenCalledWith('p1', 'korrektur', {
-      task_evaluation_id: 'te-1',
-    })
+    expect(mockAPI.skip).toHaveBeenCalledWith(
+      'p1',
+      'korrektur',
+      { task_evaluation_id: 'te-1' },
+      1,
+    )
     expect(onDone).toHaveBeenCalledWith('skipped')
   })
 
@@ -341,7 +390,10 @@ describe('QuestionnairePrompt (Korrektur)', () => {
   it('an answer given meanwhile (409) counts as answered', async () => {
     mockAPI.status.mockResolvedValue({ due: true, questionnaire: grader })
     const conflict: any = new Error('already')
-    conflict.response = { status: 409 }
+    conflict.response = {
+      status: 409,
+      data: { detail: { code: 'questionnaire_already_answered' } },
+    }
     mockAPI.answer.mockRejectedValue(conflict)
     const onDone = jest.fn()
     render(
@@ -357,6 +409,74 @@ describe('QuestionnairePrompt (Korrektur)', () => {
     await act(async () => {
       fireEvent.click(screen.getByTestId('answer-submit'))
     })
+    expect(onDone).toHaveBeenCalledWith('answered')
+  })
+
+  it('an edit made while it was open (409 version changed) reloads it and asks again', async () => {
+    const edited = '<View><Rating name="q2" toName="q2"/></View>'
+    const after = block('after_submit', {
+      enabled: true,
+      config: XML,
+      version: 1,
+      active: true,
+    })
+    mockAPI.status
+      .mockResolvedValueOnce({ due: true, questionnaire: after })
+      .mockResolvedValueOnce({
+        due: true,
+        questionnaire: { ...after, config: edited, version: 2 },
+      })
+    const stale: any = new Error('changed')
+    stale.response = {
+      status: 409,
+      data: {
+        detail: { code: 'questionnaire_version_changed', current_version: 2 },
+      },
+    }
+    mockAPI.answer.mockRejectedValueOnce(stale).mockResolvedValueOnce({})
+    const onDone = jest.fn()
+    render(
+      <QuestionnairePrompt
+        projectId="p1"
+        trigger="after_submit"
+        subject={{ annotation_id: 'a-1' }}
+        open
+        onDone={onDone}
+      />,
+    )
+    await screen.findByTestId('questionnaire-dialog-after_submit')
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('answer-submit'))
+    })
+    expect(onDone).not.toHaveBeenCalled()
+    expect(
+      await screen.findByText(
+        'The questionnaire was just changed. Please answer the current version.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByTestId('rendered-config')).toHaveAttribute(
+      'data-config',
+      edited,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('answer-submit'))
+    })
+    expect(mockAPI.answer).toHaveBeenNthCalledWith(
+      1,
+      'p1',
+      'after_submit',
+      { annotation_id: 'a-1' },
+      expect.any(Array),
+      1,
+    )
+    expect(mockAPI.answer).toHaveBeenNthCalledWith(
+      2,
+      'p1',
+      'after_submit',
+      { annotation_id: 'a-1' },
+      expect.any(Array),
+      2,
+    )
     expect(onDone).toHaveBeenCalledWith('answered')
   })
 })

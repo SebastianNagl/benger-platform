@@ -9,7 +9,10 @@
  *   grader saved a Korrektur (the answers are the grader's).
  * - `BeforeTaskQuestionnaireGate` around a task view that includes its exam
  *   timer: the task and the timer mount only once the before-task
- *   questionnaire is answered or skipped, so it never counts toward the time.
+ *   questionnaire is answered, skipped (when optional) or not due, so it
+ *   never counts toward the time. A host that needs a callback uses
+ *   `useBeforeTaskQuestionnaire` and mounts its timer only when
+ *   `phase === 'done'`.
  */
 
 export {

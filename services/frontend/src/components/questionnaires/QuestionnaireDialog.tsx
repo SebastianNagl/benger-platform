@@ -24,6 +24,8 @@ export interface QuestionnaireDialogProps {
   required: boolean
   onSubmit: (result: AnnotationResult[]) => Promise<void>
   onSkip?: () => Promise<void>
+  /** Remounts the form (fresh answers) when it changes. */
+  formKey?: string
 }
 
 export function QuestionnaireDialog({
@@ -33,6 +35,7 @@ export function QuestionnaireDialog({
   required,
   onSubmit,
   onSkip,
+  formKey,
 }: QuestionnaireDialogProps) {
   const { t } = useI18n()
   return (
@@ -87,6 +90,7 @@ export function QuestionnaireDialog({
                 </div>
                 <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
                   <QuestionnaireForm
+                    formKey={formKey}
                     config={config}
                     required={required}
                     onSubmit={onSubmit}

@@ -12861,7 +12861,8 @@
     },
     "answer": {
       "skip": "Skip",
-      "error": "The answers could not be saved. Please try again."
+      "error": "The answers could not be saved. Please try again.",
+      "versionChanged": "The questionnaire was just changed. Please answer the current version."
     },
     "templates": {
       "self_assessment": "Self-assessment (3 items, Likert 1-7)",

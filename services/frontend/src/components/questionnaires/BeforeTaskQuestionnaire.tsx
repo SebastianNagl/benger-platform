@@ -9,10 +9,17 @@
  * host mounts it, which happens only once `phase === 'done'`). In a Safe Exam
  * Browser exam it appears inside the exam window like the task itself.
  *
- * - `useBeforeTaskQuestionnaire(projectId, taskId, options)` decides the
- *   phase: `checking` (asking the server), `due`, `done`.
- * - `BeforeTaskQuestionnaireGate` wraps a host's task view (including its
- *   timer) and renders it only once the phase is `done`.
+ * - `BeforeTaskQuestionnaireGate` wraps a host's task view INCLUDING its
+ *   timer component. It mounts its children only once the questionnaire is
+ *   answered, skipped (when optional) or not due, shows the questionnaire
+ *   while it is due and a spinner while it checks.
+ * - `useBeforeTaskQuestionnaire(projectId, taskId, { known, disabled })` is
+ *   for a host that needs a callback instead: its `phase` is `checking`
+ *   (asking the server), `due` (show `BeforeTaskQuestionnaireScreen`) or
+ *   `done`, and the host must mount its timer (start-timer) only when
+ *   `phase === 'done'`. Read-only views pass `disabled`.
+ * - On the server, `before_task_questionnaire_pending` lets the timer route
+ *   refuse a start while the questionnaire is owed.
  */
 
 import { ClipboardDocumentListIcon } from '@heroicons/react/24/outline'
@@ -27,6 +34,7 @@ import {
 import type { AnnotationResult } from '@/lib/labelConfig/dataBinding'
 
 import { QuestionnaireForm } from './QuestionnaireForm'
+import { respondToQuestionnaire } from './respond'
 
 export type BeforeTaskPhase = 'checking' | 'due' | 'done'
 
@@ -109,10 +117,6 @@ export function useBeforeTaskQuestionnaire(
   }
 }
 
-function alreadyAnswered(err: any): boolean {
-  return (err?.response?.status ?? err?.status) === 409
-}
-
 export interface BeforeTaskQuestionnaireScreenProps {
   projectId: string
   taskId: string
@@ -130,34 +134,35 @@ export function BeforeTaskQuestionnaireScreen({
   actions,
 }: BeforeTaskQuestionnaireScreenProps) {
   const { t } = useI18n()
+  // The current text, once an editor replaced the one this screen opened with.
+  const [replaced, setReplaced] = useState<{
+    from: ProjectQuestionnaire
+    to: ProjectQuestionnaire
+  } | null>(null)
+  const shown = replaced?.from === questionnaire ? replaced.to : questionnaire
 
-  const handleSubmit = useCallback(
-    async (result: AnnotationResult[]) => {
-      try {
-        await questionnairesAPI.answer(
-          projectId,
-          'before_task',
-          { task_id: taskId },
-          result,
-        )
-      } catch (err) {
-        if (!alreadyAnswered(err)) throw err
+  const respond = useCallback(
+    async (result: AnnotationResult[] | null) => {
+      const current = await respondToQuestionnaire(
+        projectId,
+        'before_task',
+        { task_id: taskId },
+        shown,
+        result,
+      )
+      if (current) {
+        setReplaced({ from: questionnaire, to: current })
+        throw new Error(t('questionnaires.answer.versionChanged'))
       }
       onDone()
     },
-    [projectId, taskId, onDone],
+    [projectId, taskId, shown, questionnaire, onDone, t],
   )
-
-  const handleSkip = useCallback(async () => {
-    try {
-      await questionnairesAPI.skip(projectId, 'before_task', {
-        task_id: taskId,
-      })
-    } catch (err) {
-      if (!alreadyAnswered(err)) throw err
-    }
-    onDone()
-  }, [projectId, taskId, onDone])
+  const handleSubmit = useCallback(
+    (result: AnnotationResult[]) => respond(result),
+    [respond],
+  )
+  const handleSkip = useCallback(() => respond(null), [respond])
 
   return (
     <div
@@ -182,11 +187,11 @@ export function BeforeTaskQuestionnaireScreen({
               </div>
             </div>
             <QuestionnaireForm
-              formKey={taskId}
-              config={questionnaire.config}
-              required={questionnaire.required}
+              formKey={`${taskId}:${shown.version}`}
+              config={shown.config}
+              required={shown.required}
               onSubmit={handleSubmit}
-              onSkip={questionnaire.required ? undefined : handleSkip}
+              onSkip={shown.required ? undefined : handleSkip}
             />
           </div>
         </Card>

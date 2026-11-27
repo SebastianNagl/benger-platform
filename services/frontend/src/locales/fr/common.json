@@ -12861,7 +12861,8 @@
     },
     "answer": {
       "skip": "Passer",
-      "error": "Les réponses n'ont pas pu être enregistrées. Veuillez réessayer."
+      "error": "Les réponses n'ont pas pu être enregistrées. Veuillez réessayer.",
+      "versionChanged": "Le questionnaire vient d'être modifié. Veuillez répondre à la version actuelle."
     },
     "templates": {
       "self_assessment": "Auto-évaluation (3 items, Likert 1-7)",

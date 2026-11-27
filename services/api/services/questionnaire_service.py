@@ -465,18 +465,29 @@ async def record_answer(
     *,
     result: Sequence[Dict[str, Any]],
     skipped: bool,
+    version: Optional[int] = None,
     require_config: bool = True,
 ) -> QuestionnaireResponse:
-    """Store one answer (commits). Refuses an inactive questionnaire, a skip
-    of a required one, unanswered required questions and a second answer
-    for the same moment. ``require_config=False`` is the #1208 route's rule:
-    switched on is enough."""
+    """Store one answer (commits). Refuses an inactive questionnaire, an
+    answer to a ``version`` that is no longer current (the caller rendered
+    an older text; omitted means the current one), a skip of a required
+    one, unanswered required questions and a second answer for the same
+    moment. ``require_config=False`` is the #1208 route's rule: switched on
+    is enough."""
     active = is_active(questionnaire) if require_config else bool(questionnaire.enabled)
     if not active:
         raise QuestionnaireError(
             400,
             "questionnaire_not_enabled",
             "Questionnaire is not enabled for this project",
+        )
+    if version is not None and version != questionnaire.version:
+        raise QuestionnaireError(
+            409,
+            "questionnaire_version_changed",
+            "The questionnaire was changed since it was shown; reload it and "
+            "answer the current version",
+            current_version=questionnaire.version,
         )
     try:
         key = subject.key(questionnaire.trigger, questionnaire.frequency)

@@ -918,6 +918,14 @@ class QuestionnaireAnswerCreate(BaseModel):
         default_factory=list, description="Answers in Label Studio result format"
     )
     skipped: bool = Field(False, description="Skip an optional questionnaire")
+    questionnaire_version: Optional[int] = Field(
+        None,
+        description=(
+            "The version the caller rendered (from /status); a version that is no "
+            "longer current is refused with 409 questionnaire_version_changed. "
+            "Omitted: the current version"
+        ),
+    )
 
 
 # Post-annotation questionnaire schemas (Issue #1208)

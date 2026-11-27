@@ -12861,7 +12861,8 @@
     },
     "answer": {
       "skip": "Überspringen",
-      "error": "Die Antworten konnten nicht gespeichert werden. Bitte versuche es erneut."
+      "error": "Die Antworten konnten nicht gespeichert werden. Bitte versuche es erneut.",
+      "versionChanged": "Der Fragebogen wurde gerade geändert. Bitte beantworte die aktuelle Fassung."
     },
     "templates": {
       "self_assessment": "Selbsteinschätzung (3 Items, Likert 1-7)",

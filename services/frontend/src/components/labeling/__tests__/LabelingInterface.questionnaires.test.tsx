@@ -254,6 +254,7 @@ describe('before-task questionnaire', () => {
       'before_task',
       { task_id: 'task-1' },
       expect.any(Array),
+      1,
     )
   })
 
