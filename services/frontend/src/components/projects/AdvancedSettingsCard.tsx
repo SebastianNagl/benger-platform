@@ -90,30 +90,24 @@ export type AdvancedSettingsSetter = (
 
 type Translate = (key: string, params?: any) => string
 
-const QUESTIONNAIRE_TEMPLATES: Record<string, string> = {
+export const QUESTIONNAIRE_TEMPLATES: Record<string, string> = {
   confidence_difficulty: `<View>
   <Header value="Post-Annotation Feedback"/>
-  <Header value="How confident are you in your annotation?" size="4"/>
-  <Rating name="confidence" toName="confidence" maxRating="5" required="true"/>
-  <Header value="How difficult was this task?" size="4"/>
-  <Rating name="difficulty" toName="difficulty" maxRating="5" required="true"/>
+  <Rating name="confidence" toName="confidence" maxRating="5" required="true" label="How confident are you in your annotation?"/>
+  <Rating name="difficulty" toName="difficulty" maxRating="5" required="true" label="How difficult was this task?"/>
 </View>`,
   extended: `<View>
   <Header value="Post-Annotation Feedback"/>
-  <Header value="How confident are you in your annotation?" size="4"/>
-  <Rating name="confidence" toName="confidence" maxRating="5" required="true"/>
-  <Header value="How difficult was this task?" size="4"/>
-  <Rating name="difficulty" toName="difficulty" maxRating="5" required="true"/>
-  <Header value="How clear were the annotation guidelines?" size="4"/>
-  <Choices name="guideline_clarity" toName="guideline_clarity" choice="single" layout="horizontal" required="true">
+  <Rating name="confidence" toName="confidence" maxRating="5" required="true" label="How confident are you in your annotation?"/>
+  <Rating name="difficulty" toName="difficulty" maxRating="5" required="true" label="How difficult was this task?"/>
+  <Choices name="guideline_clarity" toName="guideline_clarity" choice="single" layout="horizontal" required="true" label="How clear were the annotation guidelines?">
     <Choice value="Very Clear"/>
     <Choice value="Clear"/>
     <Choice value="Neutral"/>
     <Choice value="Unclear"/>
     <Choice value="Very Unclear"/>
   </Choices>
-  <Header value="Additional comments (optional)" size="4"/>
-  <TextArea name="comments" toName="comments" rows="3" placeholder="Note any edge cases, ambiguities, or concerns..."/>
+  <TextArea name="comments" toName="comments" rows="3" label="Additional comments (optional)" placeholder="Note any edge cases, ambiguities, or concerns..."/>
 </View>`,
   utaut_study: `<View>
   <Header value="Post-Annotations-Fragebogen" level="3"/>
@@ -601,7 +595,7 @@ export function AdvancedSettingsCard({
                   disabled={!editing}
                   rows={10}
                   className="font-mono"
-                  placeholder={`<View>\n  <Header value="Post-Annotation Feedback"/>\n  <Rating name="confidence" toName="confidence" maxRating="5" required="true"/>\n</View>`}
+                  placeholder={`<View>\n  <Header value="Post-Annotation Feedback"/>\n  <Rating name="confidence" toName="confidence" maxRating="5" required="true" label="How confident are you?"/>\n</View>`}
                 />
               </SettingField>
             </>

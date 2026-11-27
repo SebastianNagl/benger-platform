@@ -49,12 +49,15 @@ export function PostAnnotationQuestionnaireModal({
         await onSubmitResponse(projectId, taskId, annotationId, annotations)
         onComplete()
       } catch (err: any) {
-        setError(err?.message || 'Failed to submit questionnaire response')
+        setError(err?.message || t('annotation.interface.submissionError'))
+        // Rethrow so the form keeps the answers: it clears itself only
+        // after a submit that went through.
+        throw err
       } finally {
         setIsSubmitting(false)
       }
     },
-    [projectId, taskId, annotationId, onSubmitResponse, onComplete],
+    [projectId, taskId, annotationId, onSubmitResponse, onComplete, t],
   )
 
   return (
@@ -131,6 +134,7 @@ export function PostAnnotationQuestionnaireModal({
                     onSubmit={handleSubmit}
                     showSubmitButton={true}
                     enableAutoSave={false}
+                    enforceRequired
                   />
                 </div>
               </Dialog.Panel>

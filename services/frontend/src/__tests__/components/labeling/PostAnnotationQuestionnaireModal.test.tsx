@@ -29,6 +29,7 @@ jest.mock('@/contexts/I18nContext', () => ({
 
 // Mock the DynamicAnnotationInterface — capture onSubmit so tests can trigger it
 let capturedOnSubmit: ((annotations: any[]) => void) | null = null
+const mockRejections: any[] = []
 jest.mock('@/components/labeling/DynamicAnnotationInterface', () => ({
   DynamicAnnotationInterface: ({
     onSubmit,
@@ -36,6 +37,7 @@ jest.mock('@/components/labeling/DynamicAnnotationInterface', () => ({
     taskData,
     showSubmitButton,
     enableAutoSave,
+    enforceRequired,
   }: any) => {
     capturedOnSubmit = onSubmit
     return (
@@ -43,9 +45,18 @@ jest.mock('@/components/labeling/DynamicAnnotationInterface', () => ({
         <div data-testid="label-config">{labelConfig}</div>
         <div data-testid="show-submit">{String(showSubmitButton)}</div>
         <div data-testid="auto-save">{String(enableAutoSave)}</div>
+        <div data-testid="enforce-required">{String(enforceRequired)}</div>
         <button
           data-testid="mock-submit"
-          onClick={() => onSubmit([{ id: 'test', value: 'answer' }])}
+          // Like the real form: a rejected submit keeps the answers and is
+          // reported, not left unhandled.
+          onClick={() =>
+            Promise.resolve(onSubmit([{ id: 'test', value: 'answer' }])).catch(
+              (err: any) => {
+                mockRejections.push(err)
+              },
+            )
+          }
         >
           Submit
         </button>
@@ -70,6 +81,7 @@ const defaultProps = {
 describe('PostAnnotationQuestionnaireModal', () => {
   beforeEach(() => {
     capturedOnSubmit = null
+    mockRejections.length = 0
     defaultProps.onComplete = jest.fn()
     defaultProps.onSubmitResponse = jest.fn().mockResolvedValue(undefined)
   })
@@ -125,6 +137,8 @@ describe('PostAnnotationQuestionnaireModal', () => {
       )
       expect(screen.getByTestId('show-submit')).toHaveTextContent('true')
       expect(screen.getByTestId('auto-save')).toHaveTextContent('false')
+      // Questionnaires enforce required="true"; annotation hosts do not.
+      expect(screen.getByTestId('enforce-required')).toHaveTextContent('true')
     })
   })
 
@@ -213,6 +227,22 @@ describe('PostAnnotationQuestionnaireModal', () => {
   })
 
   describe('Error Handling', () => {
+    it('rethrows a failed submit so the form keeps the answers', async () => {
+      const failure = new Error('Required questions are not answered: q1')
+      defaultProps.onSubmitResponse = jest.fn().mockRejectedValue(failure)
+      const user = userEvent.setup()
+
+      await act(async () => {
+        render(<PostAnnotationQuestionnaireModal {...defaultProps} />)
+      })
+      await user.click(screen.getByTestId('mock-submit'))
+
+      await waitFor(() => {
+        expect(mockRejections).toEqual([failure])
+      })
+      expect(defaultProps.onComplete).not.toHaveBeenCalled()
+    })
+
     it('should display error message when onSubmitResponse throws', async () => {
       defaultProps.onSubmitResponse = jest
         .fn()
@@ -266,7 +296,7 @@ describe('PostAnnotationQuestionnaireModal', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Failed to submit questionnaire response'),
+          screen.getByText('annotation.interface.submissionError'),
         ).toBeInTheDocument()
       })
     })

@@ -88,9 +88,10 @@ class TestSerializeAnnotation:
     def test_data_mode_with_questionnaire(self):
         from routers.projects.serializers import serialize_annotation
         ann = self._mock_ann()
-        qr = SimpleNamespace(result={"q1": "A"}, created_at=_mock_dt())
+        qr = SimpleNamespace(result={"q1": "A"}, config_hash=None, created_at=_mock_dt())
         d = serialize_annotation(ann, mode="data", questionnaire_response=qr)
         assert d["questionnaire_response"]["result"] == {"q1": "A"}
+        assert d["questionnaire_response"]["config_hash"] is None
 
     def test_full_mode(self):
         from routers.projects.serializers import serialize_annotation

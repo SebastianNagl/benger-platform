@@ -5,6 +5,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_module import require_user
@@ -17,6 +18,10 @@ from routers.projects.helpers import (
     check_task_assigned_to_user_async,
     enforce_seb_async,
     require_write_tier,
+)
+from services.label_config.questionnaire import (
+    missing_required_answers,
+    questionnaire_config_hash,
 )
 
 router = APIRouter()
@@ -74,10 +79,12 @@ async def submit_questionnaire_response(
     if not annotation:
         raise HTTPException(status_code=404, detail="Annotation not found")
 
-    # Check for duplicate response
-    # .first(): annotation_id has no DB unique constraint (this guard is the
-    # only enforcement), so pre-existing duplicates must yield the 400 below,
-    # not a MultipleResultsFound 500. Matches the sync original's .first().
+    # One response per annotation: checked here for a clear message, and
+    # held by the unique index on annotation_id (migration 164) for two
+    # submits that race past this check.
+    duplicate = HTTPException(
+        status_code=400, detail="Questionnaire response already submitted for this annotation"
+    )
     existing = (
         await db.execute(
             select(PostAnnotationResponse).where(
@@ -86,8 +93,19 @@ async def submit_questionnaire_response(
         )
     ).scalars().first()
     if existing:
+        raise duplicate
+
+    # Required questions (required="true") must be answered. The modal
+    # enforces this too; this check covers every other client.
+    missing = missing_required_answers(project.questionnaire_config, payload.result)
+    if missing:
         raise HTTPException(
-            status_code=400, detail="Questionnaire response already submitted for this annotation"
+            status_code=422,
+            detail={
+                "code": "questionnaire_required_missing",
+                "message": "Required questions are not answered: " + ", ".join(missing),
+                "missing": missing,
+            },
         )
 
     db_response = PostAnnotationResponse(
@@ -97,10 +115,15 @@ async def submit_questionnaire_response(
         project_id=project_id,
         user_id=current_user.id,
         result=payload.result,
+        config_hash=questionnaire_config_hash(project.questionnaire_config),
     )
 
     db.add(db_response)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise duplicate from None
     await db.refresh(db_response)
 
     return db_response

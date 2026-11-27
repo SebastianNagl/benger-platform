@@ -21,6 +21,12 @@ seven multi-choice entries were regenerated for that change alone: entry 6
 ``format_instructions`` changed; their parse, field and validator outputs are
 the ones from before the Repeater work.
 
+A second one: ``<Likert>`` (rendered by the frontend's LikertInput) became a
+supported tag of the validator. Entry 250 (the questionnaire templates of
+``frontend/src/components/projects/AdvancedSettingsCard.tsx``) had only its
+``validator`` output changed, from ten "Unsupported field type: 'Likert'"
+errors to valid.
+
 Regenerate the golden outputs only for a deliberate behaviour change:
 ``python tests/unit/test_label_config_corpus_unchanged.py --write`` from
 ``services/api`` (with ``services/api`` and ``services/shared`` on

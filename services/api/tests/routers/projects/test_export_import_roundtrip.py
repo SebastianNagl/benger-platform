@@ -134,6 +134,7 @@ def project_with_full_data(db_session, user):
             project_id=project.id,
             user_id=user.id,
             result=[{"question": "confidence", "answer": "high"}],
+            config_hash="a" * 64,
         )
         db_session.add(qr)
         qr_list.append(qr)
@@ -404,6 +405,7 @@ class TestDataExportImportRoundtrip:
         assert len(imported_qrs) == 3
         for qr in imported_qrs:
             assert qr.result[0]["question"] == "confidence"
+            assert qr.config_hash == "a" * 64
 
     def test_generations_survive_roundtrip(
         self, db_session, user, project_with_full_data
@@ -681,6 +683,7 @@ class TestFullProjectExportRoundtrip:
         assert stats["total_evaluations"] == 2
         assert stats["total_task_evaluations"] == 6
         assert stats["total_post_annotation_responses"] == 3
+        assert {r["config_hash"] for r in export["post_annotation_responses"]} == {"a" * 64}
 
     def test_export_field_values_correct(
         self, db_session, user, project_with_full_data

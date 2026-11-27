@@ -783,6 +783,7 @@ def stream_export_label_studio(
                 if qr:
                     ls_ann["questionnaire_response"] = {
                         "result": qr.result,
+                        "config_hash": qr.config_hash,
                         "created_at": qr.created_at.isoformat() if qr.created_at else None,
                     }
                 ls_task["annotations"].append(ls_ann)

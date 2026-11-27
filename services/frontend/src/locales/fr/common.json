@@ -7197,6 +7197,7 @@
       "fieldRequired": "{fieldName} est obligatoire",
       "submissionError": "Une erreur est survenue lors de l'envoi",
       "missingFields": "Champs de données obligatoires manquants : {fields}",
+      "requiredMissing": "Veuillez répondre à toutes les questions obligatoires : {fields}",
       "configError": "Erreur de configuration",
       "taskData": "Données de la tâche :",
       "taskPosition": "Tâche {current} sur {total}",
