@@ -522,6 +522,7 @@ export function StepEvaluationMethods({
                                 </Label>
                                 <Select
                                   searchable
+                                  keepOrder
                                   value={
                                     (config.metric_parameters as any)
                                       ?.judge_model ||
