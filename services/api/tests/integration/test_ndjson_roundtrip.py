@@ -23,6 +23,8 @@ import uuid
 import zlib
 
 import pytest
+
+from tests.fixtures.questionnaires import after_submit_answer
 from sqlalchemy import text
 
 from models import (
@@ -37,7 +39,7 @@ from project_models import (
     Annotation,
     GradingFeedback,
     KorrekturComment,
-    PostAnnotationResponse,
+    QuestionnaireResponse,
     Project,
     ProjectOrganization,
     Task,
@@ -126,16 +128,15 @@ def full_project(test_db, test_users, test_org):
         test_db.add(ann)
         annotations.append(ann)
         test_db.flush()
-        test_db.add(
-            PostAnnotationResponse(
-                id=_uid(),
-                annotation_id=ann.id,
-                task_id=t.id,
-                project_id=project.id,
-                user_id=admin.id,
-                result=[{"question": "confidence", "answer": "high"}],
-                config_hash="c" * 64,
-            )
+        after_submit_answer(
+            test_db,
+            id=_uid(),
+            annotation_id=ann.id,
+            task_id=t.id,
+            project_id=project.id,
+            user_id=admin.id,
+            result=[{"question": "confidence", "answer": "high"}],
+            config_hash="c" * 64,
         )
 
     # Generations.
@@ -256,8 +257,8 @@ def _counts(db, project_id):
         "annotations": db.query(Annotation)
         .filter(Annotation.project_id == project_id)
         .count(),
-        "post_annotation_responses": db.query(PostAnnotationResponse)
-        .filter(PostAnnotationResponse.project_id == project_id)
+        "post_annotation_responses": db.query(QuestionnaireResponse)
+        .filter(QuestionnaireResponse.project_id == project_id)
         .count(),
         "generations": db.query(Generation)
         .filter(Generation.task_id.in_(task_ids))
@@ -374,8 +375,8 @@ class TestNDJSONRoundtrip:
         # Each questionnaire response keeps the hash of the config it answered.
         hashes = {
             r.config_hash
-            for r in test_db.query(PostAnnotationResponse)
-            .filter(PostAnnotationResponse.project_id == new_pid)
+            for r in test_db.query(QuestionnaireResponse)
+            .filter(QuestionnaireResponse.project_id == new_pid)
             .all()
         }
         assert hashes == {"c" * 64}

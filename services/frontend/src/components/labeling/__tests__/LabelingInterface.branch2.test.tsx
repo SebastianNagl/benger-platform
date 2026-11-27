@@ -34,7 +34,6 @@ jest.mock('@/lib/api/projects', () => ({
       started_at: new Date().toISOString(),
       is_strict: true,
     }),
-    submitQuestionnaireResponse: jest.fn().mockResolvedValue({}),
   },
 }))
 
@@ -89,9 +88,26 @@ jest.mock('../DynamicAnnotationInterface', () => ({
   },
 }))
 
-// Mock PostAnnotationQuestionnaireModal
-jest.mock('@/components/labeling/PostAnnotationQuestionnaireModal', () => ({
-  PostAnnotationQuestionnaireModal: () => null,
+// Questionnaires are not under test here (see LabelingInterface.questionnaires
+// test): no before-task questionnaire is owed and the after-submit prompt
+// renders nothing.
+jest.mock('@/components/questionnaires/BeforeTaskQuestionnaire', () => ({
+  useBeforeTaskQuestionnaire: () => ({
+    phase: 'done',
+    questionnaire: null,
+    markDone: () => {},
+  }),
+  BeforeTaskQuestionnaireScreen: () => null,
+}))
+jest.mock('@/components/questionnaires/QuestionnairePrompt', () => ({
+  QuestionnairePrompt: () => null,
+}))
+jest.mock('@/lib/api/questionnaires', () => ({
+  questionnairesAPI: {
+    list: jest.fn(() =>
+      Promise.resolve({ questionnaires: [], can_edit: false }),
+    ),
+  },
 }))
 
 // Mock useActivityTracker

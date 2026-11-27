@@ -1107,6 +1107,18 @@ async def update_project(
             else:
                 setattr(project, field, value)
 
+    # The two post-annotation questionnaire fields are kept for one release:
+    # they write the after_submit questionnaire (validated like a save from
+    # the questionnaire settings).
+    if "questionnaire_enabled" in update_data or "questionnaire_config" in update_data:
+        from services.questionnaire_service import QuestionnaireError, sync_legacy_after_submit
+
+        try:
+            await sync_legacy_after_submit(db, project, current_user.id)
+        except QuestionnaireError as exc:
+            await db.rollback()
+            raise HTTPException(status_code=exc.status, detail=exc.detail) from None
+
     # The grading sheets' task-data mirrors end in the key that grades the
     # exam (or carry none when no method grades on it); a change of either
     # re-renders them in the same transaction.

@@ -7,12 +7,12 @@
  * ones by their label. Annotation hosts do not opt in, so their behaviour is
  * unchanged. Runs against the templates the project settings ship.
  */
-import { QUESTIONNAIRE_TEMPLATES } from '@/components/projects/AdvancedSettingsCard'
+import { QuestionnaireForm } from '@/components/questionnaires/QuestionnaireForm'
+import { QUESTIONNAIRE_TEMPLATES } from '@/components/questionnaires/templates'
 import '@testing-library/jest-dom'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DynamicAnnotationInterface } from '../DynamicAnnotationInterface'
-import { PostAnnotationQuestionnaireModal } from '../PostAnnotationQuestionnaireModal'
 
 jest.mock('@/contexts/I18nContext', () => {
   const t = (key: string, params?: Record<string, string>) =>
@@ -20,7 +20,9 @@ jest.mock('@/contexts/I18nContext', () => {
   return { useI18n: () => ({ t, locale: 'en' }) }
 })
 
-const EXTENDED = QUESTIONNAIRE_TEMPLATES.extended
+const EXTENDED = QUESTIONNAIRE_TEMPLATES.after_submit.find(
+  (template) => template.id === 'extended',
+)!.xml
 
 function renderForm(enforceRequired: boolean) {
   const onSubmit = jest.fn()
@@ -145,7 +147,11 @@ describe('DynamicAnnotationInterface: required questions', () => {
     const onSubmit = jest.fn()
     render(
       <DynamicAnnotationInterface
-        labelConfig={QUESTIONNAIRE_TEMPLATES.utaut_study}
+        labelConfig={
+          QUESTIONNAIRE_TEMPLATES.after_submit.find(
+            (t) => t.id === 'utaut_study',
+          )!.xml
+        }
         taskData={{}}
         onSubmit={onSubmit}
         enableAutoSave={false}
@@ -168,7 +174,7 @@ describe('DynamicAnnotationInterface: required questions', () => {
     ).toBeInTheDocument()
   })
 
-  it('a rejected questionnaire submit shows only the modal message and keeps the answers', async () => {
+  it('a rejected questionnaire submit shows only the form message and keeps the answers', async () => {
     const user = userEvent.setup()
     const onSubmitResponse = jest
       .fn()
@@ -177,16 +183,11 @@ describe('DynamicAnnotationInterface: required questions', () => {
           'Questionnaire response already submitted for this annotation',
         ),
       )
-    const onComplete = jest.fn()
     render(
-      <PostAnnotationQuestionnaireModal
-        isOpen
-        questionnaireConfig={EXTENDED.replace(/ required="true"/g, '')}
-        projectId="p"
-        taskId="t"
-        annotationId="a"
-        onComplete={onComplete}
-        onSubmitResponse={onSubmitResponse}
+      <QuestionnaireForm
+        config={EXTENDED.replace(/ required="true"/g, '')}
+        required
+        onSubmit={onSubmitResponse}
       />,
     )
     await writeComment(user)
@@ -199,7 +200,6 @@ describe('DynamicAnnotationInterface: required questions', () => {
       ),
     ).toBeInTheDocument()
     expect(onSubmitResponse).toHaveBeenCalledTimes(1)
-    expect(onComplete).not.toHaveBeenCalled()
     expect(
       screen.queryByText('annotation.interface.submissionError'),
     ).not.toBeInTheDocument()

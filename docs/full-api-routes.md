@@ -370,6 +370,12 @@ project (`any`) or only for its own projects (`bound`).
 | DELETE | `/api/projects/{project_id}/purge` | `projects:write` | bound |
 | GET | `/api/projects/{project_id}/purge-jobs/{job_id}` | `projects:read` | bound |
 | GET | `/api/projects/{project_id}/questionnaire-responses` | `annotations:read` | bound |
+| GET | `/api/projects/{project_id}/questionnaire-responses/export.csv` | `annotations:read` | bound |
+| GET | `/api/projects/{project_id}/questionnaires` | `projects:read` | bound |
+| POST | `/api/projects/{project_id}/questionnaires/validate` | `projects:write` | bound |
+| PUT | `/api/projects/{project_id}/questionnaires/{trigger}` | `projects:write` | bound |
+| POST | `/api/projects/{project_id}/questionnaires/{trigger}/responses` | `annotations:write` | bound |
+| GET | `/api/projects/{project_id}/questionnaires/{trigger}/status` | `annotations:read` | bound |
 | POST | `/api/projects/{project_id}/recalculate-stats` | `projects:write` | bound |
 | GET | `/api/projects/{project_id}/report` | `results:read` | bound |
 | POST | `/api/projects/{project_id}/report` | `projects:write` | bound |

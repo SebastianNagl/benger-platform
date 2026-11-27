@@ -7,7 +7,7 @@
  * These tests therefore drive it through a small stateful host (`Harness`) that
  * mirrors the real parent — it holds `advancedSettings` in `useState` and passes
  * a real setter — so updater functions actually apply and conditional sections
- * (timer inputs, questionnaire config) appear/disappear on toggle.
+ * (timer inputs) appear/disappear on toggle.
  *
  * The shared `@/components/shared/Select` is auto-mocked by the repo's
  * `moduleNameMapper` to a native <select> (role "combobox"), so each Select
@@ -57,8 +57,6 @@ function makeSettings(
     handwriting_ocr_enabled: false,
     handwriting_ocr_model: null,
     skip_queue: 'requeue_for_others',
-    questionnaire_enabled: false,
-    questionnaire_config: '',
     maximum_annotations: 1,
     min_annotations_per_task: 1,
     assignment_mode: 'open',
@@ -86,7 +84,6 @@ interface HarnessProps {
   ProjectSettingsAnnotationWork?: ComponentType<any> | null
   onChange?: (s: AdvancedSettings) => void
   onSetOptions?: (options: { deferSave?: boolean } | undefined) => void
-  onTextCommit?: () => void
 }
 
 /**
@@ -103,7 +100,6 @@ function Harness({
   ProjectSettingsAnnotationWork = null,
   onChange,
   onSetOptions,
-  onTextCommit,
 }: HarnessProps) {
   const [settings, setSettings] = useState<AdvancedSettings>(
     makeSettings(initial),
@@ -135,7 +131,6 @@ function Harness({
       ProjectSettingsExtended={ProjectSettingsExtended}
       ProjectSettingsInterfaceExtra={ProjectSettingsInterfaceExtra}
       ProjectSettingsAnnotationWork={ProjectSettingsAnnotationWork}
-      onTextCommit={onTextCommit}
     />
   )
 }
@@ -197,7 +192,7 @@ describe('AdvancedSettingsCard', () => {
 
     it('renders the full settings form when editing is allowed', () => {
       render(<Harness />)
-      // 4 base selects when questionnaire collapsed: max, min, assignment, skip
+      // 4 selects: max, min, assignment, skip (questionnaires have their own card)
       expect(screen.getAllByRole('combobox')).toHaveLength(4)
     })
 
@@ -611,155 +606,6 @@ describe('AdvancedSettingsCard', () => {
     })
   })
 
-  describe('Post-annotation questionnaire', () => {
-    it('hides the template + config editor until enabled', () => {
-      render(<Harness initial={{ questionnaire_enabled: false }} />)
-      expect(screen.queryByText('Template')).not.toBeInTheDocument()
-      expect(
-        screen.queryByText('Questionnaire Config (Label Studio XML)'),
-      ).not.toBeInTheDocument()
-    })
-
-    it('enabling the questionnaire reveals the template select + config textarea', async () => {
-      const user = userEvent.setup()
-      const onChange = jest.fn()
-      render(<Harness onChange={onChange} />)
-
-      const enable = checkboxForLabel(/Enable Questionnaire/i)
-      await user.click(enable)
-      expect(onChange).toHaveBeenLastCalledWith(
-        expect.objectContaining({ questionnaire_enabled: true }),
-      )
-
-      expect(screen.getByText('Template')).toBeInTheDocument()
-      expect(
-        screen.getByText('Questionnaire Config (Label Studio XML)'),
-      ).toBeInTheDocument()
-      // questionnaire adds a 5th combobox (the template picker)
-      expect(screen.getAllByRole('combobox')).toHaveLength(5)
-    })
-
-    it('selecting the "confidence_difficulty" template writes its XML into the config', async () => {
-      const user = userEvent.setup()
-      const onChange = jest.fn()
-      render(
-        <Harness
-          initial={{ questionnaire_enabled: true }}
-          onChange={onChange}
-        />,
-      )
-
-      const templateSelect = screen
-        .getByText('Confidence & Difficulty (2 items)')
-        .closest('select') as HTMLSelectElement
-      await user.selectOptions(templateSelect, 'confidence_difficulty')
-
-      expect(onChange).toHaveBeenCalled()
-      const next = onChange.mock.calls.at(-1)![0] as AdvancedSettings
-      expect(next.questionnaire_config).toContain('Post-Annotation Feedback')
-      expect(next.questionnaire_config).toContain('name="confidence"')
-      expect(next.questionnaire_config).not.toContain('guideline_clarity')
-    })
-
-    it('selecting the "extended" template writes the 4-item XML', async () => {
-      const user = userEvent.setup()
-      const onChange = jest.fn()
-      render(
-        <Harness
-          initial={{ questionnaire_enabled: true }}
-          onChange={onChange}
-        />,
-      )
-
-      const templateSelect = screen
-        .getByText('Extended Feedback (4 items)')
-        .closest('select') as HTMLSelectElement
-      await user.selectOptions(templateSelect, 'extended')
-
-      const next = onChange.mock.calls.at(-1)![0] as AdvancedSettings
-      expect(next.questionnaire_config).toContain('guideline_clarity')
-      expect(next.questionnaire_config).toContain('name="comments"')
-    })
-
-    it('selecting the "utaut_study" template writes the Likert XML', async () => {
-      const user = userEvent.setup()
-      const onChange = jest.fn()
-      render(
-        <Harness
-          initial={{ questionnaire_enabled: true }}
-          onChange={onChange}
-        />,
-      )
-
-      const templateSelect = screen
-        .getByText('UTAUT Study (12 items, Likert 1-7)')
-        .closest('select') as HTMLSelectElement
-      await user.selectOptions(templateSelect, 'utaut_study')
-
-      const next = onChange.mock.calls.at(-1)![0] as AdvancedSettings
-      expect(next.questionnaire_config).toContain('utaut_pe')
-      expect(next.questionnaire_config).toContain('Post-Annotations-Fragebogen')
-    })
-
-    it('ignores an unknown template key (the `v in templates` guard is false)', () => {
-      const onChange = jest.fn()
-      render(
-        <Harness
-          initial={{
-            questionnaire_enabled: true,
-            questionnaire_config: '<View>keep-me</View>',
-          }}
-          onChange={onChange}
-        />,
-      )
-
-      const templateSelect = screen
-        .getByText('Confidence & Difficulty (2 items)')
-        .closest('select') as HTMLSelectElement
-      // Fire a value not present in the templates map -> guard short-circuits,
-      // setAdvancedSettings is never called, config stays untouched.
-      fireEvent.change(templateSelect, { target: { value: 'does_not_exist' } })
-      expect(onChange).not.toHaveBeenCalled()
-    })
-
-    it('editing the config textarea updates questionnaire_config', async () => {
-      const user = userEvent.setup()
-      const onChange = jest.fn()
-      render(
-        <Harness
-          initial={{ questionnaire_enabled: true, questionnaire_config: '' }}
-          onChange={onChange}
-        />,
-      )
-
-      const textarea = screen
-        .getByText('Questionnaire Config (Label Studio XML)')
-        .closest('div')!
-        .querySelector('textarea') as HTMLTextAreaElement
-      await user.type(textarea, '<View/>')
-      expect(onChange).toHaveBeenLastCalledWith(
-        expect.objectContaining({ questionnaire_config: '<View/>' }),
-      )
-      expect(textarea.value).toBe('<View/>')
-    })
-
-    it('shows the existing config value in the textarea', () => {
-      render(
-        <Harness
-          initial={{
-            questionnaire_enabled: true,
-            questionnaire_config: '<View>existing</View>',
-          }}
-        />,
-      )
-      const textarea = screen
-        .getByText('Questionnaire Config (Label Studio XML)')
-        .closest('div')!
-        .querySelector('textarea') as HTMLTextAreaElement
-      expect(textarea.value).toBe('<View>existing</View>')
-    })
-  })
-
   describe('ProjectSettingsExtended slot', () => {
     it('does not render an extended slot when null', () => {
       render(<Harness ProjectSettingsExtended={null} />)
@@ -866,7 +712,6 @@ describe('AdvancedSettingsCard', () => {
           initial={{
             annotation_time_limit_enabled: true,
             annotation_time_limit_seconds: 1800,
-            questionnaire_enabled: true,
           }}
         />,
       )
@@ -875,14 +720,8 @@ describe('AdvancedSettingsCard', () => {
       screen.getAllByRole('combobox').forEach((el) => expect(el).toBeDisabled())
       // All checkboxes disabled
       screen.getAllByRole('checkbox').forEach((el) => expect(el).toBeDisabled())
-      // Minutes input + config textarea disabled
+      // Minutes input disabled
       expect(screen.getByRole('spinbutton')).toBeDisabled()
-      expect(
-        screen
-          .getByText('Questionnaire Config (Label Studio XML)')
-          .closest('div')!
-          .querySelector('textarea'),
-      ).toBeDisabled()
     })
   })
 
@@ -903,29 +742,6 @@ describe('AdvancedSettingsCard', () => {
       // Siblings in the group, not nested under the field switch's row.
       const fullRow = full.closest('[data-setting-row]')!
       expect(fullRow).not.toContainElement(steps)
-    })
-  })
-
-  describe('questionnaire config text', () => {
-    it('defers the save while typing and commits on blur', () => {
-      const onSetOptions = jest.fn()
-      const onTextCommit = jest.fn()
-      render(
-        <Harness
-          initial={{ questionnaire_enabled: true }}
-          onSetOptions={onSetOptions}
-          onTextCommit={onTextCommit}
-        />,
-      )
-      const area = screen
-        .getByText('Questionnaire Config (Label Studio XML)')
-        .closest('div')!
-        .querySelector('textarea')!
-      fireEvent.change(area, { target: { value: '<View/>' } })
-      expect(onSetOptions).toHaveBeenLastCalledWith({ deferSave: true })
-      expect(onTextCommit).not.toHaveBeenCalled()
-      fireEvent.blur(area)
-      expect(onTextCommit).toHaveBeenCalledTimes(1)
     })
   })
 

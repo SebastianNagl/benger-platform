@@ -11,7 +11,7 @@ move/extract — the flush/expunge cadence and ordering are unchanged.
 from typing import Any, Iterator
 
 from models import Generation, TaskEvaluation
-from project_models import Annotation, PostAnnotationResponse
+from project_models import Annotation, QuestionnaireResponse
 
 
 def drain_expunge(db, query, batch_size: int) -> Iterator[Any]:
@@ -50,8 +50,12 @@ def fetch_batch_children(db, batch_ids, eval_run_ids):
     queries, same filters, same grouping).
     """
     anns_all = db.query(Annotation).filter(Annotation.task_id.in_(batch_ids)).all()
-    qrs_all = db.query(PostAnnotationResponse).filter(
-        PostAnnotationResponse.task_id.in_(batch_ids)
+    # The annotation's nested ``questionnaire_response`` is its after_submit
+    # answer (the #1208 field, kept for one release).
+    qrs_all = db.query(QuestionnaireResponse).filter(
+        QuestionnaireResponse.task_id.in_(batch_ids),
+        QuestionnaireResponse.trigger == "after_submit",
+        QuestionnaireResponse.annotation_id.isnot(None),
     ).all()
     gens_all = db.query(Generation).filter(Generation.task_id.in_(batch_ids)).all()
     if eval_run_ids:

@@ -34,6 +34,8 @@ from .serialization import (
     serialize_likert_scale_evaluation_row,
     serialize_post_annotation_response_row,
     serialize_preference_ranking_row,
+    serialize_project_questionnaires,
+    serialize_questionnaire_response_row,
     serialize_response_generation_row,
     serialize_task_assignment_row,
     serialize_user_row,
@@ -61,5 +63,7 @@ __all__ = [
     "serialize_preference_ranking_row",
     "serialize_likert_scale_evaluation_row",
     "serialize_post_annotation_response_row",
+    "serialize_project_questionnaires",
+    "serialize_questionnaire_response_row",
     "serialize_user_row",
 ]

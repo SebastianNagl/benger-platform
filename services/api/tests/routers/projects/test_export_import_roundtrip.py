@@ -23,6 +23,8 @@ from unittest.mock import Mock
 
 import pytest
 
+from tests.fixtures.questionnaires import after_submit_answer
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 
 from models import (  # noqa: E402
@@ -35,7 +37,7 @@ from models import (  # noqa: E402
 )
 from project_models import (  # noqa: E402
     Annotation,
-    PostAnnotationResponse,
+    QuestionnaireResponse,
     Project,
     Task,
 )
@@ -127,7 +129,8 @@ def project_with_full_data(db_session, user):
         annotations.append(ann)
         db_session.flush()
 
-        qr = PostAnnotationResponse(
+        qr = after_submit_answer(
+            db_session,
             id=str(uuid.uuid4()),
             annotation_id=ann.id,
             task_id=t.id,
@@ -398,8 +401,8 @@ class TestDataExportImportRoundtrip:
             assert ann.ground_truth == True  # noqa: E712
 
         imported_qrs = (
-            db_session.query(PostAnnotationResponse)
-            .filter(PostAnnotationResponse.project_id == target.id)
+            db_session.query(QuestionnaireResponse)
+            .filter(QuestionnaireResponse.project_id == target.id)
             .all()
         )
         assert len(imported_qrs) == 3

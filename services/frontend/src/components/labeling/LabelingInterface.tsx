@@ -5,9 +5,13 @@
  * tasks, following Label Studio patterns while integrating BenGER's LLM features.
  */
 
-import { PostAnnotationQuestionnaireModal } from '@/components/labeling/PostAnnotationQuestionnaireModal'
 import { ServerDraftSyncWarning } from '@/components/labeling/ServerDraftSyncWarning'
 import { ExamNotReadyNotice } from '@/components/projects/ExamNotReadyNotice'
+import {
+  BeforeTaskQuestionnaireScreen,
+  useBeforeTaskQuestionnaire,
+} from '@/components/questionnaires/BeforeTaskQuestionnaire'
+import { QuestionnairePrompt } from '@/components/questionnaires/QuestionnairePrompt'
 import { Badge } from '@/components/shared/Badge'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
@@ -21,6 +25,10 @@ import { useExternalPasteGuard } from '@/hooks/useExternalPasteGuard'
 import { useModernExamLayout } from '@/hooks/useModernExamLayout'
 import { useServerDraftSync } from '@/hooks/useServerDraftSync'
 import { projectsAPI } from '@/lib/api/projects'
+import {
+  questionnairesAPI,
+  type ProjectQuestionnaire,
+} from '@/lib/api/questionnaires'
 import { useSlot } from '@/lib/extensions/slots'
 import { dateFnsLocale, intlTag } from '@/lib/i18n/locales'
 import type { ExamToolsVariant } from '@/lib/labelConfig/examLayout'
@@ -303,7 +311,41 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     setStrictTimerPhase('annotating')
   }, [])
 
-  // Post-annotation questionnaire state (Issue #1208)
+  // The project's switched-on questionnaires (shared questionnaire model):
+  // undefined while they load. Loaded alongside the project, so a project
+  // without questionnaires adds no wait.
+  const [projectQuestionnaires, setProjectQuestionnaires] = useState<
+    | { projectId: string; byTrigger: Record<string, ProjectQuestionnaire> }
+    | undefined
+  >(undefined)
+  useEffect(() => {
+    let cancelled = false
+    questionnairesAPI
+      .list(projectId)
+      .then((r) => {
+        if (cancelled) return
+        const byTrigger: Record<string, ProjectQuestionnaire> = {}
+        for (const q of r.questionnaires || []) {
+          if (q.active) byTrigger[q.trigger] = q
+        }
+        setProjectQuestionnaires({ projectId, byTrigger })
+      })
+      .catch(() => {
+        // Not loadable: the before-task check asks the server per task.
+        if (!cancelled) setProjectQuestionnaires({ projectId, byTrigger: {} })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [projectId])
+  const questionnairesLoaded =
+    projectQuestionnaires?.projectId === projectId
+      ? projectQuestionnaires.byTrigger
+      : undefined
+
+  // After-submit questionnaire: asked once the submission is final (the
+  // submit closes the exam timer session first), so it never counts toward
+  // the time limit.
   const [showQuestionnaireModal, setShowQuestionnaireModal] = useState(false)
   const [questionnaireAnnotationId, setQuestionnaireAnnotationId] = useState<
     string | null
@@ -312,9 +354,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   const [lastSubmittedAnnotationId, setLastSubmittedAnnotationId] = useState<
     string | null
   >(null)
-  const isQuestionnaireEnabled =
-    currentProject?.questionnaire_enabled &&
-    currentProject?.questionnaire_config
+  const isQuestionnaireEnabled = !!questionnairesLoaded?.after_submit
 
   // Activity tracker for enhanced timing (Issue #1208)
   const activityTracker = useActivityTracker()
@@ -515,6 +555,19 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   // skip and stop every draft write (local and server).
   const readOnlyView = windowReadOnly || attemptedReadOnly
 
+  // Before-task questionnaire: after the instructions, before the task. While
+  // it is owed (phase !== 'done') the page shows it INSTEAD of the task: no
+  // task text, no editor and no TimerSlot, so the exam timer (started by the
+  // slot's mount) never runs while it is answered. A new task starts in
+  // 'checking' in the very render that shows it.
+  const beforeTask = useBeforeTaskQuestionnaire(projectId, currentTask?.id, {
+    known:
+      questionnairesLoaded === undefined
+        ? undefined
+        : (questionnairesLoaded.before_task ?? null),
+    disabled: readOnlyView,
+  })
+
   // Project setting allow_external_paste: when switched off, only text copied
   // inside BenGER can be pasted (or dropped) while annotating. The listeners
   // sit on document, so overlay editors and portalled modals are covered.
@@ -687,19 +740,6 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     setManualInstructionsOpen(false)
   }, [dontShowAgain, INSTRUCTIONS_DISMISSED_KEY])
 
-  // Submit questionnaire response to API (Issue #1208)
-  const handleQuestionnaireSubmit = useCallback(
-    async (
-      pId: string,
-      tId: string,
-      aId: string,
-      result: AnnotationResult[],
-    ) => {
-      await projectsAPI.submitQuestionnaireResponse(pId, tId, aId, result)
-    },
-    [],
-  )
-
   // Proceed after questionnaire (Issue #1208).
   //
   // If the project also has immediate evaluation enabled, the ImmediateEvalSlot
@@ -841,6 +881,116 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
           </div>
         </Card>
       </div>
+    )
+  }
+
+  // Instructions modal (shown on first load if enabled and not dismissed),
+  // over the task or over the before-task questionnaire.
+  const instructionsModal =
+    showInstructionsModal &&
+    (currentProject?.instructions || selectedVariantId) &&
+    (() => {
+      const conditionalVariants = currentProject?.conditional_instructions as
+        { id: string; content: string; weight: number }[] | undefined
+      const variantContent = conditionalVariants?.find(
+        (v) => v.id === selectedVariantId,
+      )?.content
+      const isAlwaysVisible = currentProject?.instructions_always_visible
+
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/50">
+          <div className="mx-4 max-w-2xl rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-800">
+            <h3 className="flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-white">
+              <ExclamationTriangleIcon className="h-5 w-5 text-emerald-600" />
+              {t('annotation.instructions.title')}
+            </h3>
+            <div className="mt-4 max-h-[60vh] overflow-y-auto">
+              <div className="prose prose-sm max-w-none text-zinc-700 dark:text-zinc-300 dark:prose-invert">
+                {variantContent && currentProject?.instructions && (
+                  <p className="whitespace-pre-wrap">
+                    {currentProject.instructions}
+                  </p>
+                )}
+                <p className="whitespace-pre-wrap">
+                  {variantContent || currentProject?.instructions}
+                </p>
+              </div>
+            </div>
+            {!isAlwaysVisible && !variantContent && !manualInstructionsOpen && (
+              <div className="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-700">
+                <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+                  <input
+                    type="checkbox"
+                    checked={dontShowAgain}
+                    onChange={(e) => setDontShowAgain(e.target.checked)}
+                    className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                  />
+                  {t('annotation.instructions.dontShowAgain')}
+                </label>
+              </div>
+            )}
+            <div className="mt-4 flex justify-end">
+              <Button onClick={handleInstructionsModalClose} variant="filled">
+                {manualInstructionsOpen
+                  ? t('annotation.instructions.close')
+                  : t('annotation.instructions.startAnnotating')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )
+    })()
+
+  // Before-task questionnaire (see useBeforeTaskQuestionnaire above): shown
+  // instead of the task, after the instructions, before any timer.
+  if (beforeTask.phase !== 'done' && !allTasksCompleted) {
+    const instructionsAvailable = !!(
+      currentProject?.instructions ||
+      currentProject?.conditional_instructions?.length
+    )
+    const actions = (
+      <div className="flex items-center justify-between gap-4">
+        <Button
+          variant="text"
+          onClick={() => router.push(`/projects/${projectId}`)}
+        >
+          <ArrowLeftIcon className="mr-2 h-4 w-4" />
+          {t('annotation.backToProject')}
+        </Button>
+        {instructionsAvailable && (
+          <Button
+            variant="text"
+            onClick={() => {
+              setManualInstructionsOpen(true)
+              setShowInstructionsModal(true)
+            }}
+          >
+            <BookOpenIcon className="mr-2 h-4 w-4" />
+            {t('annotation.instructions.showInstructions')}
+          </Button>
+        )}
+      </div>
+    )
+    return (
+      <>
+        {beforeTask.phase === 'due' && beforeTask.questionnaire ? (
+          <BeforeTaskQuestionnaireScreen
+            projectId={projectId}
+            taskId={currentTask.id}
+            questionnaire={beforeTask.questionnaire}
+            onDone={beforeTask.markDone}
+            actions={actions}
+          />
+        ) : (
+          <div
+            className="flex min-h-screen items-center justify-center"
+            data-testid="before-task-questionnaire-checking"
+          >
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
+          </div>
+        )}
+        {instructionsModal}
+      </>
     )
   }
 
@@ -1003,6 +1153,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     TimerSlot &&
     currentProject?.annotation_time_limit_enabled &&
     !attemptedReadOnly &&
+    beforeTask.phase === 'done' &&
     strictTimerPhase === 'annotating' ? (
       <TimerSlot
         variant={variant}
@@ -1422,77 +1573,20 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
         </div>
       )}
 
-      {/* Instructions Modal (shown on first load if enabled and not dismissed) */}
-      {showInstructionsModal &&
-        (currentProject?.instructions || selectedVariantId) &&
-        (() => {
-          const conditionalVariants =
-            currentProject?.conditional_instructions as
-              { id: string; content: string; weight: number }[] | undefined
-          const variantContent = conditionalVariants?.find(
-            (v) => v.id === selectedVariantId,
-          )?.content
-          const isAlwaysVisible = currentProject?.instructions_always_visible
+      {instructionsModal}
 
-          return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/50">
-              <div className="mx-4 max-w-2xl rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-800">
-                <h3 className="flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-white">
-                  <ExclamationTriangleIcon className="h-5 w-5 text-emerald-600" />
-                  {t('annotation.instructions.title')}
-                </h3>
-                <div className="mt-4 max-h-[60vh] overflow-y-auto">
-                  <div className="prose prose-sm max-w-none text-zinc-700 dark:text-zinc-300 dark:prose-invert">
-                    {variantContent && currentProject?.instructions && (
-                      <p className="whitespace-pre-wrap">
-                        {currentProject.instructions}
-                      </p>
-                    )}
-                    <p className="whitespace-pre-wrap">
-                      {variantContent || currentProject?.instructions}
-                    </p>
-                  </div>
-                </div>
-                {!isAlwaysVisible &&
-                  !variantContent &&
-                  !manualInstructionsOpen && (
-                    <div className="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-700">
-                      <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-                        <input
-                          type="checkbox"
-                          checked={dontShowAgain}
-                          onChange={(e) => setDontShowAgain(e.target.checked)}
-                          className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                        />
-                        {t('annotation.instructions.dontShowAgain')}
-                      </label>
-                    </div>
-                  )}
-                <div className="mt-4 flex justify-end">
-                  <Button
-                    onClick={handleInstructionsModalClose}
-                    variant="filled"
-                  >
-                    {manualInstructionsOpen
-                      ? t('annotation.instructions.close')
-                      : t('annotation.instructions.startAnnotating')}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )
-        })()}
-
-      {/* Post-Annotation Questionnaire Modal (Issue #1208) */}
+      {/* After-submit questionnaire: asked once the submission is final,
+          when one is due for it (frequency), then the page moves on. */}
       {isQuestionnaireEnabled && questionnaireAnnotationId && currentTask && (
-        <PostAnnotationQuestionnaireModal
-          isOpen={showQuestionnaireModal}
-          questionnaireConfig={currentProject!.questionnaire_config!}
+        <QuestionnairePrompt
           projectId={projectId}
-          taskId={currentTask.id}
-          annotationId={questionnaireAnnotationId}
-          onComplete={proceedAfterQuestionnaire}
-          onSubmitResponse={handleQuestionnaireSubmit}
+          trigger="after_submit"
+          subject={{
+            annotation_id: questionnaireAnnotationId,
+            task_id: currentTask.id,
+          }}
+          open={showQuestionnaireModal}
+          onDone={proceedAfterQuestionnaire}
         />
       )}
 

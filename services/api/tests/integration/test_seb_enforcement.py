@@ -734,6 +734,38 @@ async def test_questionnaire_response_is_gated(async_test_db, async_test_client)
         assert r.status_code == 200, r.text
 
 
+
+@pytest.mark.asyncio
+async def test_before_task_questionnaire_is_gated(async_test_db, async_test_client):
+    """The before-task questionnaire belongs to the exam like the task: in a
+    Safe Exam Browser exam it is asked inside SEB, and outside it neither its
+    state nor an answer gets through."""
+    from project_models import ProjectQuestionnaire
+
+    db = async_test_db
+    w = await _async_world(db)
+    p, task = w["project"], w["tasks"][0]
+    db.add(ProjectQuestionnaire(
+        id=_uid(), project_id=p.id, trigger="before_task", enabled=True,
+        config='<View><Rating name="q" toName="q" maxRating="5"/></View>',
+        required=True, frequency="once_per_task", version=1,
+    ))
+    await db.flush()
+    status = f"/api/projects/{p.id}/questionnaires/before_task/status?task_id={task.id}"
+    answer = f"/api/projects/{p.id}/questionnaires/before_task/responses"
+    body = {"task_id": task.id, "result": [{"from_name": "q", "type": "rating", "value": 3}]}
+    with _as_user(w["student"]):
+        r = await async_test_client.get(status)
+        assert r.status_code == 403 and r.json()["detail"]["code"] == "seb_required"
+        r = await async_test_client.post(answer, json=body)
+        assert r.status_code == 403 and r.json()["detail"]["code"] == "seb_required"
+        r = await async_test_client.get(status, headers=_proof(status))
+        assert r.status_code == 200 and r.json()["due"] is True, r.text
+        r = await async_test_client.post(answer, json=body, headers=_proof(answer))
+        assert r.status_code == 200, r.text
+        r = await async_test_client.get(status, headers=_proof(status))
+        assert r.json()["due"] is False
+
 def _public_contributor_project(w):
     visitor = User(
         id=_uid(), username=f"v-{_uid()[:8]}", email=f"{_uid()[:8]}@example.com", name="V"

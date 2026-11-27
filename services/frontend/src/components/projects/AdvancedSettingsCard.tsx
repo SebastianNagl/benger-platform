@@ -9,7 +9,8 @@
  *                    draft checkpoints)
  *   Überspringen     the skip button and what skipping does
  *   Abgabe           submitting
- *   Nach der Abgabe  what annotators see afterwards, the questionnaire
+ *   Nach der Abgabe  what annotators see afterwards (questionnaires have
+ *                    their own card, components/questionnaires)
  *   Überprüfung      extension slot (review stage)
  *
  * The instruction display switches live with the instructions themselves
@@ -17,8 +18,7 @@
  *
  * Presentational: all state lives in the page and arrives through
  * `advancedSettings` / `setAdvancedSettings`; the page auto-saves the
- * buffer. Free text (the questionnaire XML) passes `{ deferSave: true }`
- * and saves on blur through `onTextCommit`.
+ * buffer.
  */
 
 'use client'
@@ -57,8 +57,6 @@ export interface AdvancedSettings {
   handwriting_ocr_enabled: boolean
   handwriting_ocr_model: string | null
   skip_queue: 'requeue_for_me' | 'requeue_for_others' | 'ignore_skipped'
-  questionnaire_enabled: boolean
-  questionnaire_config: string
   maximum_annotations: number
   min_annotations_per_task: number
   assignment_mode: 'open' | 'manual' | 'auto'
@@ -79,7 +77,7 @@ export interface AdvancedSettings {
 
 /**
  * Setter for the settings buffer. `deferSave` marks a free-text edit that
- * saves on blur (`onTextCommit`) instead of after the usual delay.
+ * saves on blur instead of after the usual delay.
  * `onCancel` runs when a risky change is cancelled in its confirmation, for
  * controls that already show the new value.
  */
@@ -90,58 +88,12 @@ export type AdvancedSettingsSetter = (
 
 type Translate = (key: string, params?: any) => string
 
-export const QUESTIONNAIRE_TEMPLATES: Record<string, string> = {
-  confidence_difficulty: `<View>
-  <Header value="Post-Annotation Feedback"/>
-  <Rating name="confidence" toName="confidence" maxRating="5" required="true" label="How confident are you in your annotation?"/>
-  <Rating name="difficulty" toName="difficulty" maxRating="5" required="true" label="How difficult was this task?"/>
-</View>`,
-  extended: `<View>
-  <Header value="Post-Annotation Feedback"/>
-  <Rating name="confidence" toName="confidence" maxRating="5" required="true" label="How confident are you in your annotation?"/>
-  <Rating name="difficulty" toName="difficulty" maxRating="5" required="true" label="How difficult was this task?"/>
-  <Choices name="guideline_clarity" toName="guideline_clarity" choice="single" layout="horizontal" required="true" label="How clear were the annotation guidelines?">
-    <Choice value="Very Clear"/>
-    <Choice value="Clear"/>
-    <Choice value="Neutral"/>
-    <Choice value="Unclear"/>
-    <Choice value="Very Unclear"/>
-  </Choices>
-  <TextArea name="comments" toName="comments" rows="3" label="Additional comments (optional)" placeholder="Note any edge cases, ambiguities, or concerns..."/>
-</View>`,
-  utaut_study: `<View>
-  <Header value="Post-Annotations-Fragebogen" level="3"/>
-
-  <Header value="Allgemeine Fragen" level="4"/>
-  <Likert name="difficulty" toName="difficulty" min="1" max="7" required="true" label="Es fiel mir leicht die Aufgabe zu lösen."/>
-  <Likert name="responsibility" toName="responsibility" min="1" max="7" required="true" label="Ich fühle mich verantwortlich für das von mir eingereichte Ergebnis."/>
-
-  <Header value="Fragen zur KI-Unterstützung (nur beantworten, wenn du in der KI-Gruppe warst)" level="4"/>
-  <Likert name="ai_adequate" toName="ai_adequate" min="1" max="7" label="Der Output der KI war auf Anhieb adäquat."/>
-  <Likert name="ai_reviewed" toName="ai_reviewed" min="1" max="7" label="Ich habe den Output der KI überprüft."/>
-  <Likert name="utaut_pe" toName="utaut_pe" min="1" max="7" label="Ich würde die KI in meiner Arbeit/meinem Studium als nützlich empfinden."/>
-  <Likert name="utaut_ee" toName="utaut_ee" min="1" max="7" label="Ich empfinde die KI als einfach zu nutzen."/>
-  <Likert name="utaut_att1" toName="utaut_att1" min="1" max="7" label="Die Nutzung der KI ist eine gute Idee."/>
-  <Likert name="utaut_att2" toName="utaut_att2" min="1" max="7" label="Die Arbeit mit der KI macht Spaß."/>
-  <Likert name="utaut_att3" toName="utaut_att3" min="1" max="7" label="Ich arbeite gerne mit der KI."/>
-
-  <Header value="Anteil an der Fallbearbeitung (nur beantworten, wenn du in der KI-Gruppe warst)" level="4"/>
-  <Number name="human_share" toName="human_share" min="0" max="100" label="x Prozent der Fallbearbeitung gehen auf mich zurück." hint="Wert zwischen 0 und 100"/>
-  <Number name="ai_share" toName="ai_share" min="0" max="100" label="y Prozent der Fallbearbeitung gehen auf die KI zurück." hint="Wert zwischen 0 und 100"/>
-
-  <Header value="Frage ohne KI (nur beantworten, wenn du NICHT in der KI-Gruppe warst)" level="4"/>
-  <Likert name="desired_ai" toName="desired_ai" min="1" max="7" label="Ich hätte mir die KI für die Bearbeitung dieser Aufgabe gewünscht."/>
-</View>`,
-}
-
 interface AdvancedSettingsCardProps {
   t: Translate
   canEditProject: () => boolean
   getReadOnlyMessage: (sectionTitle: string) => string
   advancedSettings: AdvancedSettings
   setAdvancedSettings: AdvancedSettingsSetter
-  /** Save a deferred free-text edit now (blur). */
-  onTextCommit?: () => void
   editing: boolean
   /** Extension slot: the review stage, rendered as the last group. */
   ProjectSettingsExtended: ComponentType<any> | null
@@ -157,7 +109,6 @@ export function AdvancedSettingsCard({
   getReadOnlyMessage,
   advancedSettings,
   setAdvancedSettings,
-  onTextCommit,
   editing,
   ProjectSettingsExtended,
   ProjectSettingsInterfaceExtra = null,
@@ -532,75 +483,6 @@ export function AdvancedSettingsCard({
             />
           }
         />
-        <SettingRow
-          label={t('project.settings.questionnaireEnabled')}
-          htmlFor="questionnaire_enabled"
-          help={t('project.settings.questionnaireEnabledDescription')}
-          control={toggle(
-            'questionnaire_enabled',
-            'questionnaire_enabled',
-            advancedSettings.questionnaire_enabled,
-          )}
-        >
-          {advancedSettings.questionnaire_enabled ? (
-            <>
-              <SettingField
-                label={t('project.settings.questionnaireTemplate')}
-                htmlFor="questionnaire_template"
-              >
-                <Select
-                  value=""
-                  onValueChange={(v) => {
-                    if (v in QUESTIONNAIRE_TEMPLATES) {
-                      set('questionnaire_config', QUESTIONNAIRE_TEMPLATES[v])
-                    }
-                  }}
-                  disabled={!editing}
-                >
-                  <SelectTrigger id="questionnaire_template">
-                    <SelectValue
-                      placeholder={t(
-                        'project.settings.questionnaireSelectTemplate',
-                      )}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="confidence_difficulty">
-                      {t('project.settings.questionnaireTemplateConfidence')}
-                    </SelectItem>
-                    <SelectItem value="extended">
-                      {t('project.settings.questionnaireTemplateExtended')}
-                    </SelectItem>
-                    <SelectItem value="utaut_study">
-                      {t('project.settings.questionnaireTemplateUtaut')}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </SettingField>
-              <SettingField
-                label={t('project.settings.questionnaireConfig')}
-                htmlFor="questionnaire_config"
-              >
-                <Textarea
-                  id="questionnaire_config"
-                  value={advancedSettings.questionnaire_config}
-                  onChange={(e) => {
-                    const value = e.target.value
-                    setAdvancedSettings(
-                      (prev) => ({ ...prev, questionnaire_config: value }),
-                      { deferSave: true },
-                    )
-                  }}
-                  onBlur={() => onTextCommit?.()}
-                  disabled={!editing}
-                  rows={10}
-                  className="font-mono"
-                  placeholder={`<View>\n  <Header value="Post-Annotation Feedback"/>\n  <Rating name="confidence" toName="confidence" maxRating="5" required="true" label="How confident are you?"/>\n</View>`}
-                />
-              </SettingField>
-            </>
-          ) : null}
-        </SettingRow>
       </SettingsGroup>
 
       {/* Review stage (extension). Its own titled group comes from the

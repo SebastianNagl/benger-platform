@@ -604,7 +604,7 @@ class TestBulkExportTasks:
         """Test that questionnaire responses are included in annotations."""
         from unittest.mock import Mock
 
-        from project_models import PostAnnotationResponse
+        from tests.fixtures.questionnaires import after_submit_answer
         from routers.projects.tasks import bulk_export_tasks
 
         session = test_db_session
@@ -612,7 +612,8 @@ class TestBulkExportTasks:
 
         # Add a questionnaire response to the first annotation
         first_annotation = data["annotations"][0]
-        qr = PostAnnotationResponse(
+        qr = after_submit_answer(
+            session,
             id=str(uuid.uuid4()),
             annotation_id=first_annotation.id,
             task_id=first_annotation.task_id,

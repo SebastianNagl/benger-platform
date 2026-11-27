@@ -23,7 +23,14 @@ from auth_module import require_user
 from auth_module.models import User as AuthUser
 from main import app
 from models import User
-from project_models import Annotation, PostAnnotationResponse, Project, Task
+from project_models import (
+    Annotation,
+    PostAnnotationResponse,
+    Project,
+    ProjectQuestionnaire,
+    QuestionnaireResponse,
+    Task,
+)
 from services.label_config.questionnaire import (
     missing_required_answers,
     questionnaire_config_hash,
@@ -306,8 +313,8 @@ async def _submit(client, project, task, annotation, result):
 async def _stored(db, annotation):
     return (
         await db.execute(
-            select(PostAnnotationResponse).where(
-                PostAnnotationResponse.annotation_id == annotation.id
+            select(QuestionnaireResponse).where(
+                QuestionnaireResponse.annotation_id == annotation.id
             )
         )
     ).scalars().all()
@@ -375,12 +382,26 @@ class TestSubmitRequired:
         async def execute_then_race(statement, *args, **kwargs):
             nonlocal raced
             result = await real_execute(statement, *args, **kwargs)
-            if not raced and "post_annotation_responses" in str(statement):
+            if (
+                not raced
+                and "FROM questionnaire_responses" in str(statement)
+                and "subject_key" in str(statement)
+            ):
                 raced = True
+                questionnaire = (
+                    await real_execute(
+                        select(ProjectQuestionnaire).where(
+                            ProjectQuestionnaire.project_id == project.id
+                        )
+                    )
+                ).scalar_one()
                 async_test_db.add(
-                    PostAnnotationResponse(
-                        id=_uid(), annotation_id=annotation.id, task_id=task.id,
-                        project_id=project.id, user_id=user.id, result=[],
+                    QuestionnaireResponse(
+                        id=_uid(), project_id=project.id,
+                        questionnaire_id=questionnaire.id, trigger="after_submit",
+                        annotation_id=annotation.id, task_id=task.id,
+                        user_id=user.id, subject_key=f"annotation:{annotation.id}",
+                        result=[],
                     )
                 )
                 await async_test_db.commit()
@@ -404,7 +425,7 @@ class TestSubmitRequired:
         real_commit = async_test_db.commit
 
         async def failing_commit():
-            if any(isinstance(o, PostAnnotationResponse) for o in async_test_db.new):
+            if any(isinstance(o, QuestionnaireResponse) for o in async_test_db.new):
                 raise IntegrityError("INSERT", {}, Exception("fk violation"))
             await real_commit()
 
@@ -430,7 +451,7 @@ class TestUniqueIndex:
                 )
             )
         with pytest.raises(IntegrityError):
-            await async_test_db.flush()
+            await async_test_db.commit()
         await async_test_db.rollback()
 
 
