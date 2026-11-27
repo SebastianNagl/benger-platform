@@ -239,7 +239,10 @@ class TestExtensionLoader:
         # 2.88 adds SelectionActions and the project-evaluation-grading-section slot.
         # 2.89 adds SettingsGroup, the settingRisk registry, useAutoSave and
         # the project-settings-annotation-work slot.
-        assert CORE_API_VERSION == "2.89"
+        # 2.90 adds model_availability (InactiveModelError,
+        # inactive_models_message, inactive_official_model_ids and
+        # inactive_official_model_ids_async).
+        assert CORE_API_VERSION == "2.90"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

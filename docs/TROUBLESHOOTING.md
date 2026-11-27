@@ -82,15 +82,24 @@ lsof -i :8080  # Native Annotation System
 
 **Out of disk space**
 ```bash
-# Clean Docker system
-docker system prune -a --volumes
-
-# Remove unused images
-docker image prune -a
-
-# Check disk usage
+# See what takes the space
 df -h
 docker system df
+
+# Remove the test stack (containers, volumes, networks, dangling images; built images are kept)
+make test-prune
+
+# Remove the dev stack the same way (WARNING: deletes the dev database volume)
+make clean-docker
+```
+
+Both targets only touch the compose project they manage. Avoid the host-wide
+Docker prune commands (system, image, volume, builder) on a machine that runs
+other stacks: they delete those stacks' images, volumes and build cache too.
+
+```bash
+# Inspect the build cache before deciding what to free by hand
+docker buildx du
 ```
 
 **Container won't start**

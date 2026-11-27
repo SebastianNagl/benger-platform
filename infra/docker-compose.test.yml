@@ -153,9 +153,9 @@ services:
       # dev, benger-risky, benger-test, ...) share one Docker daemon and the
       # same frontend labels; without this a second stack's frontend joins
       # the same router and benger.localhost round-robins between them.
-      # The project is COMPOSE_PROJECT_NAME when set (parallel worktree
-      # stacks); runs that pass `-p` instead set BENGER_TRAEFIK_PROJECT
-      # (e.g. the compliance Makefile).
+      # The project is COMPOSE_PROJECT_NAME when set; runs that pass `-p`
+      # set BENGER_TRAEFIK_PROJECT to the same name (the Makefile's test
+      # targets, which use $COMPOSE_PROJECT_NAME-test, else benger-test).
       - "--providers.docker.constraints=Label(`com.docker.compose.project`,`${BENGER_TRAEFIK_PROJECT:-${COMPOSE_PROJECT_NAME:-benger-test}}`)"
       - "--providers.file.directory=/etc/traefik"
       - "--providers.file.watch=true"
