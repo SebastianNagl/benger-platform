@@ -2115,11 +2115,22 @@ API change).
     that group, with props ``{ settings, onSettingsChange, editing }`` like
     ``project-settings-interface-extra``; changes go through the card's own
     auto-save. Rendering nothing leaves no gap.
+2.90 (2026-11-27): refusing official catalog models that are no longer
+  active (no migration, additive; API and workers).
+  - ``model_availability``: ``InactiveModelError`` (raised for a job that
+    names an official model switched off in the catalog; ``model_ids``
+    holds the sorted ids), ``inactive_models_message(model_ids)`` (the
+    user-facing refusal naming the models and what to do),
+    ``inactive_official_model_ids(db, model_ids)`` for a sync session and
+    ``inactive_official_model_ids_async(db, model_ids)`` for an async one
+    (of the given ids, the official rows with ``is_active`` false, sorted
+    and without duplicates). The extended grading router and workers refuse
+    a saved config that still names a retired model through them.
 """
 
 import os
 
-CORE_API_VERSION = "2.89"
+CORE_API_VERSION = "2.90"
 
 
 def extended_required() -> bool:
