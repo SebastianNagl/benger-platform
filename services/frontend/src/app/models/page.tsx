@@ -18,6 +18,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { formatDecimal } from '@/lib/i18n/locales'
+import { groupModelsByProvider } from '@/lib/modelOrder'
 import { PlusIcon } from '@heroicons/react/24/outline'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
@@ -158,20 +159,13 @@ export default function ModelsPage() {
     return matchesSearch && matchesProvider
   })
 
-  // Group by provider
-  const groupedModels = filteredModels.reduce(
-    (acc, model) => {
-      if (!acc[model.provider]) {
-        acc[model.provider] = []
-      }
-      acc[model.provider].push(model)
-      return acc
-    },
-    {} as Record<string, LLMModel[]>,
+  // Group by provider, in catalog order like every model picker
+  // (lib/modelOrder): the API lists the models in that order.
+  const providerGroups = groupModelsByProvider(filteredModels)
+  const groupedModels: Record<string, LLMModel[]> = Object.fromEntries(
+    providerGroups.map((group) => [group.provider, group.models]),
   )
-
-  // Sort providers alphabetically
-  const sortedProviders = Object.keys(groupedModels).sort()
+  const sortedProviders = providerGroups.map((group) => group.provider)
 
   return (
     <>

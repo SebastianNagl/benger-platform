@@ -683,9 +683,12 @@ def initialize_llm_models(db: Session) -> int:
     _lock_llm_seed(db)
 
     counts = {"inserted": 0, "updated": 0, "unchanged": 0}
-    for model in catalog.models:
+    for position, model in enumerate(catalog.models):
         # Map YAML "constraints" key onto the DB column "parameter_constraints"
         row = dict(model)
+        # The catalog's list order is the order users pick models in
+        # (models.llm_model_display_order).
+        row["display_order"] = position
         if "constraints" in row:
             row["parameter_constraints"] = row.pop("constraints")
         # Every YAML-seeded row is official by definition (incl. the

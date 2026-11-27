@@ -2921,6 +2921,11 @@ class LLMModel(Base):
     # (ai_services/openai_compatible_service.py). The completion is not
     # streamed, so a reasoning model needs enough time for its whole output.
     request_timeout_seconds = Column(Integer, nullable=True)
+    # Position of an official row in the catalog (migration 163): the seed
+    # writes each model's index in llm_models.yaml, whose list order is the
+    # order users pick models in (see llm_model_display_order). NULL for
+    # custom models, which list after the catalog.
+    display_order = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -2963,6 +2968,23 @@ class LLMModel(Base):
 
     def __repr__(self):
         return f"<LLMModel(id={self.id}, name={self.name}, provider={self.provider})>"
+
+
+def llm_model_display_order() -> tuple:
+    """ORDER BY of every model list a user picks from.
+
+    Catalog rows come in llm_models.yaml order (grouped by provider, newest
+    and most capable first within a provider); rows without a position
+    (custom models) follow, by provider and name. Without an ORDER BY the
+    database returns rows in storage order, which puts models added or
+    updated later at the end of the list.
+    """
+    return (
+        LLMModel.display_order.asc().nulls_last(),
+        LLMModel.provider,
+        LLMModel.name,
+        LLMModel.id,
+    )
 
 
 class ModelOrganization(Base):
