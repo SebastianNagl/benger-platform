@@ -22,6 +22,7 @@ import { Badge } from '@/components/shared/Badge'
 import { Button } from '@/components/shared/Button'
 import { Checkbox } from '@/components/shared/Checkbox'
 import { Input } from '@/components/shared/Input'
+import { renderProviderGroupedOptions } from '@/components/shared/ProviderGroupedOptions'
 import {
   Select,
   SelectContent,
@@ -202,8 +203,9 @@ export function EvaluationBuilder({
     />
   )
 
-  // BYOM: judge picker options grouped into Official and Custom sections.
-  // Models without an is_official field count as official (back-compat).
+  // Judge picker options: the catalog models under their providers, in
+  // catalog order (lib/modelOrder), then a Custom section (BYOM). Models
+  // without an is_official field count as official (back-compat).
   const officialJudges = useMemo(
     () => judgeModels.filter((m) => m.is_official !== false),
     [judgeModels],
@@ -220,12 +222,7 @@ export function EvaluationBuilder({
     m.has_credential === false
   const renderJudgeModelOptions = () => (
     <>
-      {customJudges.length > 0 && officialJudges.length > 0 && (
-        <SelectGroupLabel>
-          {t('customModels.picker.officialSection')}
-        </SelectGroupLabel>
-      )}
-      {officialJudges.map((model) => (
+      {renderProviderGroupedOptions(officialJudges, (model) => (
         <SelectItem key={model.id} value={model.id}>
           {model.name} ({model.provider})
         </SelectItem>
@@ -957,6 +954,7 @@ export function EvaluationBuilder({
                   </label>
                   <Select
                     searchable
+                    keepOrder
                     value={
                       newEvaluation.metric_parameters.judge_model ||
                       DEFAULT_MODEL_ID
@@ -1159,6 +1157,7 @@ export function EvaluationBuilder({
                   </label>
                   <Select
                     searchable
+                    keepOrder
                     value={
                       newEvaluation.metric_parameters.judge_model ||
                       DEFAULT_MODEL_ID

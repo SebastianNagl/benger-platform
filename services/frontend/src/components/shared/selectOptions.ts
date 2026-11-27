@@ -3,8 +3,10 @@
  * (projects, organizations, users, models, groups, ...).
  *
  * Every such dropdown sorts its options alphabetically by the visible label
- * and filters them by what the user types, the same way everywhere. The
- * shared Select applies this in its `searchable` mode; the helpers are
+ * and filters them by what the user types, the same way everywhere. Lists
+ * whose loaded order means something (the model catalog) keep it and only
+ * filter (`keepOrder`). The shared Select applies this in its `searchable`
+ * mode; the helpers are
  * exported so the Jest mock of Select and any list outside a Select order
  * options identically.
  */
@@ -100,6 +102,8 @@ interface ArrangeOptions {
   isGroupLabel: (element: React.ReactElement) => boolean
   /** Filter text; empty keeps every option. */
   query?: string
+  /** Keep the options in source order instead of sorting them by label. */
+  keepOrder?: boolean
 }
 
 function flatten(node: ReactNode, out: React.ReactElement[]): void {
@@ -116,14 +120,15 @@ function flatten(node: ReactNode, out: React.ReactElement[]): void {
 /**
  * Reorder and filter the children of a dropdown list. Within each group
  * (delimited by group headings) pinned options stay first in source order and
- * the rest sort alphabetically by label. With a query, options that do not
+ * the rest sort alphabetically by label (with `keepOrder`, stay in source
+ * order). With a query, options that do not
  * match are dropped and headings left without options disappear. Elements
  * that are neither options (no `value` prop) nor headings stay before or
  * after their group's options, wherever they stood in the source.
  */
 export function arrangeOptions(
   children: ReactNode,
-  { isGroupLabel, query = '' }: ArrangeOptions,
+  { isGroupLabel, query = '', keepOrder = false }: ArrangeOptions,
 ): React.ReactElement[] {
   const elements: React.ReactElement[] = []
   flatten(children, elements)
@@ -170,7 +175,10 @@ export function arrangeOptions(
 
   const result: React.ReactElement[] = []
   for (const group of groups) {
-    const options = [...group.pinned, ...sortByLabel(group.sorted, optionText)]
+    const rest = keepOrder
+      ? group.sorted
+      : sortByLabel(group.sorted, optionText)
+    const options = [...group.pinned, ...rest]
     // A heading whose options all miss the search goes; the group's other
     // elements stay, so a trailing action remains reachable.
     const hideHeading = options.length === 0 && group.seenOption

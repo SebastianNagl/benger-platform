@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from auth_module import User, require_user
 from database import get_async_db, get_db, release_db_sessions
 from models import LLMModel as DBLLMModel
+from models import llm_model_display_order
 
 # Add shared services to path
 sys.path.append('/shared')
@@ -364,10 +365,12 @@ async def get_available_models_for_user(
     # appended by the separate pass below with per-model visibility and
     # per-user credential rules instead of the provider-key filter.
     result = await db.execute(
-        select(DBLLMModel).where(
+        select(DBLLMModel)
+        .where(
             DBLLMModel.is_active == True,  # noqa: E712
             DBLLMModel.is_official.is_(True),
         )
+        .order_by(*llm_model_display_order())
     )
     models = result.scalars().all()
     logger.info(f"🗃️ Total active models in database: {len(models)}")
@@ -440,11 +443,13 @@ async def get_available_models_for_user(
     accessible_custom_ids = await get_accessible_model_ids_async(db, current_user)
     if accessible_custom_ids:
         custom_result = await db.execute(
-            select(DBLLMModel).where(
+            select(DBLLMModel)
+            .where(
                 DBLLMModel.id.in_(accessible_custom_ids),
                 DBLLMModel.is_official.is_(False),
                 DBLLMModel.is_active == True,  # noqa: E712
             )
+            .order_by(*llm_model_display_order())
         )
         custom_models = custom_result.scalars().all()
         resolutions = await resolve_custom_model_credentials_async(

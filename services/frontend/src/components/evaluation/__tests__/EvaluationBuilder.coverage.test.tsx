@@ -53,9 +53,17 @@ jest.mock('@/components/shared/Toast', () => ({
 // has >=1 selectable model, and so reasoning/thinking branches resolve.
 // The two BYOM customs exercise the credential gating: `custom-haskey`
 // behaves like an official judge, `custom-nokey` must render locked.
+// The list is in catalog order, which is not by name: `o9-omega` leads the
+// openai block although "GPT-4o" sorts before it.
 jest.mock('@/hooks/useModels', () => ({
   useModels: () => ({
     models: [
+      {
+        id: 'o9-omega',
+        name: 'Omega 9',
+        provider: 'openai',
+        default_config: { temperature: 0 },
+      },
       {
         id: 'gpt-4o',
         name: 'GPT-4o',
@@ -387,6 +395,61 @@ describe('Judge ensemble + runs control', () => {
     })
     await waitFor(() =>
       expect(ensembleCheckbox(/Claude Sonnet 4/).checked).toBe(false),
+    )
+  })
+})
+
+// ====================================================================
+// Model order: the judge pickers keep the API's catalog order
+// ====================================================================
+
+describe('model order in the judge pickers', () => {
+  it('lists the judges in catalog order, not by name', async () => {
+    // The roster comes in catalog order (Omega 9, GPT-4o, Claude, Gemini);
+    // sorting by name would put GPT-4o before Omega 9.
+    const user = userEvent.setup()
+    await gotoParameters(user, 'llm_judge_classic')
+
+    const judgeSelect = (
+      document.querySelector(
+        'option[value="custom-nokey"]',
+      ) as HTMLOptionElement
+    ).parentElement as HTMLSelectElement
+    expect(
+      Array.from(judgeSelect.options, (o) => o.value).filter(Boolean),
+    ).toEqual([
+      'o9-omega',
+      'gpt-4o',
+      'claude-sonnet-4',
+      'gemini-3-pro',
+      'custom-haskey',
+      'custom-nokey',
+    ])
+  })
+
+  it('heads each provider block of the ensemble grid with its name', async () => {
+    const user = userEvent.setup()
+    await gotoParameters(user, 'llm_judge_classic')
+
+    const headings = within(ensembleGrid())
+      .getAllByText(
+        /^(openai|anthropic|google|customModels\.picker\.customSection)$/,
+      )
+      .map((el) => el.textContent)
+    // The primary judge is left out of the grid, so its provider may be too.
+    const expected = [
+      'openai',
+      'anthropic',
+      'google',
+      'customModels.picker.customSection',
+    ]
+    expect(headings).toEqual(expected.filter((h) => headings.includes(h)))
+    expect(headings).toEqual(
+      expect.arrayContaining([
+        'anthropic',
+        'google',
+        'customModels.picker.customSection',
+      ]),
     )
   })
 })

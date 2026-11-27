@@ -16,6 +16,7 @@ from catalog_flags import model_offered, served_default_config
 from database import get_async_db
 from feature_flags import service as flag_service
 from models import LLMModel as DBLLMModel
+from models import llm_model_display_order
 
 try:
     from shared.ai_services.provider_capabilities import PROVIDER_CAPABILITIES
@@ -76,10 +77,12 @@ async def get_public_llm_models(
         # Official catalog rows only — user-registered custom (BYOM) models
         # are private/org/public-scoped and served via /api/custom-models.
         result = await db.execute(
-            select(DBLLMModel).where(
+            select(DBLLMModel)
+            .where(
                 DBLLMModel.is_active.is_(True),
                 DBLLMModel.is_official.is_(True),
             )
+            .order_by(*llm_model_display_order())
         )
         models = result.scalars().all()
         flags = await flag_service.evaluate_all_for(db, current_user)

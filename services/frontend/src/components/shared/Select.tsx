@@ -37,6 +37,7 @@ interface SelectContextType {
   displayValue?: string
   childrenForLookup: ReactNode
   searchable: boolean
+  keepOrder: boolean
   multiple: boolean
   searchPlaceholder?: string
   emptyMessage?: string
@@ -62,6 +63,12 @@ interface SelectBaseProps {
    * lists whose order means something (severity, status sequences, sizes).
    */
   searchable?: boolean
+  /**
+   * With `searchable`: keep the options in the order given and only filter
+   * them, for loaded lists whose order means something (the model catalog,
+   * grouped by provider and newest first).
+   */
+  keepOrder?: boolean
   /** Search field placeholder; defaults to the shared "Search..." text. */
   searchPlaceholder?: string
   /** Shown when the search matches nothing; defaults to "No matches". */
@@ -142,6 +149,7 @@ export function Select(props: SelectProps) {
     displayValue,
     childrenForLookup: children,
     searchable,
+    keepOrder: props.keepOrder === true,
     multiple,
     searchPlaceholder,
     emptyMessage,
@@ -329,8 +337,9 @@ function SearchableOptions({
       arrangeOptions(children, {
         isGroupLabel: (element) => element.type === SelectGroupLabel,
         query,
+        keepOrder: context.keepOrder,
       }),
-    [children, query],
+    [children, query, context.keepOrder],
   )
 
   const handleChange = (next: string | string[] | null) => {
