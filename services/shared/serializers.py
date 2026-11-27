@@ -157,6 +157,7 @@ def serialize_annotation(
         qr = questionnaire_response
         d["questionnaire_response"] = {
             "result": qr.result,
+            "config_hash": qr.config_hash,
             "created_at": _isoformat(qr.created_at),
         } if qr else None
     elif mode == "full":

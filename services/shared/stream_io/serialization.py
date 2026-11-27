@@ -310,6 +310,7 @@ def serialize_post_annotation_response_row(r) -> dict:
         "project_id": r.project_id,
         "user_id": r.user_id,
         "result": r.result,
+        "config_hash": r.config_hash,
         "created_at": _iso(r.created_at),
     }
 

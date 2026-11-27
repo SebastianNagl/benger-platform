@@ -23,6 +23,7 @@ import {
   validateParsedConfig,
 } from '@/lib/labelConfig/parser'
 import { getComponent } from '@/lib/labelConfig/registry'
+import { missingRequiredControls } from '@/lib/labelConfig/requiredControls'
 import { logger } from '@/lib/utils/logger'
 import React, {
   Suspense,
@@ -37,7 +38,9 @@ interface DynamicAnnotationInterfaceProps {
   labelConfig: string
   taskData: Record<string, any>
   initialValues?: AnnotationResult[]
-  onSubmit: (annotations: AnnotationResult[]) => void
+  // A host whose onSubmit rejects keeps the answers in the form and shows
+  // its own error message.
+  onSubmit: (annotations: AnnotationResult[]) => void | Promise<void>
   onSkip?: () => void
   onChange?: (annotations: AnnotationResult[]) => void // Notify parent of changes
   taskId?: string | number // Add taskId to properly track task changes
@@ -49,6 +52,11 @@ interface DynamicAnnotationInterfaceProps {
   startTime?: number // Start time for lead_time tracking (defaults to now)
   enableAutoSave?: boolean // Enable auto-save functionality (defaults to true)
   readOnly?: boolean // When true, components display content but disable editing
+  // Block submit while a control marked required="true" is unanswered and
+  // name the missing ones. The questionnaire modal opts in. The annotation
+  // hosts do not: existing exam configs mark answer fields required that
+  // submissions legitimately leave empty.
+  enforceRequired?: boolean
   // Host opt-in for the modern exam layout (extended). Only the interactive
   // labeling hosts pass true; review surfaces stay classic by never opting in.
   // The layout additionally requires the user preference, the ModernExamLayout
@@ -74,6 +82,7 @@ export function DynamicAnnotationInterface({
   startTime,
   enableAutoSave = true,
   readOnly = false,
+  enforceRequired = false,
   allowModernLayout = false,
   examChrome,
 }: DynamicAnnotationInterfaceProps) {
@@ -421,9 +430,25 @@ export function DynamicAnnotationInterface({
         return
       }
 
+      if (enforceRequired && parsedConfig) {
+        const missing = missingRequiredControls(parsedConfig, finalResults)
+        if (missing.length > 0) {
+          setSubmissionErrors([
+            t('annotation.interface.requiredMissing', {
+              fields: missing.map((control) => control.label).join(', '),
+            }),
+          ])
+          return
+        }
+      }
+
       logger.debug('Submitting', finalResults.length, 'annotations')
       setSubmissionErrors([])
-      await onSubmit(finalResults)
+      try {
+        await onSubmit(finalResults)
+      } catch {
+        return
+      }
 
       // Clear the state after successful submission
       setAnnotations(new Map())
@@ -437,7 +462,16 @@ export function DynamicAnnotationInterface({
       console.error('Error in handleSubmit:', error)
       setSubmissionErrors([t('annotation.interface.submissionError')])
     }
-  }, [annotations, componentValues, onSubmit, t, enableAutoSave, autoSave])
+  }, [
+    annotations,
+    componentValues,
+    onSubmit,
+    t,
+    enableAutoSave,
+    autoSave,
+    enforceRequired,
+    parsedConfig,
+  ])
 
   // Keyboard shortcuts
   useEffect(() => {

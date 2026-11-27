@@ -902,6 +902,7 @@ class PostAnnotationResponseOut(BaseModel):
     project_id: str
     user_id: str
     result: List[Dict[str, Any]]
+    config_hash: Optional[str] = None
     created_at: datetime
 
     class Config:

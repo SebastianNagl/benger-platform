@@ -162,9 +162,11 @@ class TestSerializeAnnotation:
         ann = _mock_annotation()
         qr = Mock()
         qr.result = [{"answer": "yes"}]
+        qr.config_hash = "b" * 64
         qr.created_at = datetime(2026, 1, 2)
         result = serialize_annotation(ann, mode="data", questionnaire_response=qr)
         assert result["questionnaire_response"]["result"] == [{"answer": "yes"}]
+        assert result["questionnaire_response"]["config_hash"] == "b" * 64
         # Data mode should NOT have FK fields
         assert "task_id" not in result
         assert "project_id" not in result

@@ -46,6 +46,8 @@ class LabelConfigValidator:
         'Choice',
         'TextArea',
         'Rating',
+        # 7-point agreement scale for questionnaires (frontend LikertInput)
+        'Likert',
         'Text',
         'Header',
         'View',
@@ -82,6 +84,7 @@ class LabelConfigValidator:
         'Choices',
         'TextArea',
         'Rating',
+        'Likert',
         'Text',
         'Labels',  # NER-style span annotation (Issue #964)
         'Checkbox',

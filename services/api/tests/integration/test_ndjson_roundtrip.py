@@ -134,6 +134,7 @@ def full_project(test_db, test_users, test_org):
                 project_id=project.id,
                 user_id=admin.id,
                 result=[{"question": "confidence", "answer": "high"}],
+                config_hash="c" * 64,
             )
         )
 
@@ -369,6 +370,15 @@ class TestNDJSONRoundtrip:
             .all()
         }
         assert any("Generated answer for" in c for c in contents)
+
+        # Each questionnaire response keeps the hash of the config it answered.
+        hashes = {
+            r.config_hash
+            for r in test_db.query(PostAnnotationResponse)
+            .filter(PostAnnotationResponse.project_id == new_pid)
+            .all()
+        }
+        assert hashes == {"c" * 64}
 
     def test_roundtrip_carries_kind_and_project_settings(
         self, test_db, test_org, full_project

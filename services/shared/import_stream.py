@@ -1146,6 +1146,7 @@ def run_nested_import(
                     project_id=project_id,
                     user_id=ann_data.get("completed_by", user_id),
                     result=qr_data["result"],
+                    config_hash=qr_data.get("config_hash"),
                 )
                 db.add(qr)
                 created_questionnaire_responses += 1
@@ -1751,6 +1752,7 @@ class _FullImportContext:
         "catchall_judge_runs",
         "matched_user_ids",
         "grading_feedback_seen",
+        "questionnaire_annotations_seen",
         "active_rubric_tasks",
         "rubric_review_required",
         "rubric_review_events",
@@ -1820,6 +1822,10 @@ class _FullImportContext:
         # opinion (see _insert_grading_feedback).
         self.matched_user_ids: Dict[str, str] = {}
         self.grading_feedback_seen: set = set()
+        # New annotation ids that already received a questionnaire response:
+        # the table holds one per annotation (unique index, migration 164),
+        # so a file carrying two keeps the first instead of failing.
+        self.questionnaire_annotations_seen: Set[str] = set()
         # (new task id, new user id) of imported active annotations. Several
         # exported accounts can map to the same user (the importer fallback),
         # and the table allows one such row per pair
@@ -3034,7 +3040,8 @@ def _insert_post_annotation_response(ctx: _FullImportContext, par_data: dict) ->
     task_id = ctx.id_mappings["tasks"].get(par_data.get("task_id"))
     par_user_id = ctx.id_mappings["users"].get(par_data.get("user_id"), ctx.user_id)
 
-    if annotation_id and task_id:
+    if annotation_id and task_id and annotation_id not in ctx.questionnaire_annotations_seen:
+        ctx.questionnaire_annotations_seen.add(annotation_id)
         new_par = PostAnnotationResponse(
             id=new_par_id,
             annotation_id=annotation_id,
@@ -3042,6 +3049,7 @@ def _insert_post_annotation_response(ctx: _FullImportContext, par_data: dict) ->
             project_id=ctx.new_project_id,
             user_id=par_user_id,
             result=par_data.get("result", []),
+            config_hash=par_data.get("config_hash"),
             **_timestamps(par_data, "created_at"),
         )
 

@@ -7197,6 +7197,7 @@
       "fieldRequired": "{fieldName} is required",
       "submissionError": "An error occurred during submission",
       "missingFields": "Missing required data fields: {fields}",
+      "requiredMissing": "Please answer every required question: {fields}",
       "configError": "Configuration Error",
       "taskData": "Task Data:",
       "taskPosition": "Task {current} of {total}",

@@ -1231,6 +1231,8 @@ class PostAnnotationResponse(Base):
         String,
         ForeignKey("annotations.id", ondelete="CASCADE"),
         nullable=False,
+        # One response per annotation (migration 164).
+        unique=True,
         index=True,
     )
     task_id = Column(
@@ -1252,6 +1254,10 @@ class PostAnnotationResponse(Base):
 
     # Questionnaire result in Label Studio format
     result = Column(JSONB, nullable=False)
+    # SHA-256 of the questionnaire config the response answered (migration
+    # 164), so responses stay attributable to a version after the config is
+    # edited. NULL for responses stored before it.
+    config_hash = Column(String(64), nullable=True)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
