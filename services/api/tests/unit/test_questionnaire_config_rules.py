@@ -32,7 +32,8 @@ from services.label_config.questionnaire import (
 )
 from services.label_config.validator import LabelConfigValidator
 
-# The three templates the project settings offer, as shipped.
+# The three templates the project settings offer, copied verbatim from
+# QUESTIONNAIRE_TEMPLATES in frontend/src/components/projects/AdvancedSettingsCard.tsx.
 CONFIDENCE_TEMPLATE = """<View>
   <Header value="Post-Annotation Feedback"/>
   <Rating name="confidence" toName="confidence" maxRating="5" required="true" label="How confident are you in your annotation?"/>
@@ -71,6 +72,10 @@ UTAUT_TEMPLATE = """<View>
 
   <Header value="Anteil an der Fallbearbeitung (nur beantworten, wenn du in der KI-Gruppe warst)" level="4"/>
   <Number name="human_share" toName="human_share" min="0" max="100" label="x Prozent der Fallbearbeitung gehen auf mich zurück." hint="Wert zwischen 0 und 100"/>
+  <Number name="ai_share" toName="ai_share" min="0" max="100" label="y Prozent der Fallbearbeitung gehen auf die KI zurück." hint="Wert zwischen 0 und 100"/>
+
+  <Header value="Frage ohne KI (nur beantworten, wenn du NICHT in der KI-Gruppe warst)" level="4"/>
+  <Likert name="desired_ai" toName="desired_ai" min="1" max="7" label="Ich hätte mir die KI für die Bearbeitung dieser Aufgabe gewünscht."/>
 </View>"""
 
 
@@ -104,6 +109,16 @@ class TestValidator:
         assert not ok
         assert "has no question" in errors[0]
 
+    @pytest.mark.parametrize(
+        "tag", ["Checkbox", "Radio", "DateTime", "Taxonomy", "Ranker", "Pairwise"]
+    )
+    def test_tag_the_modal_cannot_render_is_no_question(self, tag):
+        config = f'<View><{tag} name="q" toName="q"/></View>'
+        assert LabelConfigValidator.validate(config)[0]
+        ok, errors = validate_questionnaire_config(config)
+        assert not ok
+        assert "has no question" in errors[0]
+
     def test_label_config_errors_pass_through(self):
         ok, errors = validate_questionnaire_config('<View><Bogus name="x"/></View>')
         assert not ok
@@ -126,6 +141,14 @@ class TestRequiredQuestions:
             '<TextArea name="a" toName="t" required="true"/></View>'
         )
         assert required_questions(config) == [("a", "a")]
+
+    def test_required_tag_the_modal_cannot_render_is_not_demanded(self):
+        config = (
+            '<View><Rating name="r" toName="r"/>'
+            '<DateTime name="d" toName="d" required="true"/></View>'
+        )
+        assert required_questions(config) == []
+        assert missing_required_answers(config, []) == []
 
     def test_empty_or_broken_config_has_no_required_questions(self):
         assert required_questions(None) == []
@@ -360,7 +383,7 @@ class TestSubmitRequired:
                         project_id=project.id, user_id=user.id, result=[],
                     )
                 )
-                await async_test_db.flush()
+                await async_test_db.commit()
             return result
 
         with _as_user(user), patch.object(async_test_db, "execute", execute_then_race):
@@ -370,6 +393,29 @@ class TestSubmitRequired:
         assert raced
         assert resp.status_code == 400
         assert "already submitted" in resp.json()["detail"]
+
+
+    async def test_integrity_error_without_duplicate_is_not_reported_as_one(
+        self, async_test_client, async_test_db
+    ):
+        """A commit that fails for another reason (the annotation deleted
+        meanwhile) is not reported as an already submitted response."""
+        user, project, task, annotation = await _seed(async_test_db)
+        real_commit = async_test_db.commit
+
+        async def failing_commit():
+            if any(isinstance(o, PostAnnotationResponse) for o in async_test_db.new):
+                raise IntegrityError("INSERT", {}, Exception("fk violation"))
+            await real_commit()
+
+        with _as_user(user), patch.object(async_test_db, "commit", failing_commit):
+            try:
+                resp = await _submit(
+                    async_test_client, project, task, annotation, ALL_REQUIRED_ANSWERED
+                )
+            except IntegrityError:
+                resp = None
+        assert resp is None or resp.status_code == 500
 
 
 @pytest.mark.asyncio
@@ -418,6 +464,21 @@ class TestSaveValidation:
             )
         assert resp.status_code == 422
         assert resp.json()["detail"]["errors"][0].startswith("XML parsing failed")
+
+    async def test_config_without_renderable_question_rejected(
+        self, async_test_client, async_test_db
+    ):
+        user, project, _, _ = await _seed(async_test_db, superadmin=True)
+        with _as_user(user):
+            resp = await self._patch(
+                async_test_client,
+                project,
+                {"questionnaire_config": '<View><Checkbox name="ok" toName="ok"/></View>'},
+            )
+        assert resp.status_code == 422
+        assert "has no question" in resp.json()["detail"]["errors"][0]
+        await async_test_db.refresh(project)
+        assert project.questionnaire_config == EXTENDED_TEMPLATE
 
     async def test_likert_template_saves(self, async_test_client, async_test_db):
         user, project, _, _ = await _seed(async_test_db, superadmin=True)

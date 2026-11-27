@@ -15,25 +15,14 @@ from xml.etree import ElementTree as ET
 
 from services.label_config.validator import LabelConfigValidator
 
-# Tags that take an answer. ``required="true"`` on any other tag (an object
-# tag such as <Text value="$x" required="true"/>) marks a task data field as
-# required, not a question, and is left to the label-config data checks.
-ANSWER_TAGS = frozenset(
-    {
-        'Choices',
-        'TextArea',
-        'Rating',
-        'Likert',
-        'Number',
-        'Labels',
-        'Checkbox',
-        'Radio',
-        'DateTime',
-        'Taxonomy',
-        'Ranker',
-        'Pairwise',
-    }
-)
+# Tags that take an answer: the controls the questionnaire modal renders,
+# which must match the 'control' category of the frontend tag registry
+# (frontend/src/lib/labelConfig/registry.ts). A tag outside it shows no
+# field, so it neither counts as a question nor can be required.
+# ``required="true"`` on any other tag (an object tag such as
+# <Text value="$x" required="true"/>) marks a task data field as required,
+# not a question, and is left to the label-config data checks.
+ANSWER_TAGS = frozenset({'Choices', 'TextArea', 'Rating', 'Likert', 'Number', 'Labels'})
 
 
 def _parse(config: str) -> Optional[ET.Element]:

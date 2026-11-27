@@ -123,7 +123,16 @@ async def submit_questionnaire_response(
         await db.commit()
     except IntegrityError:
         await db.rollback()
-        raise duplicate from None
+        raced = (
+            await db.execute(
+                select(PostAnnotationResponse.id).where(
+                    PostAnnotationResponse.annotation_id == payload.annotation_id
+                )
+            )
+        ).first()
+        if raced:
+            raise duplicate from None
+        raise
     await db.refresh(db_response)
 
     return db_response

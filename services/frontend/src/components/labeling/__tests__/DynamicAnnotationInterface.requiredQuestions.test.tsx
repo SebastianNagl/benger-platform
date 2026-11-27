@@ -12,6 +12,7 @@ import '@testing-library/jest-dom'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DynamicAnnotationInterface } from '../DynamicAnnotationInterface'
+import { PostAnnotationQuestionnaireModal } from '../PostAnnotationQuestionnaireModal'
 
 jest.mock('@/contexts/I18nContext', () => {
   const t = (key: string, params?: Record<string, string>) =>
@@ -165,5 +166,41 @@ describe('DynamicAnnotationInterface: required questions', () => {
         'annotation.interface.requiredMissing: Es fiel mir leicht die Aufgabe zu lösen., Ich fühle mich verantwortlich für das von mir eingereichte Ergebnis.',
       ),
     ).toBeInTheDocument()
+  })
+
+  it('a rejected questionnaire submit shows only the modal message and keeps the answers', async () => {
+    const user = userEvent.setup()
+    const onSubmitResponse = jest
+      .fn()
+      .mockRejectedValue(
+        new Error('Questionnaire response already submitted for this annotation'),
+      )
+    const onComplete = jest.fn()
+    render(
+      <PostAnnotationQuestionnaireModal
+        isOpen
+        questionnaireConfig={EXTENDED.replace(/ required="true"/g, '')}
+        projectId="p"
+        taskId="t"
+        annotationId="a"
+        onComplete={onComplete}
+        onSubmitResponse={onSubmitResponse}
+      />,
+    )
+    await writeComment(user)
+
+    await user.click(screen.getByRole('button', { name: SUBMIT }))
+
+    expect(
+      await screen.findByText(
+        'Questionnaire response already submitted for this annotation',
+      ),
+    ).toBeInTheDocument()
+    expect(onSubmitResponse).toHaveBeenCalledTimes(1)
+    expect(onComplete).not.toHaveBeenCalled()
+    expect(
+      screen.queryByText('annotation.interface.submissionError'),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox')).toHaveValue('An edge case')
   })
 })

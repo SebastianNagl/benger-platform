@@ -38,7 +38,9 @@ interface DynamicAnnotationInterfaceProps {
   labelConfig: string
   taskData: Record<string, any>
   initialValues?: AnnotationResult[]
-  onSubmit: (annotations: AnnotationResult[]) => void
+  // A host whose onSubmit rejects keeps the answers in the form and shows
+  // its own error message.
+  onSubmit: (annotations: AnnotationResult[]) => void | Promise<void>
   onSkip?: () => void
   onChange?: (annotations: AnnotationResult[]) => void // Notify parent of changes
   taskId?: string | number // Add taskId to properly track task changes
@@ -442,7 +444,11 @@ export function DynamicAnnotationInterface({
 
       logger.debug('Submitting', finalResults.length, 'annotations')
       setSubmissionErrors([])
-      await onSubmit(finalResults)
+      try {
+        await onSubmit(finalResults)
+      } catch {
+        return
+      }
 
       // Clear the state after successful submission
       setAnnotations(new Map())
