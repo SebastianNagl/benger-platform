@@ -599,6 +599,7 @@ export function EvaluationBuilder({
   }
 
   const handleMetricSelect = (metric: string) => {
+    saveTransform.current = null
     setNewEvaluation((prev) => ({
       ...prev,
       metric,

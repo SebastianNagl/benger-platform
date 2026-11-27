@@ -178,6 +178,24 @@ describe('metric editor draft and save hooks', () => {
     expect(savedList().map((c) => c.id)).toEqual(['edited', 'other'])
   })
 
+  it('drops the transform when the user picks another metric', async () => {
+    const user = userEvent.setup()
+    const { savedList } = setup()
+    await editFirst(user)
+    await user.click(screen.getByText('drop-other'))
+
+    await user.click(screen.getByTestId('wizard-step-nav-metric'))
+    await user.click(screen.getByTestId('metric-button-hooks_target_metric'))
+    await user.click(screen.getByTestId('wizard-save-early-button'))
+
+    const saved = savedList()
+    expect(saved.map((c) => c.id)).toEqual(['edited', 'other'])
+    expect(saved.find((c) => c.id === 'edited')!.metric).toBe(
+      'hooks_target_metric',
+    )
+    expect(saved[1]).toEqual(method('other', 'hooks_source_metric'))
+  })
+
   it('saves only the edited method when no transform is registered', async () => {
     const user = userEvent.setup()
     const { savedList } = setup()
