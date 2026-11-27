@@ -350,9 +350,8 @@ describe('before-task questionnaire', () => {
 // be reached must therefore hold the task back, never let it through.
 describe('before-task questionnaire fails closed', () => {
   const listFailure = () => Promise.reject(new Error('network down'))
-  const SLOW = { timeout: 5000 }
 
-  it('a failed list load is retried and the questionnaire still comes first', async () => {
+  it('a single failed list load asks the server per task and the questionnaire still comes first', async () => {
     mockList = [BEFORE]
     mockDue = { before_task: true }
     ;(questionnairesAPI.list as jest.Mock).mockImplementationOnce(listFailure)
@@ -360,26 +359,25 @@ describe('before-task questionnaire fails closed', () => {
 
     render(<LabelingInterface projectId="proj-1" />)
 
-    await screen.findByTestId('before-task-questionnaire', {}, SLOW)
-    expect(questionnairesAPI.list).toHaveBeenCalledTimes(2)
+    await screen.findByTestId('before-task-questionnaire')
+    expect(questionnairesAPI.list).toHaveBeenCalledTimes(1)
+    expect(mockStatus).toHaveBeenCalledWith('proj-1', 'before_task', {
+      task_id: 'task-1',
+    })
     expect(screen.queryByTestId('dynamic-annotation-interface')).toBeNull()
     expect(screen.queryByTestId('timer')).toBeNull()
     expect(timeline).toEqual([])
   })
 
-  it('a list that keeps failing leaves the decision to the per-task check', async () => {
+  it('a failed list load leaves the decision to the per-task check', async () => {
     mockList = [BEFORE]
     mockDue = { before_task: true }
-    ;(questionnairesAPI.list as jest.Mock)
-      .mockImplementationOnce(listFailure)
-      .mockImplementationOnce(listFailure)
-      .mockImplementationOnce(listFailure)
+    ;(questionnairesAPI.list as jest.Mock).mockImplementation(listFailure)
     setup()
 
     render(<LabelingInterface projectId="proj-1" />)
 
-    await screen.findByTestId('before-task-questionnaire', {}, SLOW)
-    expect(questionnairesAPI.list).toHaveBeenCalledTimes(3)
+    await screen.findByTestId('before-task-questionnaire')
     expect(mockStatus).toHaveBeenCalledWith('proj-1', 'before_task', {
       task_id: 'task-1',
     })
@@ -396,16 +394,13 @@ describe('before-task questionnaire fails closed', () => {
   it('when the list and the per-task check both fail it shows an error with retry, never the task or the timer', async () => {
     mockList = [BEFORE]
     mockDue = { before_task: true }
-    ;(questionnairesAPI.list as jest.Mock)
-      .mockImplementationOnce(listFailure)
-      .mockImplementationOnce(listFailure)
-      .mockImplementationOnce(listFailure)
+    ;(questionnairesAPI.list as jest.Mock).mockImplementationOnce(listFailure)
     mockStatus.mockRejectedValueOnce(new Error('network down'))
     setup()
 
     render(<LabelingInterface projectId="proj-1" />)
 
-    await screen.findByTestId('before-task-questionnaire-error', {}, SLOW)
+    await screen.findByTestId('before-task-questionnaire-error')
     expect(
       screen.getByText('The questionnaire could not be checked'),
     ).toBeInTheDocument()

@@ -56,9 +56,6 @@ interface LabelingInterfaceProps {
   projectId: string
 }
 
-// Pauses between the retries of a failed questionnaire list load.
-const QUESTIONNAIRE_LIST_RETRY_MS = [500, 1500]
-
 export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -317,9 +314,9 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
 
   // The project's switched-on questionnaires (shared questionnaire model):
   // undefined while they load. Loaded alongside the project, so a project
-  // without questionnaires adds no wait. A failed load is retried briefly;
-  // if it still fails, `failed` makes the before-task check ask the server
-  // per task instead of treating the project as having none (fail closed).
+  // without questionnaires adds no wait. If the load fails, `failed` makes
+  // the before-task check ask the server per task instead of treating the
+  // project as having none (fail closed).
   const [projectQuestionnaires, setProjectQuestionnaires] = useState<
     | {
         projectId: string
@@ -330,31 +327,20 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   >(undefined)
   useEffect(() => {
     let cancelled = false
-    const load = async () => {
-      for (let attempt = 0; ; attempt++) {
-        try {
-          const r = await questionnairesAPI.list(projectId)
-          if (cancelled) return
-          const byTrigger: Record<string, ProjectQuestionnaire> = {}
-          for (const q of r.questionnaires || []) {
-            if (q.active) byTrigger[q.trigger] = q
-          }
-          setProjectQuestionnaires({ projectId, byTrigger, failed: false })
-          return
-        } catch {
-          if (cancelled) return
-          if (attempt >= QUESTIONNAIRE_LIST_RETRY_MS.length) {
-            setProjectQuestionnaires({ projectId, byTrigger: {}, failed: true })
-            return
-          }
-          await new Promise((resolve) =>
-            setTimeout(resolve, QUESTIONNAIRE_LIST_RETRY_MS[attempt]),
-          )
-          if (cancelled) return
+    questionnairesAPI
+      .list(projectId)
+      .then((r) => {
+        if (cancelled) return
+        const byTrigger: Record<string, ProjectQuestionnaire> = {}
+        for (const q of r.questionnaires || []) {
+          if (q.active) byTrigger[q.trigger] = q
         }
-      }
-    }
-    load()
+        setProjectQuestionnaires({ projectId, byTrigger, failed: false })
+      })
+      .catch(() => {
+        if (cancelled) return
+        setProjectQuestionnaires({ projectId, byTrigger: {}, failed: true })
+      })
     return () => {
       cancelled = true
     }
