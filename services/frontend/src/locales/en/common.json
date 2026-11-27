@@ -1464,14 +1464,6 @@
       "annotationTimeLimitDescription": "Set a maximum time for each annotation task",
       "timeLimitMinutes": "Time limit",
       "minutes": "minutes",
-      "questionnaireEnabled": "Enable Questionnaire",
-      "questionnaireEnabledDescription": "Show a feedback form after each annotation submission",
-      "questionnaireTemplate": "Template",
-      "questionnaireSelectTemplate": "Select a template...",
-      "questionnaireTemplateConfidence": "Confidence & Difficulty (2 items)",
-      "questionnaireTemplateExtended": "Extended Feedback (4 items)",
-      "questionnaireTemplateUtaut": "UTAUT Study (12 items, Likert 1-7)",
-      "questionnaireConfig": "Questionnaire Config (Label Studio XML)",
       "review": {
         "title": "Review Stage",
         "enableReview": "Enable Review Stage",
@@ -7249,11 +7241,6 @@
       "timeOverDescription": "Your time is over. Your work so far has been submitted in its latest form.",
       "continueButton": "Continue"
     },
-    "questionnaire": {
-      "title": "Post-Annotation Feedback",
-      "description": "Please provide feedback on the annotation you just completed.",
-      "submitting": "Submitting feedback..."
-    },
     "instructions": {
       "title": "Annotation Instructions",
       "dontShowAgain": "Don't show again for this project",
@@ -12793,6 +12780,97 @@
         "expected": "What was expected",
         "screenshot": "Screenshot"
       }
+    }
+  },
+  "questionnaires": {
+    "card": {
+      "title": "Questionnaires",
+      "description": "Questionnaires before the task, after submission and during grading, all in the annotation interface's format.",
+      "activeCount": "{count} active"
+    },
+    "moments": {
+      "before_task": {
+        "title": "Before the task",
+        "description": "After the instructions, before the task appears. A time limit only starts afterwards.",
+        "enabledHelp": "Participants answer it before they see the task. In timed exams, also in Safe Exam Browser, the time only starts after the questionnaire.",
+        "frequencyHelp": "Once per project or before every task.",
+        "promptTitle": "Before you start",
+        "promptDescription": "Please answer this short questionnaire first. The task appears afterwards, and only then does any time limit start."
+      },
+      "after_submit": {
+        "title": "After submission",
+        "description": "Right after a submission is final, outside the time limit.",
+        "enabledHelp": "Participants answer it right after submitting. The time limit has already ended by then.",
+        "frequencyHelp": "After every submission, once per task or once per project.",
+        "promptTitle": "Short questionnaire on your submission",
+        "promptDescription": "Your submission is saved. Please answer these questions."
+      },
+      "korrektur": {
+        "title": "During grading",
+        "description": "For graders, after they saved a grading.",
+        "enabledHelp": "It asks for the grader's own view, not the student's. It appears only after saving, so it cannot influence the grade, and shows nothing about the graded person.",
+        "frequencyHelp": "After every graded submission or once per project.",
+        "promptTitle": "Questionnaire on your grading",
+        "promptDescription": "Your grading is saved. These questions are about your own view as the grader."
+      }
+    },
+    "frequencies": {
+      "before_task": {
+        "once_per_project": "Once per project",
+        "once_per_task": "Before every task"
+      },
+      "after_submit": {
+        "once_per_submission": "After every submission",
+        "once_per_task": "Once per task",
+        "once_per_project": "Once per project"
+      },
+      "korrektur": {
+        "once_per_submission": "After every graded submission",
+        "once_per_project": "Once per project"
+      }
+    },
+    "settings": {
+      "groupBehaviour": "Behaviour",
+      "groupQuestions": "Questions",
+      "enabled": "Show questionnaire",
+      "required": "Must be answered",
+      "requiredHelp": "When off, the whole questionnaire can be skipped; the skip is recorded. Single questions become mandatory with required=\"true\".",
+      "frequency": "How often",
+      "questionsHelp": "The same XML syntax as the labeling configuration (e.g. Likert, Rating, Choices, Number, TextArea). The preview shows the questionnaire as participants see it.",
+      "template": "Insert template...",
+      "upload": "Upload .xml",
+      "uploadFailed": "The file could not be read.",
+      "xml": "Questionnaire (XML)",
+      "xmlPlaceholder": "<View>\n  <Likert name=\"motivation\" toName=\"motivation\" min=\"1\" max=\"7\" required=\"true\" label=\"I am motivated.\"/>\n</View>",
+      "preview": "Preview",
+      "previewEmpty": "Write XML, upload a file or pick a template to see the preview.",
+      "previewInvalid": "The preview appears once the XML is valid.",
+      "invalid": "The questionnaire cannot be saved like this:",
+      "checking": "Checking...",
+      "save": "Save",
+      "saving": "Saving...",
+      "saved": "Questionnaire saved",
+      "saveFailed": "Saving failed",
+      "discard": "Discard",
+      "downloadCsv": "Answers as CSV",
+      "downloadCsvAll": "All answers as CSV",
+      "badgeActive": "Active, version {version}",
+      "badgeOff": "Off",
+      "loadFailed": "The questionnaires could not be loaded.",
+      "retry": "Try again"
+    },
+    "answer": {
+      "skip": "Skip",
+      "error": "The answers could not be saved. Please try again."
+    },
+    "templates": {
+      "self_assessment": "Self-assessment (3 items, Likert 1-7)",
+      "ai_experience": "Experience with AI (2 items)",
+      "confidence_difficulty": "Confidence & Difficulty (2 items)",
+      "extended": "Extended Feedback (4 items)",
+      "utaut_study": "UTAUT Study (12 items, Likert 1-7)",
+      "grader_reflection": "Grading self-assessment (4 items)",
+      "grader_workload": "Grading workload (3 items)"
     }
   }
 }

@@ -57,6 +57,7 @@ import {
 } from '@/components/projects/SettingsGroup'
 import { SubSection } from '@/components/projects/SubSection'
 import { IconPickerModal } from '@/components/projects/wizard/ProjectTypeAndIcon'
+import { QuestionnairesSettings } from '@/components/questionnaires/QuestionnairesSettings'
 import { PublicationToggle } from '@/components/reports/PublicationToggle'
 import { AppLoadingScreen } from '@/components/shared/AppLoadingScreen'
 import { useAutoSaveBuffer } from '@/components/shared/AutoSave'
@@ -243,6 +244,10 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
 
   // Expanded sections
   const [expandedModels, setExpandedModels] = useState(false)
+  // Switched-on questionnaires (the Fragebögen card's badge), once loaded.
+  const [activeQuestionnaires, setActiveQuestionnaires] = useState<
+    number | null
+  >(null)
   // Generation/Evaluation Defaults now use the shared SubSection wrapper
   // which owns its own expand state — these locals are no longer needed
   // but TypeScript treats unused setters as errors only when strict, so
@@ -479,8 +484,6 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
     handwriting_ocr_model: null as string | null,
     skip_queue: 'requeue_for_others' as
       'requeue_for_me' | 'requeue_for_others' | 'ignore_skipped',
-    questionnaire_enabled: false,
-    questionnaire_config: '' as string,
     maximum_annotations: 1,
     min_annotations_per_task: 1,
     assignment_mode: 'open' as 'open' | 'manual' | 'auto',
@@ -906,8 +909,6 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
           currentProject.handwriting_ocr_enabled !== false,
         handwriting_ocr_model: currentProject.handwriting_ocr_model ?? null,
         skip_queue: currentProject.skip_queue || 'requeue_for_others',
-        questionnaire_enabled: currentProject.questionnaire_enabled || false,
-        questionnaire_config: currentProject.questionnaire_config || '',
         maximum_annotations: currentProject.maximum_annotations ?? 1,
         min_annotations_per_task: currentProject.min_annotations_per_task || 1,
         assignment_mode: currentProject.assignment_mode || 'open',
@@ -2363,7 +2364,6 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
                       getReadOnlyMessage={getReadOnlyMessage}
                       advancedSettings={advancedSettings}
                       setAdvancedSettings={handleAdvancedSettingsChange}
-                      onTextCommit={() => void annotationBuffer.commit()}
                       editing={canEditProject()}
                       ProjectSettingsExtended={ProjectSettingsExtended}
                       ProjectSettingsInterfaceExtra={
@@ -2649,6 +2649,30 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
                         </Button>
                       </div>
                     )}
+                </ConfigCard>
+              )}
+
+              {/* Questionnaires: before the task, after the submission and
+                  at the Korrektur, one block per moment. Each block saves
+                  itself (validated XML, versioned). */}
+              {currentProject.enable_annotation && (
+                <ConfigCard
+                  title={t('questionnaires.card.title')}
+                  description={t('questionnaires.card.description')}
+                  badge={
+                    activeQuestionnaires != null && activeQuestionnaires > 0
+                      ? t('questionnaires.card.activeCount', {
+                          count: activeQuestionnaires,
+                        })
+                      : undefined
+                  }
+                  defaultExpanded={false}
+                >
+                  <QuestionnairesSettings
+                    projectId={projectId}
+                    canEdit={canEditProject()}
+                    onActiveCount={setActiveQuestionnaires}
+                  />
                 </ConfigCard>
               )}
 

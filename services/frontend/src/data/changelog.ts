@@ -15,6 +15,11 @@ import {
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-27-project-questionnaires',
+    date: '2026-11-27',
+    audience: 'benger',
+  },
+  {
     id: '2026-11-26-report-a-problem',
     date: '2026-11-26',
     audience: 'both',
