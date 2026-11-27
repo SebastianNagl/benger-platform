@@ -2126,11 +2126,39 @@ API change).
     (of the given ids, the official rows with ``is_active`` false, sorted
     and without duplicates). The extended grading router and workers refuse
     a saved config that still names a retired model through them.
+2.91 (2026-11-27): project questionnaires for three moments (migration
+  165, additive).
+  - Tables ``project_questionnaires`` (one per project and ``trigger``:
+    ``before_task``, ``after_submit``, ``korrektur``),
+    ``project_questionnaire_versions`` and ``questionnaire_responses`` (all
+    answers; ``user_id`` is who answered, the grader for ``korrektur``;
+    ``task_evaluation_id`` links a Korrektur answer to its grade row).
+    Models ``ProjectQuestionnaire``, ``ProjectQuestionnaireVersion``,
+    ``QuestionnaireResponse``; vocabulary in ``shared/questionnaires``.
+    ``post_annotation_responses`` is frozen (no longer written) and
+    ``projects.questionnaire_enabled`` / ``questionnaire_config`` mirror the
+    after_submit questionnaire for one release.
+  - Routes ``/api/projects/{id}/questionnaires`` (settings),
+    ``.../questionnaires/{trigger}/status`` and ``.../responses`` (answer or
+    skip; a Korrektur answer only from the grade row's ``created_by``), and
+    ``/questionnaire-responses`` plus ``/questionnaire-responses/export.csv``.
+  - ``services.questionnaire_service.before_task_questionnaire_pending(db,
+    project_id, user_id, task_id)`` (sync session): true while the
+    before-task questionnaire is still owed, so a timer route can refuse to
+    start the clock (it never counts toward the time limit).
+  - Frontend ``@/components/questionnaires``: ``QuestionnairePrompt``
+    (``trigger`` ``after_submit`` with ``subject={{ annotation_id }}`` once a
+    submission is final, or ``korrektur`` with
+    ``subject={{ task_evaluation_id }}`` once a Korrektur is saved; shows no
+    task data), ``BeforeTaskQuestionnaireGate`` / ``useBeforeTaskQuestionnaire``
+    (mount a task view and its timer only once the before-task questionnaire
+    is answered or skipped), ``QuestionnaireDialog``, ``QuestionnaireForm``;
+    API client ``@/lib/api/questionnaires``.
 """
 
 import os
 
-CORE_API_VERSION = "2.90"
+CORE_API_VERSION = "2.91"
 
 
 def extended_required() -> bool:
