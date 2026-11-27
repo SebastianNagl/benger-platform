@@ -16,8 +16,46 @@ is invoked via the ``tasks._run_immediate_config_job`` wrapper.
 from typing import Any, Dict, Optional
 
 import tasks
+from grading_basis import holds_first_grading, stamp_grading_basis
 from evaluation.inline_judges import accepts_keyword, resolve_inline_judge
 from task_rubric_resolution import NoUsableRubricError, is_rubric_judge
+
+
+def held_on_submit(metrics: Any, config: Dict[str, Any]) -> Any:
+    """``metrics`` with the held draft for a config that holds its grading
+    on submit (``holds_first_grading``), else ``metrics`` unchanged."""
+    if not holds_first_grading(config):
+        return metrics
+    return stamp_grading_basis(metrics, config, on_submit=True)
+
+
+def _hold_written_row(db, record_id: str, config: Dict[str, Any]) -> None:
+    """Store the held draft on the row an overlay writer just committed for a
+    config that holds its grading on submit (``holds_first_grading``)."""
+    if not holds_first_grading(config):
+        return
+    from sqlalchemy.orm.attributes import flag_modified
+
+    from models import TaskEvaluation
+
+    try:
+        db.expire_all()
+        row = db.query(TaskEvaluation).filter(TaskEvaluation.id == record_id).first()
+        if row is None:
+            return
+        stamped = stamp_grading_basis(row.metrics, config, on_submit=True)
+        if stamped is not row.metrics:
+            row.metrics = stamped
+            flag_modified(row, "metrics")
+            db.commit()
+    except Exception as err:
+        tasks.logger.error(
+            "[SingleSampleEval] held draft of row %s failed: %s", record_id, err
+        )
+        try:
+            db.rollback()
+        except Exception:
+            pass
 
 
 def _run_immediate_config_job_impl(
@@ -54,6 +92,11 @@ def _run_immediate_config_job_impl(
     judge_run_id = job["judge_run_id"]
     evaluation_config_id = job.get("evaluation_config_id")
     record_id = job["record_id"]
+    submit_config = {
+        "id": evaluation_config_id,
+        "metric": metric_type,
+        "metric_parameters": metric_params,
+    }
 
     db = tasks.SessionLocal()
     try:
@@ -86,7 +129,7 @@ def _run_immediate_config_job_impl(
                 extra["evaluation_config_id"] = evaluation_config_id
             if "org_billing_authorized" in fn_params:
                 extra["org_billing_authorized"] = org_billing_authorized
-            return falloesung_fn(
+            outcome = falloesung_fn(
                 db=db,
                 record_id=record_id,
                 immediate_eval_id=dispatch_eval_id,
@@ -101,6 +144,8 @@ def _run_immediate_config_job_impl(
                 organization_id=organization_id,
                 **extra,
             )
+            _hold_written_row(db, record_id, submit_config)
+            return outcome
 
         elif (inline_judge := resolve_inline_judge(metric_type)) is not None:
             # Overlay judge without a score (see evaluation/inline_judges.py):
@@ -129,7 +174,7 @@ def _run_immediate_config_job_impl(
                 if task_rubric is None:
                     raise NoUsableRubricError(task_id)
                 extra["task_rubric"] = task_rubric
-            return inline_judge.evaluate_single(
+            outcome = inline_judge.evaluate_single(
                 db=db,
                 record_id=record_id,
                 immediate_eval_id=dispatch_eval_id,
@@ -147,6 +192,8 @@ def _run_immediate_config_job_impl(
                 metric=metric_type,
                 **extra,
             )
+            _hold_written_row(db, record_id, submit_config)
+            return outcome
 
         elif metric_type.startswith("llm_judge_"):
             # Other LLM judge metrics — LLMJudgeEvaluator persists its own row.
@@ -205,10 +252,13 @@ def _run_immediate_config_job_impl(
                 answer_type="text",
                 ground_truth=str(reference_value) if reference_value else "",
                 prediction=str(prediction_value) if prediction_value else "",
-                metrics={
-                    metric_type: metric_result,  # Full {value, method, details}
-                    "raw_score": float(score_value),
-                },
+                metrics=held_on_submit(
+                    {
+                        metric_type: metric_result,  # Full {value, method, details}
+                        "raw_score": float(score_value),
+                    },
+                    submit_config,
+                ),
                 passed=float(score_value) >= 0.5,
             )
             db.add(eval_record)

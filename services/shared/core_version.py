@@ -2204,21 +2204,26 @@ API change).
     each of its rows that did not fail as a draft,
     ``details.review = {"status": "draft", "reason": "held"}``
     (``grading_basis.held_review``, ``HELD_REASON``; in the flat
-    ``<metric>_details`` sibling for a flat row), in the commit that marks
-    the run completed and before the finalize hook and the "grading
-    received" notice read the rows; so ``metric_filters.row_awaits_release``
-    and ``metric_awaits_release`` keep it from every attempt score and
-    notice until the overlay releases it. The row keeps the judge's
+    ``<metric>_details`` sibling for a flat row). The platform writers
+    (deterministic metrics, ``llm_judge_*``) store it in the commit that
+    writes the row; for an overlay writer (``llm_judge_falloesung``, the
+    inline judges) the config job stores it right after the writer
+    returns, in the job's own session, before the run completes. The run's
+    completion stamps every row once more, and a run that fails stores it
+    on the rows it already committed before it is marked failed. So
+    ``metric_filters.row_awaits_release`` and ``metric_awaits_release``
+    keep it from every attempt score and notice until the overlay releases
+    it. The row keeps the judge's
     ``value``, so "missing only" planning and the submit sweep count it as
     graded; an overlay writer that stores a held row without a value marks
     it ``details.feedback_only`` as today. A row whose writer stored a
     review itself keeps it (the feedback judge, which holds unless
     ``auto_release: true``, is unchanged). A config without the key, or with
     ``auto_release: true``, releases on submit exactly as before; re-grade
-    drafts (``reason: "regrade"``) are unchanged. A reader that shows the
-    rows of a grading on submit before its run is completed (a progress
-    poll) must check ``grading_basis.holds_first_grading(config)`` itself.
-    ``grading_basis.stamp_grading_basis(metrics, config, *, regrade=False,
+    drafts (``reason: "regrade"``) are unchanged. An overlay writer that
+    stores the held draft in its own commit closes the short window before
+    the config job's stamp; ``grading_basis.holds_first_grading(config)``
+    tells it whose config holds. ``grading_basis.stamp_grading_basis(metrics, config, *, regrade=False,
     on_submit=False)`` applies the rule for an overlay's own writer;
     ``AUTO_RELEASE_KEY`` names the key. The key is not part of a config's
     grading scheme (``scheme_fingerprint``): switching it outdates nothing.

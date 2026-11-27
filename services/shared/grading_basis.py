@@ -52,9 +52,11 @@ Held gradings on submit (core 2.92): a config whose ``metric_parameters``
 say ``auto_release: false`` holds its first AI grading for a teacher. The
 immediate-eval worker writes each row of such a config that did not fail
 as a draft (``details.review = {"status": "draft", "reason": "held"}``,
-:func:`held_review`), in the same commit that marks the run completed;
-:func:`holds_first_grading` tells a reader whose config that is before
-then. A row whose writer already stored a review (an overlay judge that
+:func:`held_review`): the platform writers in the commit that writes the
+row, an overlay writer's row right after it returns, and a failed run's
+committed rows before the run is marked failed. :func:`holds_first_grading`
+tells an overlay writer whose config holds, so it can store the draft in
+its own commit. A row whose writer already stored a review (an overlay judge that
 holds or releases by itself) keeps it. A config without the key, or with
 ``auto_release: true``, releases on submit as before. The rule is the same
 for every method: the platform knows no judge-specific release policy.

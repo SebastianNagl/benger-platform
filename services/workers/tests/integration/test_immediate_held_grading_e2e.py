@@ -3,17 +3,21 @@
 A config whose ``metric_parameters`` say ``auto_release: false`` holds its
 first AI grading (core 2.92, ``grading_basis.holds_first_grading``):
 ``run_single_sample_evaluation`` stores its row as a draft
-(``details.review = {"status": "draft", "reason": "held"}``) in the commit
-that completes the run, and no "grading received" notice goes out. A
-config without the key grades and notifies exactly as before, also next to
-a held one in the same run.
+(``details.review = {"status": "draft", "reason": "held"}``) and no
+"grading received" notice goes out. The row is a draft from the moment a
+second session can see it, while other configs of the run still grade, and
+it stays one when the run fails afterwards. A config without the key grades
+and notifies exactly as before, also next to a held one in the same run.
 """
 
+import threading
 import uuid
 
 import pytest
+from celery.exceptions import SoftTimeLimitExceeded
 
 import tasks
+from evaluation import orchestration
 from metric_filters import row_awaits_release
 from models import EvaluationRun, TaskEvaluation
 
@@ -136,3 +140,163 @@ def test_a_held_config_next_to_a_released_one(db_conn, cleanup, recorded, submis
     assert row_awaits_release(rows["held"].metrics)
     assert not row_awaits_release(rows["plain"].metrics)
     assert [call["user_ids"] for call in recorded] == [[student.id]]
+
+
+def _seen_review(record_id):
+    """The review of a row as another session sees it right now."""
+    db = tasks.SessionLocal()
+    try:
+        row = db.query(TaskEvaluation).filter(TaskEvaluation.id == record_id).first()
+        if row is None:
+            return "missing"
+        blob = row.metrics.get(next(k for k in row.metrics if k != "raw_score"))
+        return ((blob or {}).get("details") or {}).get("review")
+    finally:
+        db.close()
+
+
+def _probe_while_running(monkeypatch, held_id):
+    """Let every other config's job wait for the held job to return, then
+    record what a separate session sees of the held row."""
+    seen = {}
+    held_done = threading.Event()
+    real_job = tasks._run_immediate_config_job
+
+    def _job(**kwargs):
+        job = kwargs["job"]
+        if job["evaluation_config_id"] == held_id:
+            try:
+                return real_job(**kwargs)
+            finally:
+                seen["record_id"] = job["record_id"]
+                held_done.set()
+        assert held_done.wait(timeout=30)
+        seen["review"] = _seen_review(seen["record_id"])
+        return real_job(**kwargs)
+
+    monkeypatch.setattr(tasks, "_run_immediate_config_job", _job)
+    return seen
+
+
+def test_a_held_row_is_a_draft_while_another_config_still_grades(
+    db_conn, cleanup, recorded, submission, monkeypatch
+):
+    student, project, task, annotation = submission
+    seen = _probe_while_running(monkeypatch, "held")
+
+    _out, run, rows = _grade(
+        db_conn, cleanup, project, task, annotation,
+        [_config("held", auto_release=False), _config("plain")],
+    )
+
+    assert seen["review"] == {"status": "draft", "reason": "held"}
+    assert run.status == "completed"
+    assert row_awaits_release(rows["held"].metrics)
+    assert not row_awaits_release(rows["plain"].metrics)
+
+
+class _OverlayJudge:
+    """An overlay judge that persists its own row and stores no review."""
+
+    def evaluate_single(self, *, db, record_id, immediate_eval_id, task_id,
+                        annotation_id, field_name, prediction, judge_run_id,
+                        evaluation_config_id, metric, **_kwargs):
+        db.add(
+            TaskEvaluation(
+                id=record_id,
+                evaluation_id=immediate_eval_id,
+                judge_run_id=judge_run_id,
+                task_id=task_id,
+                annotation_id=annotation_id,
+                generation_id=None,
+                field_name=field_name,
+                evaluation_config_id=evaluation_config_id,
+                answer_type="text",
+                ground_truth="",
+                prediction=prediction,
+                metrics={metric: {"value": 0.8, "method": metric, "details": {}}},
+                passed=True,
+            )
+        )
+        db.commit()
+        return {"status": "completed", "record_id": record_id, "metric": metric}
+
+
+def test_an_overlay_writers_held_row_is_a_draft_while_another_config_still_grades(
+    db_conn, cleanup, recorded, submission, monkeypatch
+):
+    student, project, task, annotation = submission
+    metric = "llm_judge_overlay_probe"
+    monkeypatch.setattr(
+        orchestration,
+        "resolve_inline_judge",
+        lambda name: _OverlayJudge() if name == metric else None,
+    )
+    seen = _probe_while_running(monkeypatch, "held")
+    held = {**_config("held", auto_release=False), "metric": metric}
+
+    _out, run, rows = _grade(
+        db_conn, cleanup, project, task, annotation, [held, _config("plain")]
+    )
+
+    assert seen["review"] == {"status": "draft", "reason": "held"}
+    assert run.status == "completed"
+    assert rows["held"].metrics[metric]["value"] == 0.8
+    assert row_awaits_release(rows["held"].metrics)
+    assert not row_awaits_release(rows["plain"].metrics)
+
+
+@pytest.mark.parametrize("failure", [RuntimeError("boom"), SoftTimeLimitExceeded()])
+def test_a_run_that_fails_after_the_held_row_was_committed_keeps_it_a_draft(
+    db_conn, cleanup, recorded, submission, monkeypatch, failure
+):
+    """A writer committed the held row without its draft; the run then
+    fails before its completion pass. The failure handler stores the draft."""
+    student, project, task, annotation = submission
+
+    def _bare_writer(**kwargs):
+        job = kwargs["job"]
+        db = tasks.SessionLocal()
+        try:
+            db.add(
+                TaskEvaluation(
+                    id=job["record_id"],
+                    evaluation_id=kwargs["dispatch_eval_id"],
+                    judge_run_id=job["judge_run_id"],
+                    task_id=kwargs["task_id"],
+                    annotation_id=kwargs["annotation_id"],
+                    generation_id=None,
+                    field_name=job["field_name"],
+                    evaluation_config_id=job["evaluation_config_id"],
+                    answer_type="text",
+                    ground_truth="ja",
+                    prediction="ja",
+                    metrics={"exact_match": {"value": 1.0, "method": "exact_match",
+                                             "details": {}}},
+                    passed=True,
+                )
+            )
+            db.commit()
+        finally:
+            db.close()
+        return {"status": "completed", "record_id": job["record_id"]}
+
+    def _fail(*_args, **_kwargs):
+        raise failure
+
+    monkeypatch.setattr(tasks, "_run_immediate_config_job", _bare_writer)
+    monkeypatch.setattr(tasks, "_finalize_judge_runs_by_rows", _fail)
+
+    out, run, rows = _grade(
+        db_conn, cleanup, project, task, annotation,
+        [_config("held", auto_release=False), _config("plain")],
+    )
+
+    assert out["status"] == "error"
+    assert run.status == "failed"
+    assert rows["held"].metrics["exact_match"]["details"]["review"] == {
+        "status": "draft", "reason": "held"
+    }
+    assert row_awaits_release(rows["held"].metrics)
+    assert not row_awaits_release(rows["plain"].metrics)
+    assert recorded == []
