@@ -211,7 +211,28 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
             ["account:read"],
             ["account:write"],
         ),
-        allow("/api/student/*", "results:read", methods="read", neutral=True),
+        # The personal student reads aggregate the caller's data over all
+        # their projects and name none, so they are not neutral: a
+        # project-restricted key is refused, as on the other cross-project
+        # lists. One rule per route, so a new route needs its own decision.
+        allow(
+            "/api/student/score-history",
+            "results:read",
+            methods="read",
+            note="project ids, titles and scores of every graded attempt",
+        ),
+        allow(
+            "/api/student/retention",
+            "results:read",
+            methods="read",
+            note="flashcard reviews of every deck",
+        ),
+        allow(
+            "/api/student/activity",
+            "results:read",
+            methods="read",
+            note="flashcard reviews and the exam projects submitted to, per day",
+        ),
         allow("/api/dashboard/*", "results:read", methods="read", neutral=True),
         allow("/api/defaults/*", "projects:read", methods="read", neutral=True),
         # -- organizations -------------------------------------------------- #
