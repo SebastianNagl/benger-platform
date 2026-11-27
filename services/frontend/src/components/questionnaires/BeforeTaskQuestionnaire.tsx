@@ -15,16 +15,23 @@
  *   while it is due and a spinner while it checks.
  * - `useBeforeTaskQuestionnaire(projectId, taskId, { known, disabled })` is
  *   for a host that needs a callback instead: its `phase` is `checking`
- *   (asking the server), `due` (show `BeforeTaskQuestionnaireScreen`) or
- *   `done`, and the host must mount its timer (start-timer) only when
- *   `phase === 'done'`. Read-only views pass `disabled`.
+ *   (asking the server), `due` (show `BeforeTaskQuestionnaireScreen`),
+ *   `error` (the server could not say, show `BeforeTaskQuestionnaireError`
+ *   with `retry`) or `done`, and the host must mount its timer (start-timer)
+ *   only when `phase === 'done'`. Read-only views pass `disabled`.
+ * - It fails closed: a host whose questionnaire list could not be loaded
+ *   passes `known: 'unknown'` and the hook asks the server per task; when
+ *   that fails too, the phase is `error`, never `done`.
  * - On the server, `before_task_questionnaire_pending` lets the timer route
- *   refuse a start while the questionnaire is owed.
+ *   refuse a start while the questionnaire is owed (409 with that code). A
+ *   timer that gets this answer calls the host's `recheck`, which asks the
+ *   server again and shows the questionnaire instead of the task.
  */
 
 import { ClipboardDocumentListIcon } from '@heroicons/react/24/outline'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 
+import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { useI18n } from '@/contexts/I18nContext'
 import {
@@ -36,22 +43,32 @@ import type { AnnotationResult } from '@/lib/labelConfig/dataBinding'
 import { QuestionnaireForm } from './QuestionnaireForm'
 import { respondToQuestionnaire } from './respond'
 
-export type BeforeTaskPhase = 'checking' | 'due' | 'done'
+export type BeforeTaskPhase = 'checking' | 'due' | 'error' | 'done'
 
 export interface BeforeTaskQuestionnaireState {
   phase: BeforeTaskPhase
   questionnaire: ProjectQuestionnaire | null
   /** Call after the questionnaire was answered or skipped. */
   markDone: () => void
+  /** Ask the server again after `error`. */
+  retry: () => void
+  /**
+   * Ask the server again even when the check said nothing is owed or the
+   * project's list showed none switched on: for a timer whose start the
+   * server refused with `before_task_questionnaire_pending`.
+   */
+  recheck: () => void
 }
 
 export interface UseBeforeTaskQuestionnaireOptions {
   /**
    * The project's before-task questionnaire as listed by
    * `questionnairesAPI.list` (undefined while that list loads, null when the
-   * project has none switched on). Saves a request per task when known.
+   * project has none switched on, 'unknown' when the list could not be
+   * loaded, so the server is asked per task). Saves a request per task when
+   * known.
    */
-  known?: ProjectQuestionnaire | null
+  known?: ProjectQuestionnaire | null | 'unknown'
   /** Never owe one (read-only views). */
   disabled?: boolean
 }
@@ -65,56 +82,150 @@ export function useBeforeTaskQuestionnaire(
     key: string | null
     phase: BeforeTaskPhase
     questionnaire: ProjectQuestionnaire | null
-  }>({ key: null, phase: 'checking', questionnaire: null })
+    /** Bumped by retry and recheck to ask the server again. */
+    attempt: number
+    /** Set by recheck: ask the server whatever the list said. */
+    forced: boolean
+  }>({
+    key: null,
+    phase: 'checking',
+    questionnaire: null,
+    attempt: 0,
+    forced: false,
+  })
 
   const key = projectId && taskId ? `${projectId}:${taskId}` : null
+  const own = state.key === key
+  const attempt = own ? state.attempt : 0
+  const forced = own && state.forced
   // A new task starts in 'checking' in the very render that shows it, so a
   // host never mounts the next task's timer before the check has answered.
-  const listLoading = known === undefined
-  const noneActive = known === null || (known != null && !known.active)
+  const listLoading = known === undefined && !forced
+  const listed = known && known !== 'unknown' ? known : null
+  const noneActive =
+    !forced && (known === null || (listed != null && !listed.active))
   // Nothing to ask (read-only, or none switched on): done without a request.
   const owesNothing = disabled || noneActive
   const current = owesNothing
-    ? { key, phase: 'done' as const, questionnaire: null }
-    : state.key === key
+    ? { phase: 'done' as const, questionnaire: null }
+    : own
       ? state
-      : { key, phase: 'checking' as const, questionnaire: null }
+      : { phase: 'checking' as const, questionnaire: null }
 
   useEffect(() => {
     if (!key || owesNothing || listLoading) return
     let cancelled = false
     const [pid, tid] = key.split(':')
+    const settle = (
+      phase: BeforeTaskPhase,
+      questionnaire: ProjectQuestionnaire | null,
+    ) =>
+      setState((s) => ({
+        key,
+        phase,
+        questionnaire,
+        attempt: s.key === key ? s.attempt : 0,
+        forced: s.key === key && s.forced,
+      }))
     questionnairesAPI
       .status(pid, 'before_task', { task_id: tid })
       .then((status) => {
         if (cancelled) return
-        setState(
-          status.due && status.questionnaire
-            ? { key, phase: 'due', questionnaire: status.questionnaire }
-            : { key, phase: 'done', questionnaire: null },
-        )
+        if (status.due && status.questionnaire)
+          settle('due', status.questionnaire)
+        else settle('done', null)
       })
       .catch(() => {
-        // The questionnaire is switched on but the server could not say
-        // whether it is owed: ask it (an answer already given comes back as
-        // "already answered" and lets the person through).
-        if (!cancelled)
-          setState({ key, phase: 'due', questionnaire: known ?? null })
+        if (cancelled) return
+        // The server could not say whether it is owed. With the
+        // questionnaire known, ask it (an answer already given comes back as
+        // "already answered" and lets the person through). Without it, fail
+        // closed: an error with retry, never the task.
+        if (listed) settle('due', listed)
+        else settle('error', null)
       })
     return () => {
       cancelled = true
     }
-  }, [key, owesNothing, listLoading, known])
+  }, [key, owesNothing, listLoading, listed, attempt])
 
   const markDone = useCallback(() => {
-    setState({ key, phase: 'done', questionnaire: null })
+    setState((s) => ({
+      key,
+      phase: 'done',
+      questionnaire: null,
+      attempt: s.key === key ? s.attempt : 0,
+      forced: false,
+    }))
   }, [key])
+
+  const askAgain = useCallback(
+    (force: boolean) =>
+      setState((s) => {
+        const same = s.key === key
+        return {
+          key,
+          phase: 'checking',
+          questionnaire: null,
+          attempt: (same ? s.attempt : 0) + 1,
+          forced: force || (same && s.forced),
+        }
+      }),
+    [key],
+  )
+  const retry = useCallback(() => askAgain(false), [askAgain])
+  const recheck = useCallback(() => askAgain(true), [askAgain])
 
   return {
     phase: current.phase,
     questionnaire: current.questionnaire,
     markDone,
+    retry,
+    recheck,
   }
+}
+
+export interface BeforeTaskQuestionnaireErrorProps {
+  onRetry: () => void
+  /** Header actions of the host (back, show instructions). */
+  actions?: ReactNode
+}
+
+/**
+ * Shown instead of the task when the server could not say whether the
+ * before-task questionnaire is owed: the task and its timer stay hidden
+ * until a retry succeeds.
+ */
+export function BeforeTaskQuestionnaireError({
+  onRetry,
+  actions,
+}: BeforeTaskQuestionnaireErrorProps) {
+  const { t } = useI18n()
+  return (
+    <div
+      className="flex min-h-screen flex-col"
+      data-testid="before-task-questionnaire-error"
+    >
+      {actions && <div className="border-b px-6 py-4">{actions}</div>}
+      <div className="flex flex-1 items-start justify-center p-6">
+        <Card className="w-full max-w-2xl">
+          <div className="space-y-4 p-6 sm:p-8" role="alert">
+            <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">
+              {t('questionnaires.moments.before_task.checkErrorTitle')}
+            </h2>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              {t('questionnaires.moments.before_task.checkErrorDescription')}
+            </p>
+            <div className="flex justify-end">
+              <Button variant="filled" onClick={onRetry}>
+                {t('questionnaires.moments.before_task.checkRetry')}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  )
 }
 
 export interface BeforeTaskQuestionnaireScreenProps {
@@ -170,7 +281,9 @@ export function BeforeTaskQuestionnaireScreen({
       data-testid="before-task-questionnaire"
     >
       {actions && <div className="border-b px-6 py-4">{actions}</div>}
-      <div className="flex flex-1 justify-center p-6">
+      {/* items-start: the card takes the height of its questions, like the
+          after-submit dialog, instead of stretching down the screen. */}
+      <div className="flex flex-1 items-start justify-center p-6">
         <Card className="w-full max-w-2xl">
           <div className="space-y-6 p-6 sm:p-8">
             <div className="flex items-start gap-3">
@@ -205,7 +318,7 @@ export interface BeforeTaskQuestionnaireGateProps {
   taskId: string
   /** The task view, including its timer: rendered only once answered. */
   children: ReactNode
-  known?: ProjectQuestionnaire | null
+  known?: ProjectQuestionnaire | null | 'unknown'
   disabled?: boolean
   actions?: ReactNode
 }
@@ -218,12 +331,14 @@ export function BeforeTaskQuestionnaireGate({
   disabled,
   actions,
 }: BeforeTaskQuestionnaireGateProps) {
-  const { phase, questionnaire, markDone } = useBeforeTaskQuestionnaire(
+  const { phase, questionnaire, markDone, retry } = useBeforeTaskQuestionnaire(
     projectId,
     taskId,
     { known, disabled },
   )
   if (phase === 'done') return <>{children}</>
+  if (phase === 'error')
+    return <BeforeTaskQuestionnaireError onRetry={retry} actions={actions} />
   if (phase === 'due' && questionnaire) {
     return (
       <BeforeTaskQuestionnaireScreen

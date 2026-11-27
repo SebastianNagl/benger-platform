@@ -8,6 +8,7 @@
 import { ServerDraftSyncWarning } from '@/components/labeling/ServerDraftSyncWarning'
 import { ExamNotReadyNotice } from '@/components/projects/ExamNotReadyNotice'
 import {
+  BeforeTaskQuestionnaireError,
   BeforeTaskQuestionnaireScreen,
   useBeforeTaskQuestionnaire,
 } from '@/components/questionnaires/BeforeTaskQuestionnaire'
@@ -54,6 +55,9 @@ import { DynamicAnnotationInterface } from './DynamicAnnotationInterface'
 interface LabelingInterfaceProps {
   projectId: string
 }
+
+// Pauses between the retries of a failed questionnaire list load.
+const QUESTIONNAIRE_LIST_RETRY_MS = [500, 1500]
 
 export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   const router = useRouter()
@@ -313,35 +317,53 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
 
   // The project's switched-on questionnaires (shared questionnaire model):
   // undefined while they load. Loaded alongside the project, so a project
-  // without questionnaires adds no wait.
+  // without questionnaires adds no wait. A failed load is retried briefly;
+  // if it still fails, `failed` makes the before-task check ask the server
+  // per task instead of treating the project as having none (fail closed).
   const [projectQuestionnaires, setProjectQuestionnaires] = useState<
-    | { projectId: string; byTrigger: Record<string, ProjectQuestionnaire> }
+    | {
+        projectId: string
+        byTrigger: Record<string, ProjectQuestionnaire>
+        failed: boolean
+      }
     | undefined
   >(undefined)
   useEffect(() => {
     let cancelled = false
-    questionnairesAPI
-      .list(projectId)
-      .then((r) => {
-        if (cancelled) return
-        const byTrigger: Record<string, ProjectQuestionnaire> = {}
-        for (const q of r.questionnaires || []) {
-          if (q.active) byTrigger[q.trigger] = q
+    const load = async () => {
+      for (let attempt = 0; ; attempt++) {
+        try {
+          const r = await questionnairesAPI.list(projectId)
+          if (cancelled) return
+          const byTrigger: Record<string, ProjectQuestionnaire> = {}
+          for (const q of r.questionnaires || []) {
+            if (q.active) byTrigger[q.trigger] = q
+          }
+          setProjectQuestionnaires({ projectId, byTrigger, failed: false })
+          return
+        } catch {
+          if (cancelled) return
+          if (attempt >= QUESTIONNAIRE_LIST_RETRY_MS.length) {
+            setProjectQuestionnaires({ projectId, byTrigger: {}, failed: true })
+            return
+          }
+          await new Promise((resolve) =>
+            setTimeout(resolve, QUESTIONNAIRE_LIST_RETRY_MS[attempt]),
+          )
+          if (cancelled) return
         }
-        setProjectQuestionnaires({ projectId, byTrigger })
-      })
-      .catch(() => {
-        // Not loadable: the before-task check asks the server per task.
-        if (!cancelled) setProjectQuestionnaires({ projectId, byTrigger: {} })
-      })
+      }
+    }
+    load()
     return () => {
       cancelled = true
     }
   }, [projectId])
-  const questionnairesLoaded =
+  const questionnairesCurrent =
     projectQuestionnaires?.projectId === projectId
-      ? projectQuestionnaires.byTrigger
+      ? projectQuestionnaires
       : undefined
+  const questionnairesLoaded = questionnairesCurrent?.byTrigger
 
   // After-submit questionnaire: asked once the submission is final (the
   // submit closes the exam timer session first), so it never counts toward
@@ -562,9 +584,11 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   // 'checking' in the very render that shows it.
   const beforeTask = useBeforeTaskQuestionnaire(projectId, currentTask?.id, {
     known:
-      questionnairesLoaded === undefined
+      questionnairesCurrent === undefined
         ? undefined
-        : (questionnairesLoaded.before_task ?? null),
+        : questionnairesCurrent.failed
+          ? 'unknown'
+          : (questionnairesCurrent.byTrigger.before_task ?? null),
     disabled: readOnlyView,
   })
 
@@ -981,6 +1005,11 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
             onDone={beforeTask.markDone}
             actions={actions}
           />
+        ) : beforeTask.phase === 'error' ? (
+          <BeforeTaskQuestionnaireError
+            onRetry={beforeTask.retry}
+            actions={actions}
+          />
         ) : (
           <div
             className="flex min-h-screen items-center justify-center"
@@ -1161,6 +1190,10 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
         task={currentTask}
         annotations={annotations}
         paused={showQuestionnaireModal}
+        // The server refused the timer start because the before-task
+        // questionnaire is owed (409 before_task_questionnaire_pending):
+        // ask again, which shows the questionnaire instead of the task.
+        onBeforeTaskQuestionnairePending={beforeTask.recheck}
         onAutoSubmit={async (result: any[]) => {
           if (!isStrictMode) {
             // Non-strict: 0:00 starts overtime. No auto-submit — a

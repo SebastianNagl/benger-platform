@@ -12795,7 +12795,10 @@
         "enabledHelp": "Teilnehmende beantworten ihn, bevor sie die Aufgabe sehen. Bei Prüfungen mit Zeitlimit, auch im Safe Exam Browser, läuft die Zeit erst nach dem Fragebogen.",
         "frequencyHelp": "Einmal pro Projekt oder vor jeder Aufgabe.",
         "promptTitle": "Bevor es losgeht",
-        "promptDescription": "Bitte beantworte zuerst diesen kurzen Fragebogen. Danach erscheint die Aufgabe, und erst dann beginnt eine Bearbeitungszeit."
+        "promptDescription": "Bitte beantworte zuerst diesen kurzen Fragebogen. Danach erscheint die Aufgabe, und erst dann beginnt eine Bearbeitungszeit.",
+        "checkErrorTitle": "Der Fragebogen konnte nicht geprüft werden",
+        "checkErrorDescription": "Wir konnten nicht prüfen, ob vor dieser Aufgabe ein Fragebogen ansteht. Die Aufgabe erscheint, sobald diese Prüfung gelingt.",
+        "checkRetry": "Erneut versuchen"
       },
       "after_submit": {
         "title": "Nach der Abgabe",

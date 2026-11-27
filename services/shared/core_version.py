@@ -2236,11 +2236,30 @@ API change).
     on_submit=False)`` applies the rule for an overlay's own writer;
     ``AUTO_RELEASE_KEY`` names the key. The key is not part of a config's
     grading scheme (``scheme_fingerprint``): switching it outdates nothing.
+2.93 (2026-11-27): the before-task questionnaire fails closed, and the
+  timer can hand a refused start back to the page.
+  - ``useBeforeTaskQuestionnaire`` and ``BeforeTaskQuestionnaireGate`` take
+    ``known: 'unknown'`` when the host could not load the questionnaire
+    list (the server is then asked per task), and the hook's ``phase`` may
+    be ``'error'`` when that check fails too: show
+    ``BeforeTaskQuestionnaireError`` (new export) with the hook's ``retry``,
+    never the task or its timer. The gate does this itself.
+  - The hook's ``recheck`` asks the server again whatever the list said.
+    The labeling page passes it to the ``TimerIntegration`` slot as
+    ``onBeforeTaskQuestionnairePending``; a timer whose ``start-timer`` is
+    refused with 409 ``before_task_questionnaire_pending`` calls it, and
+    the page shows the questionnaire instead of the task.
+  - ``DynamicAnnotationInterface``: the window-level Ctrl/Cmd+Enter submit
+    is inert while ``readOnly`` (its shortcut tip is hidden then), and both
+    Ctrl/Cmd+Enter and Ctrl/Cmd+Escape ignore keys that come from another
+    annotation interface (a questionnaire's form) or from a dialog that is
+    not part of the editor, and keys pressed while such a modal dialog is
+    open.
 """
 
 import os
 
-CORE_API_VERSION = "2.92"
+CORE_API_VERSION = "2.93"
 
 
 def extended_required() -> bool:
