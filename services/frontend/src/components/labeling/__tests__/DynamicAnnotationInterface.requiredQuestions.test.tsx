@@ -173,7 +173,9 @@ describe('DynamicAnnotationInterface: required questions', () => {
     const onSubmitResponse = jest
       .fn()
       .mockRejectedValue(
-        new Error('Questionnaire response already submitted for this annotation'),
+        new Error(
+          'Questionnaire response already submitted for this annotation',
+        ),
       )
     const onComplete = jest.fn()
     render(
