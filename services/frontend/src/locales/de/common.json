@@ -1464,14 +1464,6 @@
       "annotationTimeLimitDescription": "Maximale Zeit für jede Annotationsaufgabe festlegen",
       "timeLimitMinutes": "Zeitlimit",
       "minutes": "Minuten",
-      "questionnaireEnabled": "Fragebogen aktivieren",
-      "questionnaireEnabledDescription": "Feedbackformular nach jeder Annotationsabgabe anzeigen",
-      "questionnaireTemplate": "Vorlage",
-      "questionnaireSelectTemplate": "Vorlage auswählen...",
-      "questionnaireTemplateConfidence": "Konfidenz & Schwierigkeit (2 Items)",
-      "questionnaireTemplateExtended": "Erweitertes Feedback (4 Items)",
-      "questionnaireTemplateUtaut": "UTAUT-Studie (12 Items, Likert 1-7)",
-      "questionnaireConfig": "Fragebogen-Konfiguration (Label Studio XML)",
       "review": {
         "title": "Überprüfungsphase",
         "enableReview": "Überprüfungsphase aktivieren",
@@ -7197,6 +7189,7 @@
       "fieldRequired": "{fieldName} ist erforderlich",
       "submissionError": "Beim Absenden ist ein Fehler aufgetreten",
       "missingFields": "Fehlende erforderliche Datenfelder: {fields}",
+      "requiredMissing": "Bitte beantworte alle Pflichtfragen: {fields}",
       "configError": "Konfigurationsfehler",
       "taskData": "Aufgabendaten:",
       "taskPosition": "Aufgabe {current} von {total}",
@@ -7247,11 +7240,6 @@
       "timeOverTitle": "Zeit abgelaufen",
       "timeOverDescription": "Deine Zeit ist abgelaufen. Deine Arbeit wurde in der zuletzt gespeicherten Form abgesendet.",
       "continueButton": "Weiter"
-    },
-    "questionnaire": {
-      "title": "Post-Annotations-Feedback",
-      "description": "Bitte gib Feedback zur soeben abgeschlossenen Annotation.",
-      "submitting": "Feedback wird eingereicht..."
     },
     "instructions": {
       "title": "Annotationsanweisungen",
@@ -12792,6 +12780,101 @@
         "expected": "Was erwartet wurde",
         "screenshot": "Screenshot"
       }
+    }
+  },
+  "questionnaires": {
+    "card": {
+      "title": "Fragebögen",
+      "description": "Fragebögen vor der Aufgabe, nach der Abgabe und bei der Korrektur, alle im Format der Annotationsoberfläche.",
+      "activeCount": "{count} aktiv"
+    },
+    "moments": {
+      "before_task": {
+        "title": "Vor der Aufgabe",
+        "description": "Nach der Anleitung, bevor die Aufgabe erscheint. Ein Zeitlimit beginnt erst danach.",
+        "enabledHelp": "Teilnehmende beantworten ihn, bevor sie die Aufgabe sehen. Bei Prüfungen mit Zeitlimit, auch im Safe Exam Browser, läuft die Zeit erst nach dem Fragebogen.",
+        "frequencyHelp": "Einmal pro Projekt oder vor jeder Aufgabe.",
+        "promptTitle": "Bevor es losgeht",
+        "promptDescription": "Bitte beantworte zuerst diesen kurzen Fragebogen. Danach erscheint die Aufgabe, und erst dann beginnt eine Bearbeitungszeit.",
+        "checkErrorTitle": "Der Fragebogen konnte nicht geprüft werden",
+        "checkErrorDescription": "Wir konnten nicht prüfen, ob vor dieser Aufgabe ein Fragebogen ansteht. Die Aufgabe erscheint, sobald diese Prüfung gelingt.",
+        "checkRetry": "Erneut versuchen"
+      },
+      "after_submit": {
+        "title": "Nach der Abgabe",
+        "description": "Direkt nachdem eine Abgabe endgültig ist, außerhalb der Bearbeitungszeit.",
+        "enabledHelp": "Teilnehmende beantworten ihn gleich nach ihrer Abgabe. Die Bearbeitungszeit ist dann schon beendet.",
+        "frequencyHelp": "Nach jeder Abgabe, einmal pro Aufgabe oder einmal pro Projekt.",
+        "promptTitle": "Kurzer Fragebogen zur Abgabe",
+        "promptDescription": "Deine Abgabe ist gespeichert. Bitte beantworte noch diese Fragen."
+      },
+      "korrektur": {
+        "title": "Bei der Korrektur",
+        "description": "Für Korrigierende, nachdem sie eine Korrektur gespeichert haben.",
+        "enabledHelp": "Er fragt nach der Einschätzung der korrigierenden Person, nicht der Studierenden. Er erscheint erst nach dem Speichern, beeinflusst die Bewertung also nicht, und zeigt nichts über die bewertete Person.",
+        "frequencyHelp": "Nach jeder bewerteten Abgabe oder einmal pro Projekt.",
+        "promptTitle": "Fragebogen zur Korrektur",
+        "promptDescription": "Deine Bewertung ist gespeichert. Die Fragen betreffen deine eigene Einschätzung als korrigierende Person."
+      }
+    },
+    "frequencies": {
+      "before_task": {
+        "once_per_project": "Einmal pro Projekt",
+        "once_per_task": "Vor jeder Aufgabe"
+      },
+      "after_submit": {
+        "once_per_submission": "Nach jeder Abgabe",
+        "once_per_task": "Einmal pro Aufgabe",
+        "once_per_project": "Einmal pro Projekt"
+      },
+      "korrektur": {
+        "once_per_submission": "Nach jeder bewerteten Abgabe",
+        "once_per_project": "Einmal pro Projekt"
+      }
+    },
+    "settings": {
+      "groupBehaviour": "Verhalten",
+      "groupQuestions": "Fragen",
+      "enabled": "Fragebogen anzeigen",
+      "required": "Muss beantwortet werden",
+      "requiredHelp": "Ausgeschaltet lässt sich der ganze Fragebogen überspringen; das Überspringen wird gespeichert. Einzelne Fragen werden mit required=\"true\" zur Pflicht.",
+      "frequency": "Wie oft",
+      "questionsHelp": "Dieselbe XML-Syntax wie die Labeling-Konfiguration (z. B. Likert, Rating, Choices, Number, TextArea). Die Vorschau zeigt den Fragebogen so, wie Teilnehmende ihn sehen.",
+      "template": "Vorlage einfügen...",
+      "upload": ".xml hochladen",
+      "uploadFailed": "Die Datei konnte nicht gelesen werden.",
+      "xml": "Fragebogen (XML)",
+      "xmlPlaceholder": "<View>\n  <Likert name=\"motivation\" toName=\"motivation\" min=\"1\" max=\"7\" required=\"true\" label=\"Ich bin motiviert.\"/>\n</View>",
+      "preview": "Vorschau",
+      "previewEmpty": "Schreibe XML, lade eine Datei hoch oder wähle eine Vorlage, um die Vorschau zu sehen.",
+      "previewInvalid": "Die Vorschau erscheint, sobald das XML gültig ist.",
+      "invalid": "Der Fragebogen kann so nicht gespeichert werden:",
+      "checking": "Wird geprüft...",
+      "save": "Speichern",
+      "saving": "Wird gespeichert...",
+      "saved": "Fragebogen gespeichert",
+      "saveFailed": "Speichern fehlgeschlagen",
+      "discard": "Verwerfen",
+      "downloadCsv": "Antworten als CSV",
+      "downloadCsvAll": "Alle Antworten als CSV",
+      "badgeActive": "Aktiv, Version {version}",
+      "badgeOff": "Aus",
+      "loadFailed": "Die Fragebögen konnten nicht geladen werden.",
+      "retry": "Erneut versuchen"
+    },
+    "answer": {
+      "skip": "Überspringen",
+      "error": "Die Antworten konnten nicht gespeichert werden. Bitte versuche es erneut.",
+      "versionChanged": "Der Fragebogen wurde gerade geändert. Bitte beantworte die aktuelle Fassung."
+    },
+    "templates": {
+      "self_assessment": "Selbsteinschätzung (3 Items, Likert 1-7)",
+      "ai_experience": "Erfahrung mit KI (2 Items)",
+      "confidence_difficulty": "Konfidenz & Schwierigkeit (2 Items)",
+      "extended": "Erweitertes Feedback (4 Items)",
+      "utaut_study": "UTAUT-Studie (12 Items, Likert 1-7)",
+      "grader_reflection": "Einschätzung der Korrektur (4 Items)",
+      "grader_workload": "Belastung bei der Korrektur (3 Items)"
     }
   }
 }

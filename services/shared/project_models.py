@@ -1218,10 +1218,13 @@ class TaskDraftCheckpoint(Base):
 
 class PostAnnotationResponse(Base):
     """
-    Post-annotation questionnaire response (Issue #1208).
+    Post-annotation questionnaire response (Issue #1208). FROZEN.
 
-    Stores structured feedback (Likert scales, choices) collected
-    from annotators after each annotation submission.
+    Since migration 165 every questionnaire answer lives in
+    ``questionnaire_responses`` (:class:`QuestionnaireResponse`, trigger
+    ``after_submit``); the migration copied each row there with its id. This
+    table is no longer written or read and stays for one release so a
+    rollback still finds the answers it held; a later migration drops it.
     """
 
     __tablename__ = "post_annotation_responses"
@@ -1231,6 +1234,8 @@ class PostAnnotationResponse(Base):
         String,
         ForeignKey("annotations.id", ondelete="CASCADE"),
         nullable=False,
+        # One response per annotation (migration 164).
+        unique=True,
         index=True,
     )
     task_id = Column(
@@ -1252,15 +1257,13 @@ class PostAnnotationResponse(Base):
 
     # Questionnaire result in Label Studio format
     result = Column(JSONB, nullable=False)
+    # SHA-256 of the questionnaire config the response answered (migration
+    # 164), so responses stay attributable to a version after the config is
+    # edited. NULL for responses stored before it.
+    config_hash = Column(String(64), nullable=True)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-
-    # Relationships
-    annotation = relationship("Annotation", backref="questionnaire_responses")
-    task = relationship("Task", backref="questionnaire_responses")
-    project = relationship("Project", backref="questionnaire_responses")
-    user = relationship("User", foreign_keys=[user_id])
 
     __table_args__ = (
         sa.Index("ix_par_user_project", "user_id", "project_id"),
@@ -1268,6 +1271,171 @@ class PostAnnotationResponse(Base):
 
     def __repr__(self):
         return f"<PostAnnotationResponse(id={self.id}, annotation_id={self.annotation_id})>"
+
+
+# --------------------------------------------------------------------------- #
+# Questionnaires: one definition per project and moment, one answer store.
+# The vocabulary lives in shared/questionnaires.py (QUESTIONNAIRE_TRIGGERS,
+# QUESTIONNAIRE_FREQUENCIES); the CHECK constraints below mirror it.
+# --------------------------------------------------------------------------- #
+
+
+class ProjectQuestionnaire(Base):
+    """A project's questionnaire for one moment (``trigger``).
+
+    ``before_task``: the participant answers it after the instructions and
+    before the task text and any exam timer appear. ``after_submit``: right
+    after a submission is final. ``korrektur``: the human grader answers it
+    after saving a Korrektur of a submission (the extension shows it).
+
+    ``config`` is label-config XML rendered by the annotation interface.
+    ``version`` counts config edits (0 = never configured); every version's
+    text is kept in :class:`ProjectQuestionnaireVersion` so each answer can
+    be read against the exact questions it answered. ``required`` false lets
+    the participant skip the whole questionnaire (the skip is recorded).
+    """
+
+    __tablename__ = "project_questionnaires"
+
+    id = Column(String, primary_key=True)
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    trigger = Column(String(32), nullable=False)
+    enabled = Column(Boolean, nullable=False, default=False, server_default="false")
+    config = Column(Text, nullable=True)
+    required = Column(Boolean, nullable=False, default=True, server_default="true")
+    frequency = Column(String(32), nullable=False)
+    version = Column(Integer, nullable=False, default=0, server_default="0")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+    updated_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    project = relationship("Project")
+    versions = relationship(
+        "ProjectQuestionnaireVersion",
+        back_populates="questionnaire",
+        cascade="all, delete-orphan",
+        order_by="ProjectQuestionnaireVersion.version",
+    )
+
+    __table_args__ = (
+        sa.UniqueConstraint("project_id", "trigger", name="uq_project_questionnaires_project_trigger"),
+        sa.CheckConstraint(
+            "trigger IN ('before_task', 'after_submit', 'korrektur')",
+            name="ck_project_questionnaires_trigger",
+        ),
+        sa.CheckConstraint(
+            "frequency IN ('once_per_project', 'once_per_task', 'once_per_submission')",
+            name="ck_project_questionnaires_frequency",
+        ),
+    )
+
+    def __repr__(self):
+        return f"<ProjectQuestionnaire(project_id={self.project_id}, trigger={self.trigger}, v{self.version})>"
+
+
+class ProjectQuestionnaireVersion(Base):
+    """The config text of one version of a :class:`ProjectQuestionnaire`."""
+
+    __tablename__ = "project_questionnaire_versions"
+
+    id = Column(String, primary_key=True)
+    questionnaire_id = Column(
+        String,
+        ForeignKey("project_questionnaires.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    version = Column(Integer, nullable=False)
+    config = Column(Text, nullable=False)
+    # SHA-256 of ``config`` (hex), the same hash each answer records.
+    config_hash = Column(String(64), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    questionnaire = relationship("ProjectQuestionnaire", back_populates="versions")
+
+    __table_args__ = (
+        sa.UniqueConstraint(
+            "questionnaire_id", "version", name="uq_project_questionnaire_versions_version"
+        ),
+    )
+
+
+class QuestionnaireResponse(Base):
+    """One answer to a project questionnaire, for every moment.
+
+    ``user_id`` is who answered: the participant for ``before_task`` and
+    ``after_submit``, the grader for ``korrektur``. The links say what the
+    answer is about: ``task_id`` (the task, when there is one),
+    ``annotation_id`` (the submission: the participant's own for
+    ``after_submit``, the graded one for ``korrektur``) and
+    ``task_evaluation_id`` (the Korrektur's grade row).
+
+    ``subject_key`` is what the questionnaire's frequency counts once
+    (``project``, ``task:<id>``, ``annotation:<id>``, ``generation:<id>``,
+    ``evaluation:<id>``), unique per questionnaire and user, so a moment is
+    never answered twice. ``skipped`` marks a skipped optional questionnaire
+    (``result`` empty). ``questionnaire_version`` and ``config_hash`` name the
+    questions answered; NULL version on rows from before versioning whose
+    config text is not known exactly.
+    """
+
+    __tablename__ = "questionnaire_responses"
+
+    id = Column(String, primary_key=True)
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    questionnaire_id = Column(
+        String,
+        ForeignKey("project_questionnaires.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    trigger = Column(String(32), nullable=False)
+    questionnaire_version = Column(Integer, nullable=True)
+    config_hash = Column(String(64), nullable=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    task_id = Column(String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=True)
+    annotation_id = Column(
+        String, ForeignKey("annotations.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    task_evaluation_id = Column(
+        String, ForeignKey("task_evaluations.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    subject_key = Column(String(160), nullable=False)
+    skipped = Column(Boolean, nullable=False, default=False, server_default="false")
+    result = Column(JSONB, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Many-to-one only (no backrefs): they order the inserts of one flush
+    # (an imported answer after its task and annotation) and leave deletes
+    # to the database's ON DELETE rules.
+    questionnaire = relationship("ProjectQuestionnaire")
+    project = relationship("Project")
+    task = relationship("Task")
+    annotation = relationship("Annotation")
+    task_evaluation = relationship("TaskEvaluation")
+    user = relationship("User", foreign_keys=[user_id])
+
+    __table_args__ = (
+        sa.UniqueConstraint(
+            "questionnaire_id", "user_id", "subject_key", name="uq_questionnaire_responses_subject"
+        ),
+        sa.CheckConstraint(
+            "trigger IN ('before_task', 'after_submit', 'korrektur')",
+            name="ck_questionnaire_responses_trigger",
+        ),
+        sa.Index("ix_questionnaire_responses_project_trigger", "project_id", "trigger"),
+        sa.Index("ix_questionnaire_responses_user_project", "user_id", "project_id"),
+    )
+
+    def __repr__(self):
+        return f"<QuestionnaireResponse(id={self.id}, trigger={self.trigger}, subject={self.subject_key})>"
 
 
 class KorrekturComment(Base):

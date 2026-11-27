@@ -23,6 +23,7 @@ import {
   validateParsedConfig,
 } from '@/lib/labelConfig/parser'
 import { getComponent } from '@/lib/labelConfig/registry'
+import { missingRequiredControls } from '@/lib/labelConfig/requiredControls'
 import { logger } from '@/lib/utils/logger'
 import React, {
   Suspense,
@@ -33,11 +34,40 @@ import React, {
   useState,
 } from 'react'
 
+/**
+ * Whether a window-level keyboard shortcut is meant for the editor rendered
+ * at `root`. It is not when the key came from inside another annotation
+ * interface (a questionnaire's form shown next to or over the task) or from
+ * inside a dialog that is not part of this editor, nor while a modal dialog
+ * that is not part of this editor is open, since the editor then sits behind
+ * that dialog. A dialog is part of the editor when it holds the editor (a
+ * questionnaire's own form) or the editor holds it (an exam layout's own
+ * panels).
+ */
+function shortcutTargetsEditor(
+  root: HTMLElement | null,
+  target: EventTarget | null,
+): boolean {
+  if (!root) return false
+  const partOfEditor = (dialog: Element) =>
+    dialog.contains(root) || root.contains(dialog)
+  if (target instanceof Element) {
+    const editor = target.closest('[data-annotation-interface]')
+    if (editor && editor !== root) return false
+    const dialog = target.closest('[role="dialog"], [role="alertdialog"]')
+    if (dialog && !partOfEditor(dialog)) return false
+  }
+  const modals = root.ownerDocument.querySelectorAll('[aria-modal="true"]')
+  return Array.from(modals).every(partOfEditor)
+}
+
 interface DynamicAnnotationInterfaceProps {
   labelConfig: string
   taskData: Record<string, any>
   initialValues?: AnnotationResult[]
-  onSubmit: (annotations: AnnotationResult[]) => void
+  // A host whose onSubmit rejects keeps the answers in the form and shows
+  // its own error message.
+  onSubmit: (annotations: AnnotationResult[]) => void | Promise<void>
   onSkip?: () => void
   onChange?: (annotations: AnnotationResult[]) => void // Notify parent of changes
   taskId?: string | number // Add taskId to properly track task changes
@@ -49,6 +79,11 @@ interface DynamicAnnotationInterfaceProps {
   startTime?: number // Start time for lead_time tracking (defaults to now)
   enableAutoSave?: boolean // Enable auto-save functionality (defaults to true)
   readOnly?: boolean // When true, components display content but disable editing
+  // Block submit while a control marked required="true" is unanswered and
+  // name the missing ones. The questionnaire modal opts in. The annotation
+  // hosts do not: existing exam configs mark answer fields required that
+  // submissions legitimately leave empty.
+  enforceRequired?: boolean
   // Host opt-in for the modern exam layout (extended). Only the interactive
   // labeling hosts pass true; review surfaces stay classic by never opting in.
   // The layout additionally requires the user preference, the ModernExamLayout
@@ -74,6 +109,7 @@ export function DynamicAnnotationInterface({
   startTime,
   enableAutoSave = true,
   readOnly = false,
+  enforceRequired = false,
   allowModernLayout = false,
   examChrome,
 }: DynamicAnnotationInterfaceProps) {
@@ -421,9 +457,25 @@ export function DynamicAnnotationInterface({
         return
       }
 
+      if (enforceRequired && parsedConfig) {
+        const missing = missingRequiredControls(parsedConfig, finalResults)
+        if (missing.length > 0) {
+          setSubmissionErrors([
+            t('annotation.interface.requiredMissing', {
+              fields: missing.map((control) => control.label).join(', '),
+            }),
+          ])
+          return
+        }
+      }
+
       logger.debug('Submitting', finalResults.length, 'annotations')
       setSubmissionErrors([])
-      await onSubmit(finalResults)
+      try {
+        await onSubmit(finalResults)
+      } catch {
+        return
+      }
 
       // Clear the state after successful submission
       setAnnotations(new Map())
@@ -437,20 +489,36 @@ export function DynamicAnnotationInterface({
       console.error('Error in handleSubmit:', error)
       setSubmissionErrors([t('annotation.interface.submissionError')])
     }
-  }, [annotations, componentValues, onSubmit, t, enableAutoSave, autoSave])
+  }, [
+    annotations,
+    componentValues,
+    onSubmit,
+    t,
+    enableAutoSave,
+    autoSave,
+    enforceRequired,
+    parsedConfig,
+  ])
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts. They listen on the window, so each one first checks
+  // that the key is meant for this editor and not for a questionnaire or
+  // another dialog on the same page.
+  const rootRef = useRef<HTMLDivElement>(null)
+  const submitShortcut = !hostOwnsSubmit && !readOnly
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return
+      if (!shortcutTargetsEditor(rootRef.current, e.target)) return
       // Submit on Ctrl/Cmd + Enter (blocked if confirmation required but not
-      // checked), unless the host submits through its own controls.
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !hostOwnsSubmit) {
+      // checked), unless the host submits through its own controls or the
+      // editor is read-only.
+      if (e.key === 'Enter' && submitShortcut) {
         if (requireConfirmBeforeSubmit && !confirmedDone) return
         e.preventDefault()
         handleSubmit()
       }
       // Skip on Ctrl/Cmd+Escape (blocked if confirmation required but not checked)
-      else if ((e.ctrlKey || e.metaKey) && e.key === 'Escape' && onSkip) {
+      else if (e.key === 'Escape' && onSkip) {
         if (requireConfirmBeforeSubmit && !confirmedDone) return
         e.preventDefault()
         onSkip()
@@ -464,7 +532,7 @@ export function DynamicAnnotationInterface({
     onSkip,
     requireConfirmBeforeSubmit,
     confirmedDone,
-    hostOwnsSubmit,
+    submitShortcut,
   ])
 
   // Render component tree recursively
@@ -553,7 +621,11 @@ export function DynamicAnnotationInterface({
 
   // Render dynamic interface
   const interfaceContent = (
-    <div className="dynamic-annotation-interface space-y-6">
+    <div
+      ref={rootRef}
+      className="dynamic-annotation-interface space-y-6"
+      data-annotation-interface=""
+    >
       {/* Exam tools (extended ExamToolDock slot via the host). The modern
           and state layouts render them themselves (renderTools 'modern' /
           'state' via chrome), so only the classic render shows them here. */}
@@ -611,10 +683,10 @@ export function DynamicAnnotationInterface({
 
       {/* Action buttons. A state-specific interface carries its own submit
           (chrome.onSubmit) in its bar, so the bar here is omitted. A host
-          that submits, skips and saves on its own leaves the bar empty, so
-          it is omitted too. */}
+          that submits, skips and saves on its own, or a read-only view
+          without skip, leaves the bar empty, so it is omitted too. */}
       {!useStateRender &&
-        (!hostOwnsSubmit ||
+        (submitShortcut ||
           showSubmitButton ||
           onSkip ||
           enableAutoSave ||
@@ -680,7 +752,7 @@ export function DynamicAnnotationInterface({
             </div>
             {/* The tip advertises the submit and skip shortcuts, so only show
               it while one of them does something. */}
-            {(!hostOwnsSubmit || onSkip) && (
+            {(submitShortcut || onSkip) && (
               <div className="mt-2 text-center text-xs text-zinc-500 dark:text-zinc-400">
                 {t('annotation.interface.tip')}
               </div>

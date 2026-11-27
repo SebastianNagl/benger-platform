@@ -44,6 +44,7 @@ from models import (
     EvaluationRun,
     EvaluationRunMetric,
     Generation,
+    GradingReviewEvent,
     HumanEvaluationConfig,
     HumanEvaluationResult,
     HumanEvaluationSession,
@@ -57,9 +58,9 @@ from project_models import (
     Annotation,
     GradingFeedback,
     KorrekturComment,
-    PostAnnotationResponse,
     Project,
     ProjectOrganization,
+    QuestionnaireResponse,
     Task,
     TaskAssignment,
     TaskRubric,
@@ -76,6 +77,7 @@ from serializers import (
     serialize_evaluation_run,
     serialize_generation,
     serialize_grading_feedback,
+    serialize_grading_review_event,
     serialize_human_evaluation_data,
     serialize_korrektur_comment,
     serialize_task,
@@ -106,6 +108,8 @@ from stream_io.serialization import (
     serialize_likert_scale_evaluation_row,
     serialize_post_annotation_response_row,
     serialize_preference_ranking_row,
+    serialize_project_questionnaires,
+    serialize_questionnaire_response_row,
     serialize_response_generation_row,
     serialize_task_assignment_row,
     serialize_user_rows,
@@ -242,6 +246,15 @@ def _review_events_query(db: Session, project_id: str):
         db.query(TaskRubricReviewEvent)
         .filter(TaskRubricReviewEvent.project_id == project_id)
         .order_by(TaskRubricReviewEvent.created_at, TaskRubricReviewEvent.id)
+    )
+
+
+def _grading_review_events_query(db: Session, project_id: str):
+    """The project's ``grading_review_events`` in history order."""
+    return (
+        db.query(GradingReviewEvent)
+        .filter(GradingReviewEvent.project_id == project_id)
+        .order_by(GradingReviewEvent.created_at, GradingReviewEvent.id)
     )
 
 
@@ -783,6 +796,7 @@ def stream_export_label_studio(
                 if qr:
                     ls_ann["questionnaire_response"] = {
                         "result": qr.result,
+                        "config_hash": qr.config_hash,
                         "created_at": qr.created_at.isoformat() if qr.created_at else None,
                     }
                 ls_task["annotations"].append(ls_ann)
@@ -927,6 +941,7 @@ def stream_comprehensive_project_data_json(
     project_data = build_project_export_data(
         project, org_row[0] if org_row else None
     )
+    project_data["questionnaires"] = serialize_project_questionnaires(db, project.id)
 
     user_ids: set[str] = set()
     if project.created_by:
@@ -1139,6 +1154,27 @@ def stream_comprehensive_project_data_json(
             stats["total_task_evaluations"] += 1
     yield "],"
 
+    # --- grading_review_events (light) ---
+    # The review history of the gradings above, after them (the importer
+    # remaps task_evaluation_id through their mapping). The key only appears
+    # when the project has rows, so exports of every other project stay
+    # byte-stable.
+    grading_review_q = _grading_review_events_query(db, project_id)
+    if grading_review_q.first() is not None:
+        yield '"grading_review_events": ['
+        first = True
+        for review_event in _drain(grading_review_q):
+            if review_event.actor_id:
+                user_ids.add(review_event.actor_id)
+            yield ("" if first else ",") + json.dumps(
+                serialize_grading_review_event(review_event), ensure_ascii=False
+            )
+            first = False
+            stats["total_grading_review_events"] = (
+                stats.get("total_grading_review_events", 0) + 1
+            )
+        yield "],"
+
     # --- human_evaluation_configs (small) ---
     hec_ids: list[str] = []
     yield '"human_evaluation_configs": ['
@@ -1245,15 +1281,33 @@ def stream_comprehensive_project_data_json(
         stats["total_grading_feedback"] += 1
     yield "],"
 
-    # --- post_annotation_responses (medium) ---
-    yield '"post_annotation_responses": ['
+    # --- questionnaire_responses (medium): every moment's answers ---
+    yield '"questionnaire_responses": ['
     first = True
-    par_q = db.query(PostAnnotationResponse).filter(
-        PostAnnotationResponse.project_id == project_id
-    )
-    for r in _drain(par_q):
+    qr_q = db.query(QuestionnaireResponse).filter(
+        QuestionnaireResponse.project_id == project_id
+    ).order_by(QuestionnaireResponse.created_at, QuestionnaireResponse.id)
+    for r in _drain(qr_q):
         if r.user_id:
             user_ids.add(r.user_id)
+        yield ("" if first else ",") + json.dumps(
+            serialize_questionnaire_response_row(r), ensure_ascii=False
+        )
+        first = False
+        stats["total_questionnaire_responses"] += 1
+    yield "],"
+
+    # --- post_annotation_responses (medium): the after_submit answers in the
+    # #1208 shape, kept for one release so older importers still find them.
+    # The importer reads them only for answers the section above lacks. ---
+    yield '"post_annotation_responses": ['
+    first = True
+    par_q = db.query(QuestionnaireResponse).filter(
+        QuestionnaireResponse.project_id == project_id,
+        QuestionnaireResponse.trigger == "after_submit",
+        QuestionnaireResponse.annotation_id.isnot(None),
+    ).order_by(QuestionnaireResponse.created_at, QuestionnaireResponse.id)
+    for r in _drain(par_q):
         yield ("" if first else ",") + json.dumps(
             serialize_post_annotation_response_row(r), ensure_ascii=False
         )
@@ -1324,6 +1378,7 @@ def stream_export_ndjson(
     project_data = build_project_export_data(
         project, org_row[0] if org_row else None
     )
+    project_data["questionnaires"] = serialize_project_questionnaires(db, project.id)
 
     stats: dict[str, int] = empty_export_stats()
 
@@ -1375,8 +1430,8 @@ def stream_export_ndjson(
         if ab:
             user_ids.add(ab)
     for (uid,) in (
-        db.query(PostAnnotationResponse.user_id)
-        .filter(PostAnnotationResponse.project_id == project_id)
+        db.query(QuestionnaireResponse.user_id)
+        .filter(QuestionnaireResponse.project_id == project_id)
     ):
         if uid:
             user_ids.add(uid)
@@ -1400,6 +1455,13 @@ def stream_export_ndjson(
     for (uid,) in (
         db.query(TaskRubricReviewEvent.actor_id)
         .filter(TaskRubricReviewEvent.project_id == project_id)
+    ):
+        if uid:
+            user_ids.add(uid)
+    # Likewise who reviewed the gradings.
+    for (uid,) in (
+        db.query(GradingReviewEvent.actor_id)
+        .filter(GradingReviewEvent.project_id == project_id)
     ):
         if uid:
             user_ids.add(uid)
@@ -1503,6 +1565,13 @@ def stream_export_ndjson(
             )
             stats["total_task_evaluations"] += 1
 
+    # --- grading_review_events (light; after their gradings) ---
+    for review_event in _drain(_grading_review_events_query(db, project_id)):
+        yield _emit("grading_review_event", serialize_grading_review_event(review_event))
+        stats["total_grading_review_events"] = (
+            stats.get("total_grading_review_events", 0) + 1
+        )
+
     # --- human_evaluation_configs (small) ---
     hec_ids: list[str] = []
     for c in _drain(
@@ -1579,11 +1648,22 @@ def stream_export_ndjson(
         yield _emit("task_assignment", serialize_task_assignment_row(a))
         stats["total_assignments"] += 1
 
-    # --- post_annotation_responses (medium) ---
+    # --- questionnaire_responses (medium; after annotations and evaluation
+    # runs, whose ids they reference), then the after_submit ones again in the
+    # #1208 record type for older importers (skipped by ours: same ids) ---
     for r in _drain(
-        db.query(PostAnnotationResponse).filter(
-            PostAnnotationResponse.project_id == project_id
-        )
+        db.query(QuestionnaireResponse).filter(
+            QuestionnaireResponse.project_id == project_id
+        ).order_by(QuestionnaireResponse.created_at, QuestionnaireResponse.id)
+    ):
+        yield _emit("questionnaire_response", serialize_questionnaire_response_row(r))
+        stats["total_questionnaire_responses"] += 1
+    for r in _drain(
+        db.query(QuestionnaireResponse).filter(
+            QuestionnaireResponse.project_id == project_id,
+            QuestionnaireResponse.trigger == "after_submit",
+            QuestionnaireResponse.annotation_id.isnot(None),
+        ).order_by(QuestionnaireResponse.created_at, QuestionnaireResponse.id)
     ):
         yield _emit("post_annotation_response", serialize_post_annotation_response_row(r))
         stats["total_post_annotation_responses"] += 1

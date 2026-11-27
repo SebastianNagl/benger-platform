@@ -51,6 +51,52 @@ const toast = Object.assign(
 )
 
 // Mock the DynamicAnnotationInterface
+// Questionnaires (shared model): the switched-on list per test, and the
+// after-submit prompt as a stub with an onDone trigger.
+let mockQuestionnaireList: any[] = []
+jest.mock('@/lib/api/questionnaires', () => ({
+  questionnairesAPI: {
+    list: jest.fn(() =>
+      Promise.resolve({
+        questionnaires: mockQuestionnaireList,
+        can_edit: false,
+      }),
+    ),
+    status: jest.fn(() => Promise.resolve({ due: false, questionnaire: null })),
+    answer: jest.fn(() => Promise.resolve({})),
+    skip: jest.fn(() => Promise.resolve({})),
+  },
+}))
+jest.mock('@/components/questionnaires/QuestionnairePrompt', () => ({
+  QuestionnairePrompt: ({ open, onDone }: any) =>
+    open ? (
+      <div data-testid="questionnaire-modal">
+        <button
+          data-testid="questionnaire-complete"
+          onClick={() => onDone('answered')}
+        >
+          Complete Questionnaire
+        </button>
+      </div>
+    ) : null,
+}))
+const AFTER_SUBMIT_ON = [
+  {
+    trigger: 'after_submit',
+    active: true,
+    enabled: true,
+    config: '<View><Rating name="q" toName="q" maxRating="5"/></View>',
+    required: true,
+    frequency: 'once_per_submission',
+    version: 1,
+    allowed_frequencies: ['once_per_submission'],
+    updated_at: null,
+  },
+]
+beforeEach(() => {
+  mockQuestionnaireList = []
+})
+
 jest.mock('../DynamicAnnotationInterface', () => ({
   DynamicAnnotationInterface: function MockDynamicAnnotationInterface({
     onSubmit,
@@ -2136,11 +2182,9 @@ describe('LabelingInterface', () => {
 
   describe('Questionnaire Flow', () => {
     it('should show questionnaire modal after submit when questionnaire is enabled', async () => {
+      mockQuestionnaireList = AFTER_SUBMIT_ON
       const questionnaireProject = {
         ...mockProject,
-        questionnaire_enabled: true,
-        questionnaire_config:
-          '<View><Rating name="q" toName="q" maxRating="5"/></View>',
       }
       const qStore = {
         ...mockStoreState,

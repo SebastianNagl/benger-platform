@@ -125,6 +125,35 @@ def serialize_task_rubric_review_event(event) -> dict:
     }
 
 
+#: Columns of a ``grading_review_events`` row that an export carries as
+#: stored (the ids and the timestamp are handled by the caller and importer).
+GRADING_REVIEW_EVENT_FIELDS = (
+    "evaluation_config_id",
+    "metric",
+    "event",
+    "review_before",
+    "review_after",
+    "diff",
+    "app_version",
+    "context",
+)
+
+
+def serialize_grading_review_event(event) -> dict:
+    """Export shape for a ``grading_review_events`` row (the review history
+    of a grading). ``task_id``, ``task_evaluation_id``, ``annotation_id``
+    and ``actor_id`` are the source ids; the importer remaps them."""
+    return {
+        "id": event.id,
+        "task_id": event.task_id,
+        "task_evaluation_id": event.task_evaluation_id,
+        "annotation_id": event.annotation_id,
+        "actor_id": event.actor_id,
+        "created_at": _isoformat(event.created_at),
+        **{field: getattr(event, field) for field in GRADING_REVIEW_EVENT_FIELDS},
+    }
+
+
 def serialize_annotation(
     ann, *, mode: str = "data", questionnaire_response=None
 ) -> dict:
@@ -157,6 +186,7 @@ def serialize_annotation(
         qr = questionnaire_response
         d["questionnaire_response"] = {
             "result": qr.result,
+            "config_hash": qr.config_hash,
             "created_at": _isoformat(qr.created_at),
         } if qr else None
     elif mode == "full":

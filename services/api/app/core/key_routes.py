@@ -421,7 +421,19 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
         area("/api/projects/{project_id}/variant-designs*", [REF], ["projects:write"]),
         area("/api/projects/{project_id}/srs/*", ["annotations:read"], ["annotations:write"]),
         allow(
-            "/api/projects/{project_id}/questionnaire-responses",
+            "/api/projects/{project_id}/questionnaire-responses*",
+            "annotations:read",
+            methods="read",
+        ),
+        # Answering a questionnaire, and asking whether one is due, is
+        # annotation work; its settings fall to the project rule below.
+        allow(
+            "/api/projects/{project_id}/questionnaires/{trigger}/responses",
+            "annotations:write",
+            methods="POST",
+        ),
+        allow(
+            "/api/projects/{project_id}/questionnaires/{trigger}/status",
             "annotations:read",
             methods="read",
         ),

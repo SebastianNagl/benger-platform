@@ -2818,6 +2818,109 @@ for _statement in TASK_EVALUATION_METRIC_KEYS_DDL:
 del _statement
 
 
+class GradingReviewEvent(Base):
+    """One entry of the review history of a grading (a ``task_evaluations``
+    row, AI or human): who drafted, edited, checked, released or took back
+    which grading when, and what its review looked like before and after.
+
+    Append-only, like ``task_rubric_review_events`` for the grading sheets.
+    The review workflow of an overlay writes it (core 2.92); the vocabulary
+    of ``event`` and the JSON shapes of ``review_before``, ``review_after``,
+    ``diff`` and ``context`` are the overlay's. ``review_before`` and
+    ``review_after`` are snapshots of the row's review state (for the
+    feedback judge, ``details.review``) around the event; ``metric`` names
+    the metric whose review it is and ``evaluation_config_id`` its config,
+    so the entry stays readable after its row is gone.
+
+    Migration 166 backfilled it from the review JSON the rows held then,
+    only with what that JSON records exactly (``context.backfill`` is true):
+    ``released`` at ``released_at`` (``context.released_by`` ``judge`` or
+    ``teacher``; the teacher is known when the release call also stamped
+    ``checked_by`` or ``reviewed_by``), ``checked`` at ``checked_at`` by
+    ``checked_by`` when that was a call of its own, and ``updated`` at
+    ``updated_at`` by ``reviewed_by`` when the last change was neither (an
+    edit, a check cleared, a release taken back: the JSON does not say
+    which). The latest backfilled entry of a review carries it as
+    ``review_after``.
+
+    A ``BEFORE UPDATE`` trigger (migration 166, and
+    :data:`GRADING_REVIEW_EVENTS_APPEND_ONLY_DDL` on a schema built from the
+    models) refuses every UPDATE except setting ``task_evaluation_id``,
+    ``annotation_id`` and/or ``actor_id`` to NULL, which their ``ON DELETE
+    SET NULL`` actions need. DELETE stays allowed (project and task
+    cascades, account erasure).
+    """
+
+    __tablename__ = "grading_review_events"
+
+    id = Column(String, primary_key=True)  # uuid4 str, set by the writer
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    task_id = Column(String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    # The grading the event is about, and the submission it grades.
+    task_evaluation_id = Column(
+        String, ForeignKey("task_evaluations.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    annotation_id = Column(
+        String, ForeignKey("annotations.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    evaluation_config_id = Column(String, nullable=True)
+    metric = Column(String(64), nullable=True)
+    actor_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    event = Column(String(24), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+    review_before = Column(JSONB, nullable=True)
+    review_after = Column(JSONB, nullable=True)
+    diff = Column(JSONB, nullable=True)
+    app_version = Column(String(128), nullable=True)  # app_version.app_version()
+    context = Column(JSONB, nullable=True)
+
+    __table_args__ = (
+        Index("ix_grading_review_events_project_created", "project_id", "created_at"),
+        Index("ix_grading_review_events_evaluation_created", "task_evaluation_id", "created_at"),
+    )
+
+
+# The append-only rule of ``grading_review_events``. Migration 166 runs the
+# same statements (kept verbatim there; a migration never imports the
+# models); a schema built with ``Base.metadata.create_all`` (the test
+# databases) gets them through the ``after_create`` listener below.
+GRADING_REVIEW_EVENTS_APPEND_ONLY_FUNCTION = """
+CREATE OR REPLACE FUNCTION grading_review_events_append_only() RETURNS trigger AS $fn$
+BEGIN
+    IF (to_jsonb(NEW) - 'task_evaluation_id' - 'annotation_id' - 'actor_id')
+           IS DISTINCT FROM (to_jsonb(OLD) - 'task_evaluation_id' - 'annotation_id' - 'actor_id')
+       OR (NEW.task_evaluation_id IS DISTINCT FROM OLD.task_evaluation_id AND NEW.task_evaluation_id IS NOT NULL)
+       OR (NEW.annotation_id IS DISTINCT FROM OLD.annotation_id AND NEW.annotation_id IS NOT NULL)
+       OR (NEW.actor_id IS DISTINCT FROM OLD.actor_id AND NEW.actor_id IS NOT NULL) THEN
+        RAISE EXCEPTION 'grading_review_events is append-only'
+            USING ERRCODE = 'restrict_violation';
+    END IF;
+    RETURN NEW;
+END;
+$fn$ LANGUAGE plpgsql
+"""
+GRADING_REVIEW_EVENTS_APPEND_ONLY_TRIGGER = """
+CREATE TRIGGER trg_grading_review_events_append_only
+BEFORE UPDATE ON grading_review_events
+FOR EACH ROW EXECUTE FUNCTION grading_review_events_append_only()
+"""
+GRADING_REVIEW_EVENTS_APPEND_ONLY_DDL = (
+    GRADING_REVIEW_EVENTS_APPEND_ONLY_FUNCTION,
+    GRADING_REVIEW_EVENTS_APPEND_ONLY_TRIGGER,
+)
+for _statement in GRADING_REVIEW_EVENTS_APPEND_ONLY_DDL:
+    sa_event.listen(
+        GradingReviewEvent.__table__,
+        "after_create",
+        sa.DDL(_statement).execute_if(dialect="postgresql"),
+    )
+del _statement
+
+
 def backfill_task_evaluation_metric_keys(connection) -> None:
     """Add the mirror rows a database is missing and fill the columns of
     migration 139 where they are empty, then make those NOT NULL, e.g. for a

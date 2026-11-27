@@ -23,6 +23,8 @@ from unittest.mock import Mock
 
 import pytest
 
+from tests.fixtures.questionnaires import after_submit_answer
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 
 from models import (  # noqa: E402
@@ -35,7 +37,7 @@ from models import (  # noqa: E402
 )
 from project_models import (  # noqa: E402
     Annotation,
-    PostAnnotationResponse,
+    QuestionnaireResponse,
     Project,
     Task,
 )
@@ -127,13 +129,15 @@ def project_with_full_data(db_session, user):
         annotations.append(ann)
         db_session.flush()
 
-        qr = PostAnnotationResponse(
+        qr = after_submit_answer(
+            db_session,
             id=str(uuid.uuid4()),
             annotation_id=ann.id,
             task_id=t.id,
             project_id=project.id,
             user_id=user.id,
             result=[{"question": "confidence", "answer": "high"}],
+            config_hash="a" * 64,
         )
         db_session.add(qr)
         qr_list.append(qr)
@@ -397,13 +401,14 @@ class TestDataExportImportRoundtrip:
             assert ann.ground_truth == True  # noqa: E712
 
         imported_qrs = (
-            db_session.query(PostAnnotationResponse)
-            .filter(PostAnnotationResponse.project_id == target.id)
+            db_session.query(QuestionnaireResponse)
+            .filter(QuestionnaireResponse.project_id == target.id)
             .all()
         )
         assert len(imported_qrs) == 3
         for qr in imported_qrs:
             assert qr.result[0]["question"] == "confidence"
+            assert qr.config_hash == "a" * 64
 
     def test_generations_survive_roundtrip(
         self, db_session, user, project_with_full_data
@@ -681,6 +686,7 @@ class TestFullProjectExportRoundtrip:
         assert stats["total_evaluations"] == 2
         assert stats["total_task_evaluations"] == 6
         assert stats["total_post_annotation_responses"] == 3
+        assert {r["config_hash"] for r in export["post_annotation_responses"]} == {"a" * 64}
 
     def test_export_field_values_correct(
         self, db_session, user, project_with_full_data

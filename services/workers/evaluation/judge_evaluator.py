@@ -35,12 +35,18 @@ def _evaluate_llm_judge_single_impl(
             downstream readers don't parse ``field_name``. Optional for
             backward compatibility; older callers leave it NULL.
     """
+    from evaluation.orchestration import held_on_submit
     from ml_evaluation.llm_judge_evaluator import create_llm_judge_for_user
     from ml_evaluation.judge_notes import judge_notes_enabled
     from model_defaults import DEFAULT_JUDGE_MODEL_ID
     from models import TaskEvaluation
 
     params = metric_params or {}
+    submit_config = {
+        "id": evaluation_config_id,
+        "metric": metric_type,
+        "metric_parameters": params,
+    }
     # `or`, not a .get default: a stored null model reached the provider
     # lookup below as None.
     judge_model = params.get("judge_model") or DEFAULT_JUDGE_MODEL_ID
@@ -248,7 +254,7 @@ def _evaluate_llm_judge_single_impl(
             answer_type="text",
             ground_truth=reference,
             prediction=prediction,
-            metrics=row_metrics,
+            metrics=held_on_submit(row_metrics, submit_config),
             judge_prompts_used=judge_prompts_used,
             raw_reasoning=judge_reasoning,
             passed=row_passed,
@@ -311,11 +317,14 @@ def _evaluate_llm_judge_single_impl(
         answer_type="text",
         ground_truth=reference,
         prediction=prediction,
-        metrics={
-            metric_type: float(score),
-            f"{metric_type}_details": raw,
-            "raw_score": float(score),
-        },
+        metrics=held_on_submit(
+            {
+                metric_type: float(score),
+                f"{metric_type}_details": raw,
+                "raw_score": float(score),
+            },
+            submit_config,
+        ),
         raw_reasoning=judge_reasoning,
         passed=float(score) >= 0.5,
     )

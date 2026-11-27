@@ -31,21 +31,12 @@ from fastapi.responses import Response
 import current_scores
 from evaluation_methods import project_configs, teacher_current_rows
 from metric_filters import graded_reference_fields
+from spreadsheet_cells import formula_safe
 from user_display import masked_name
 
 from ._common import *  # noqa: F401,F403  (binds _common.__all__, the shared surface)
 from .by_task_model import _require_content_access, _task_preview_rows
 from .method_selection import load_method_selection
-
-_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
-
-
-def _cell_text(value):
-    """A text cell a spreadsheet will not run as a formula."""
-    if isinstance(value, str) and value.startswith(_FORMULA_PREFIXES):
-        return "'" + value
-    return value
-
 
 def _config_label(config: dict) -> str:
     label = config.get("display_name")
@@ -300,18 +291,18 @@ async def export_project_results_by_submission(
     writer = csv.writer(output)
     header = ["task_id", "task", "submitter_id", "submitter", "submitted_at"]
     for index, (label, _ids, _grouped, _ref) in enumerate(columns):
-        header.append(_cell_text(label))
+        header.append(formula_safe(label))
         if has_points[index]:
-            header.append(_cell_text(f"{label} (grade points)"))
+            header.append(formula_safe(f"{label} (grade points)"))
         if has_stand_in[index]:
-            header.append(_cell_text(f"{label} (graded by)"))
+            header.append(formula_safe(f"{label} (graded by)"))
     writer.writerow(header)
     for record in records:
         line = [
             record["task_id"],
-            _cell_text(record["task"]),
+            formula_safe(record["task"]),
             record["submitter_id"],
-            _cell_text(record["submitter"]),
+            formula_safe(record["submitter"]),
             record["submitted_at"] or "",
         ]
         for index, method in enumerate(record["methods"]):
@@ -324,7 +315,7 @@ async def export_project_results_by_submission(
                 else:
                     line.append(int(points) if float(points).is_integer() else points)
             if has_stand_in[index]:
-                line.append(_cell_text(method["graded_by"] or ""))
+                line.append(formula_safe(method["graded_by"] or ""))
         writer.writerow(line)
     return Response(
         content=output.getvalue(),

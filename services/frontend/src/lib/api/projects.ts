@@ -1434,20 +1434,4 @@ export const projectsAPI = {
       `/projects/${projectId}/tasks/${taskId}/checkpoints/${checkpointId}`,
     )
   },
-
-  /**
-   * Submit a post-annotation questionnaire response (Issue #1208)
-   */
-  submitQuestionnaireResponse: async (
-    projectId: string,
-    taskId: string,
-    annotationId: string,
-    result: any[],
-  ): Promise<any> => {
-    const response = await apiClient.post(
-      `/projects/${projectId}/tasks/${taskId}/questionnaire-response`,
-      { annotation_id: annotationId, result },
-    )
-    return response
-  },
 }

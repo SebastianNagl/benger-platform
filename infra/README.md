@@ -294,13 +294,7 @@ gzip-compression:
 - Security: Password protection, bind configuration
 
 ### Database Initialization
-Place SQL scripts in `db/init/` for automatic execution:
-```bash
-db/init/
-├── 01-create-extensions.sql
-├── 02-create-users.sql
-└── 03-initial-data.sql
-```
+The schema comes from the API's Alembic migrations, which run when the API container starts; Postgres runs no init scripts of its own.
 
 ## 🚨 Troubleshooting
 

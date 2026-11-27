@@ -1464,14 +1464,6 @@
       "annotationTimeLimitDescription": "Définir la durée maximale pour chaque tâche d'annotation",
       "timeLimitMinutes": "Limite de temps",
       "minutes": "minutes",
-      "questionnaireEnabled": "Activer le questionnaire",
-      "questionnaireEnabledDescription": "Afficher un formulaire de retour après chaque remise d'annotation",
-      "questionnaireTemplate": "Modèle",
-      "questionnaireSelectTemplate": "Sélectionner un modèle...",
-      "questionnaireTemplateConfidence": "Confiance et difficulté (2 items)",
-      "questionnaireTemplateExtended": "Retour détaillé (4 items)",
-      "questionnaireTemplateUtaut": "Étude UTAUT (12 items, Likert 1-7)",
-      "questionnaireConfig": "Configuration du questionnaire (XML Label Studio)",
       "review": {
         "title": "Phase de relecture",
         "enableReview": "Activer la phase de relecture",
@@ -7197,6 +7189,7 @@
       "fieldRequired": "{fieldName} est obligatoire",
       "submissionError": "Une erreur est survenue lors de l'envoi",
       "missingFields": "Champs de données obligatoires manquants : {fields}",
+      "requiredMissing": "Veuillez répondre à toutes les questions obligatoires : {fields}",
       "configError": "Erreur de configuration",
       "taskData": "Données de la tâche :",
       "taskPosition": "Tâche {current} sur {total}",
@@ -7247,11 +7240,6 @@
       "timeOverTitle": "Temps écoulé",
       "timeOverDescription": "Votre temps est écoulé. Votre travail a été soumis dans sa dernière version enregistrée.",
       "continueButton": "Continuer"
-    },
-    "questionnaire": {
-      "title": "Retour après l'annotation",
-      "description": "Veuillez donner votre retour sur l'annotation que vous venez de terminer.",
-      "submitting": "Envoi du retour..."
     },
     "instructions": {
       "title": "Instructions d'annotation",
@@ -12792,6 +12780,101 @@
         "expected": "Ce qui était attendu",
         "screenshot": "Capture d'écran"
       }
+    }
+  },
+  "questionnaires": {
+    "card": {
+      "title": "Questionnaires",
+      "description": "Questionnaires avant la tâche, après la remise et lors de la correction, tous au format de l'interface d'annotation.",
+      "activeCount": "{count} actif(s)"
+    },
+    "moments": {
+      "before_task": {
+        "title": "Avant la tâche",
+        "description": "Après les consignes, avant que la tâche n'apparaisse. Une limite de temps ne commence qu'ensuite.",
+        "enabledHelp": "Les participants y répondent avant de voir la tâche. Pour les examens chronométrés, y compris dans Safe Exam Browser, le temps ne commence qu'après le questionnaire.",
+        "frequencyHelp": "Une fois par projet ou avant chaque tâche.",
+        "promptTitle": "Avant de commencer",
+        "promptDescription": "Veuillez d'abord répondre à ce court questionnaire. La tâche apparaît ensuite, et c'est seulement alors qu'une limite de temps commence.",
+        "checkErrorTitle": "Le questionnaire n'a pas pu être vérifié",
+        "checkErrorDescription": "Nous n'avons pas pu vérifier si un questionnaire est prévu avant cette tâche. La tâche apparaît dès que cette vérification réussit.",
+        "checkRetry": "Réessayer"
+      },
+      "after_submit": {
+        "title": "Après la remise",
+        "description": "Juste après qu'une remise est définitive, hors du temps imparti.",
+        "enabledHelp": "Les participants y répondent juste après leur remise. Le temps imparti est alors déjà terminé.",
+        "frequencyHelp": "Après chaque remise, une fois par tâche ou une fois par projet.",
+        "promptTitle": "Court questionnaire sur votre remise",
+        "promptDescription": "Votre remise est enregistrée. Veuillez encore répondre à ces questions."
+      },
+      "korrektur": {
+        "title": "Lors de la correction",
+        "description": "Pour les correcteurs, après l'enregistrement d'une correction.",
+        "enabledHelp": "Il porte sur l'avis du correcteur, pas sur celui de l'étudiant. Il n'apparaît qu'après l'enregistrement, ne peut donc pas influencer la note, et ne montre rien de la personne évaluée.",
+        "frequencyHelp": "Après chaque remise évaluée ou une fois par projet.",
+        "promptTitle": "Questionnaire sur votre correction",
+        "promptDescription": "Votre correction est enregistrée. Ces questions portent sur votre propre avis en tant que correcteur."
+      }
+    },
+    "frequencies": {
+      "before_task": {
+        "once_per_project": "Une fois par projet",
+        "once_per_task": "Avant chaque tâche"
+      },
+      "after_submit": {
+        "once_per_submission": "Après chaque remise",
+        "once_per_task": "Une fois par tâche",
+        "once_per_project": "Une fois par projet"
+      },
+      "korrektur": {
+        "once_per_submission": "Après chaque remise évaluée",
+        "once_per_project": "Une fois par projet"
+      }
+    },
+    "settings": {
+      "groupBehaviour": "Comportement",
+      "groupQuestions": "Questions",
+      "enabled": "Afficher le questionnaire",
+      "required": "Réponse obligatoire",
+      "requiredHelp": "Désactivé, le questionnaire entier peut être ignoré ; l'abandon est enregistré. Une question devient obligatoire avec required=\"true\".",
+      "frequency": "Fréquence",
+      "questionsHelp": "La même syntaxe XML que la configuration d'annotation (p. ex. Likert, Rating, Choices, Number, TextArea). L'aperçu montre le questionnaire tel que les participants le voient.",
+      "template": "Insérer un modèle...",
+      "upload": "Importer un .xml",
+      "uploadFailed": "Le fichier n'a pas pu être lu.",
+      "xml": "Questionnaire (XML)",
+      "xmlPlaceholder": "<View>\n  <Likert name=\"motivation\" toName=\"motivation\" min=\"1\" max=\"7\" required=\"true\" label=\"Je suis motivé.\"/>\n</View>",
+      "preview": "Aperçu",
+      "previewEmpty": "Écrivez du XML, importez un fichier ou choisissez un modèle pour voir l'aperçu.",
+      "previewInvalid": "L'aperçu apparaît dès que le XML est valide.",
+      "invalid": "Le questionnaire ne peut pas être enregistré ainsi :",
+      "checking": "Vérification...",
+      "save": "Enregistrer",
+      "saving": "Enregistrement...",
+      "saved": "Questionnaire enregistré",
+      "saveFailed": "Échec de l'enregistrement",
+      "discard": "Annuler les modifications",
+      "downloadCsv": "Réponses en CSV",
+      "downloadCsvAll": "Toutes les réponses en CSV",
+      "badgeActive": "Actif, version {version}",
+      "badgeOff": "Désactivé",
+      "loadFailed": "Les questionnaires n'ont pas pu être chargés.",
+      "retry": "Réessayer"
+    },
+    "answer": {
+      "skip": "Passer",
+      "error": "Les réponses n'ont pas pu être enregistrées. Veuillez réessayer.",
+      "versionChanged": "Le questionnaire vient d'être modifié. Veuillez répondre à la version actuelle."
+    },
+    "templates": {
+      "self_assessment": "Auto-évaluation (3 items, Likert 1-7)",
+      "ai_experience": "Expérience de l'IA (2 items)",
+      "confidence_difficulty": "Confiance et difficulté (2 items)",
+      "extended": "Retour détaillé (4 items)",
+      "utaut_study": "Étude UTAUT (12 items, Likert 1-7)",
+      "grader_reflection": "Auto-évaluation de la correction (4 items)",
+      "grader_workload": "Charge de la correction (3 items)"
     }
   }
 }

@@ -1,0 +1,34 @@
+/**
+ * Project questionnaires (overlay contract, core 2.91): the platform owns the
+ * model, the settings, the renderer and the participant moments; an overlay
+ * shows a questionnaire on its own surfaces with these components.
+ *
+ * - `QuestionnairePrompt` after an action: `trigger="after_submit"` with
+ *   `subject={{ annotation_id }}` once a submission is final, or
+ *   `trigger="korrektur"` with `subject={{ task_evaluation_id }}` once a
+ *   grader saved a Korrektur (the answers are the grader's).
+ * - `BeforeTaskQuestionnaireGate` around a task view that includes its exam
+ *   timer: the task and the timer mount only once the before-task
+ *   questionnaire is answered, skipped (when optional) or not due, so it
+ *   never counts toward the time. A host that needs a callback uses
+ *   `useBeforeTaskQuestionnaire` and mounts its timer only when
+ *   `phase === 'done'`. Both fail closed (core 2.93): a host whose
+ *   questionnaire list failed passes `known: 'unknown'`, and a failed check
+ *   is `phase === 'error'` (`BeforeTaskQuestionnaireError` with `retry`),
+ *   never the task.
+ */
+
+export {
+  BeforeTaskQuestionnaireError,
+  BeforeTaskQuestionnaireGate,
+  BeforeTaskQuestionnaireScreen,
+  useBeforeTaskQuestionnaire,
+  type BeforeTaskPhase,
+} from './BeforeTaskQuestionnaire'
+export { QuestionnaireDialog } from './QuestionnaireDialog'
+export { QuestionnaireForm } from './QuestionnaireForm'
+export {
+  QuestionnairePrompt,
+  type QuestionnaireOutcome,
+} from './QuestionnairePrompt'
+export { QuestionnairesSettings } from './QuestionnairesSettings'

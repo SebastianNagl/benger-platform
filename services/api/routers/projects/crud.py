@@ -27,6 +27,7 @@ from services.analysis_plans import (
     apply_analysis_plans_write,
     without_analysis_plans,
 )
+from services.label_config.questionnaire import validate_questionnaire_config
 from services.label_config.validator import LabelConfigValidator
 from services.label_config.version_service import LabelConfigVersionService
 from services.member_privacy import (
@@ -1015,6 +1016,28 @@ async def update_project(
     # Check if min_annotations_per_task is being updated
     "min_annotations_per_task" in update_data
 
+    # The post-annotation questionnaire is label-config XML too: validate it
+    # on save, so a typo is reported to the editor here instead of breaking
+    # the modal an annotator cannot close. Only a changed, non-empty config
+    # is checked; echoing the stored value back with other settings keeps
+    # working, and an empty value clears it.
+    new_questionnaire = update_data.get("questionnaire_config")
+    if (
+        new_questionnaire
+        and new_questionnaire.strip()
+        and new_questionnaire != project.questionnaire_config
+    ):
+        is_valid, errors = validate_questionnaire_config(new_questionnaire)
+        if not is_valid:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "invalid_questionnaire_config",
+                    "message": "Invalid questionnaire configuration: " + "; ".join(errors),
+                    "errors": errors,
+                },
+            )
+
     # Handle label_config versioning
     if "label_config" in update_data:
         new_schema = update_data["label_config"]
@@ -1083,6 +1106,18 @@ async def update_project(
                 logger.info(f"Project {project_id}: Deep merged generation_config update")
             else:
                 setattr(project, field, value)
+
+    # The two post-annotation questionnaire fields are kept for one release:
+    # they write the after_submit questionnaire (validated like a save from
+    # the questionnaire settings).
+    if "questionnaire_enabled" in update_data or "questionnaire_config" in update_data:
+        from services.questionnaire_service import QuestionnaireError, sync_legacy_after_submit
+
+        try:
+            await sync_legacy_after_submit(db, project, current_user.id)
+        except QuestionnaireError as exc:
+            await db.rollback()
+            raise HTTPException(status_code=exc.status, detail=exc.detail) from None
 
     # The grading sheets' task-data mirrors end in the key that grades the
     # exam (or carry none when no method grades on it); a change of either

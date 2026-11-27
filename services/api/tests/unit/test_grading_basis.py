@@ -7,9 +7,11 @@ import pytest
 import grading_basis as gb
 from grading_basis import (
     FINGERPRINT_KEY,
+    HELD_REASON,
     REASON_SCHEME,
     REASON_SHEET,
     metric_details,
+    holds_first_grading,
     outdated_reason,
     register_grading_basis,
     scheme_fingerprint,
@@ -140,6 +142,119 @@ class TestStamp:
         assert answer["details"]["review"]["status"] == "draft"
         assert "review" not in model["details"] and model["details"][FINGERPRINT_KEY]
         assert "details" not in unknown
+
+
+class TestHeldOnSubmit:
+    """A config with ``auto_release: false`` holds its grading on submit
+    (core 2.92); every other config releases it as before."""
+
+    def test_only_an_explicit_false_holds(self):
+        assert holds_first_grading(_judge(auto_release=False))
+        assert not holds_first_grading(_judge())
+        assert not holds_first_grading(_judge(auto_release=True))
+        # Not a boolean false: the key means nothing then, as before.
+        assert not holds_first_grading(_judge(auto_release=0))
+        assert not holds_first_grading(_judge(auto_release="false"))
+        assert not holds_first_grading({"id": "c", "metric": "llm_judge_custom"})
+        assert not holds_first_grading(None)
+
+    def test_any_method_can_hold_but_a_human_one_never(self):
+        assert holds_first_grading(
+            {"id": "b", "metric": "bleu", "metric_parameters": {"auto_release": False}}
+        )
+        assert not holds_first_grading(
+            {"id": "k", "metric": "korrektur_custom", "metric_parameters": {"auto_release": False}}
+        )
+
+    def test_a_held_grading_on_submit_is_a_draft(self):
+        config = _judge(auto_release=False)
+        metrics = {"llm_judge_custom": {"value": 0.8, "details": {"rubric_id": "r1"}}}
+        before = copy.deepcopy(metrics)
+
+        out = stamp_grading_basis(metrics, config, on_submit=True)
+
+        assert metrics == before
+        details = out["llm_judge_custom"]["details"]
+        assert details["review"] == {"status": "draft", "reason": HELD_REASON}
+        assert details[FINGERPRINT_KEY] == scheme_fingerprint(config)
+        assert details["rubric_id"] == "r1"
+        # The score stays as the judge gave it; readers skip the draft.
+        assert out["llm_judge_custom"]["value"] == 0.8
+
+    def test_a_flat_row_and_a_method_without_a_scheme_are_held_too(self):
+        flat = stamp_grading_basis(
+            {"llm_judge_custom": 0.5, "raw_score": 0.5}, _judge(auto_release=False), on_submit=True
+        )
+        assert flat["llm_judge_custom_details"]["review"]["reason"] == HELD_REASON
+        bleu = {"id": "b", "metric": "bleu", "metric_parameters": {"auto_release": False}}
+        out = stamp_grading_basis({"bleu": {"value": 0.4}}, bleu, on_submit=True)
+        assert out["bleu"]["details"] == {"review": {"status": "draft", "reason": HELD_REASON}}
+
+    def test_without_the_key_nothing_changes(self):
+        config = _judge()
+        metrics = {"llm_judge_custom": {"value": 0.8}}
+        assert stamp_grading_basis(metrics, config, on_submit=True) == stamp_grading_basis(
+            metrics, config
+        )
+        bleu = {"bleu": {"value": 0.4}}
+        assert stamp_grading_basis(bleu, {"id": "b", "metric": "bleu"}, on_submit=True) is bleu
+        released = stamp_grading_basis(metrics, _judge(auto_release=True), on_submit=True)
+        assert "review" not in released["llm_judge_custom"]["details"]
+
+    def test_only_the_grading_on_submit_is_held(self):
+        out = stamp_grading_basis({"llm_judge_custom": {"value": 0.8}}, _judge(auto_release=False))
+        assert "review" not in out["llm_judge_custom"]["details"]
+
+    def test_a_failed_result_is_not_held(self):
+        config = _judge(auto_release=False)
+        failed = stamp_grading_basis(
+            {"llm_judge_custom": {"value": None, "error": "boom"}}, config, on_submit=True
+        )
+        assert "review" not in failed["llm_judge_custom"]["details"]
+        flat_failed = stamp_grading_basis({"llm_judge_custom": None}, config, on_submit=True)
+        assert "review" not in flat_failed["llm_judge_custom_details"]
+
+    def test_a_review_the_writer_stored_is_kept(self):
+        config = {
+            "id": "f",
+            "metric": "llm_judge_feedback",
+            "metric_parameters": {"auto_release": False},
+        }
+        own_draft = {"status": "draft", "note": "the writer's"}
+        metrics = {"llm_judge_feedback": {"value": None, "details": {"review": own_draft}}}
+        out = stamp_grading_basis(metrics, config, on_submit=True)
+        assert out["llm_judge_feedback"]["details"]["review"] == own_draft
+        flat = stamp_grading_basis(
+            {"llm_judge_custom": 0.5, "llm_judge_custom_details": {"review": {"status": "released"}}},
+            _judge(auto_release=False),
+            on_submit=True,
+        )
+        assert flat["llm_judge_custom_details"]["review"] == {"status": "released"}
+
+    def test_a_held_draft_awaits_release(self):
+        from metric_filters import metric_awaits_release, row_awaits_release
+
+        held = stamp_grading_basis(
+            {"llm_judge_custom": {"value": 0.8}}, _judge(auto_release=False), on_submit=True
+        )
+        assert row_awaits_release(held)
+        assert metric_awaits_release(held, "llm_judge_custom")
+        released = stamp_grading_basis({"llm_judge_custom": {"value": 0.8}}, _judge(), on_submit=True)
+        assert not row_awaits_release(released)
+
+    def test_a_held_draft_counts_as_graded_for_the_sweep(self):
+        """The hourly sweep must not grade a held draft again: it keeps the
+        judge's value, so it is a graded row waiting for its release."""
+        from immediate_eval_dispatch import row_has_real_score_for
+
+        held = stamp_grading_basis(
+            {"llm_judge_custom": {"value": 0.8}}, _judge(auto_release=False), on_submit=True
+        )
+        assert row_has_real_score_for(held, {"llm_judge_custom"})
+        flat = stamp_grading_basis(
+            {"llm_judge_custom": 0.5}, _judge(auto_release=False), on_submit=True
+        )
+        assert row_has_real_score_for(flat, {"llm_judge_custom"})
 
 
 class TestOutdatedReason:

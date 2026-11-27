@@ -242,7 +242,14 @@ class TestExtensionLoader:
         # 2.90 adds model_availability (InactiveModelError,
         # inactive_models_message, inactive_official_model_ids and
         # inactive_official_model_ids_async).
-        assert CORE_API_VERSION == "2.90"
+        # 2.91 adds project questionnaires (QuestionnairePrompt,
+        # BeforeTaskQuestionnaireGate, before_task_questionnaire_pending).
+        # 2.92 adds grading_review_events (GradingReviewEvent) and the held
+        # grading on submit (grading_basis.holds_first_grading, held_review).
+        # 2.93 adds BeforeTaskQuestionnaireError, the before-task phase
+        # 'error' with retry and recheck, and the TimerIntegration prop
+        # onBeforeTaskQuestionnairePending.
+        assert CORE_API_VERSION == "2.93"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
