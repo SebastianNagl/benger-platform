@@ -2255,11 +2255,22 @@ API change).
     annotation interface (a questionnaire's form) or from a dialog that is
     not part of the editor, and keys pressed while such a modal dialog is
     open.
+2.94 (2026-11-27): a metric editor in the evaluation-method dialog can
+  change more than its own parameters.
+  - ``MetricEditorProps.onDraftChange({metric, metric_parameters,
+    display_name?})`` replaces the edited draft's metric and parameters, so
+    the dialog renders the new metric's editor; a draft without
+    ``display_name`` keeps the method's current name.
+  - ``MetricEditorProps.onSaveTransform(transform | null)`` registers a
+    change to the whole method list that the dialog's save applies after it
+    writes the edited method. The dialog drops it when it closes or opens
+    another method. Both props are optional, and editors that ignore them
+    are unaffected.
 """
 
 import os
 
-CORE_API_VERSION = "2.93"
+CORE_API_VERSION = "2.94"
 
 
 def extended_required() -> bool:
