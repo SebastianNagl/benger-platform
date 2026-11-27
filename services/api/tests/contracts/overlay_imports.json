@@ -1,5 +1,5 @@
 {
-  "generated_from": "a6ce0446d05f6fd46a462a5b00cedabf7571a6d8",
+  "generated_from": "e780c8cc15123ac41a795ccc128ccaa02e8db49a",
   "api_shared": [
     {
       "module": "account_activation",
@@ -368,14 +368,15 @@
       "module": "current_scores",
       "name": "configs_by_id",
       "importers": [
-        "benger_extended/api/routers/feedback_review.py"
+        "benger_extended/api/routers/feedback_review.py",
+        "benger_extended/api/routers/korrektur.py"
       ]
     },
     {
       "module": "current_scores",
       "name": "pick_current",
       "importers": [
-        "benger_extended/api/routers/feedback_review.py"
+        "benger_extended/feedback_review.py"
       ]
     },
     {
@@ -2031,7 +2032,6 @@
         "benger_extended/api/routers/rubric_review.py",
         "benger_extended/api/routers/student_exams.py",
         "benger_extended/exam_readiness.py",
-        "benger_extended/korrektur_grading.py",
         "benger_extended/lti/exam_gate.py",
         "benger_extended/rubric_jobs.py",
         "benger_extended/workers/__init__.py",
@@ -2893,6 +2893,13 @@
       "name": "review_role",
       "importers": [
         "benger_extended/peer_grading.py"
+      ]
+    },
+    {
+      "module": "services.questionnaire_service",
+      "name": "before_task_questionnaire_pending",
+      "importers": [
+        "benger_extended/api/routers/timer.py"
       ]
     },
     {
