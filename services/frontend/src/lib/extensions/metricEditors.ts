@@ -63,7 +63,8 @@ export interface MetricEditorProps {
   /**
    * Registers a change to the whole method list that the dialog applies
    * when it saves, after writing the edited method; null removes it. The
-   * dialog drops it when it closes or opens another method.
+   * dialog drops it when it closes, opens another method, or the user
+   * picks another metric (an onDraftChange swap keeps it).
    */
   onSaveTransform?: (
     transform: ((configs: EvaluationConfig[]) => EvaluationConfig[]) | null,

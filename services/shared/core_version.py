@@ -2263,9 +2263,10 @@ API change).
     ``display_name`` keeps the method's current name.
   - ``MetricEditorProps.onSaveTransform(transform | null)`` registers a
     change to the whole method list that the dialog's save applies after it
-    writes the edited method. The dialog drops it when it closes or opens
-    another method. Both props are optional, and editors that ignore them
-    are unaffected.
+    writes the edited method. The dialog drops it when it closes, opens
+    another method, or the user picks another metric on the metric step (an
+    ``onDraftChange`` swap keeps it). Both props are optional, and editors
+    that ignore them are unaffected.
 """
 
 import os
