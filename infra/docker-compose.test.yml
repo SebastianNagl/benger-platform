@@ -505,6 +505,11 @@ services:
       TESTING: "true"
       JWT_SECRET_KEY: test-secret-key
       PYTHONDONTWRITEBYTECODE: 1
+      # The runners run as root on a writable bind mount of the source, so
+      # caches written under /app would be left root-owned in the checkout.
+      # Keep them inside the container instead.
+      PYTEST_ADDOPTS: "-o cache_dir=/tmp/pytest_cache"
+      HYPOTHESIS_STORAGE_DIRECTORY: /tmp/hypothesis
       PYTHONPATH: /app:/app/app:/shared
     depends_on:
       test-db:
@@ -540,6 +545,11 @@ services:
       REDIS_URL: redis://test-redis:6379
       TESTING: "true"
       PYTHONDONTWRITEBYTECODE: 1
+      # The runners run as root on a writable bind mount of the source, so
+      # caches written under /app would be left root-owned in the checkout.
+      # Keep them inside the container instead.
+      PYTEST_ADDOPTS: "-o cache_dir=/tmp/pytest_cache"
+      HYPOTHESIS_STORAGE_DIRECTORY: /tmp/hypothesis
       BENGER_USE_PYTORCH: "true"
       CI: "true"  # Skip slow tests (e.g., German model download)
     depends_on:
