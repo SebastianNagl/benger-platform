@@ -60,6 +60,37 @@ class TestRowHasRealScoreFor:
             {"llm_judge_falloesung"},
         )
 
+    def test_held_back_feedback_draft_counts(self):
+        # A feedback-only draft keeps value null until its release.
+        assert row_has_real_score_for(
+            {
+                "llm_judge_feedback": {
+                    "value": None,
+                    "details": {"feedback_only": True, "grade": {"note": 9.5}},
+                    "error": None,
+                }
+            },
+            {"llm_judge_feedback"},
+        )
+
+    def test_failed_feedback_call_does_not_count(self):
+        assert not row_has_real_score_for(
+            {
+                "llm_judge_feedback": {
+                    "value": None,
+                    "details": {"feedback_only": True},
+                    "error": "judge call failed",
+                }
+            },
+            {"llm_judge_feedback"},
+        )
+
+    def test_null_value_without_feedback_only_does_not_count(self):
+        assert not row_has_real_score_for(
+            {"llm_judge_custom": {"value": None, "details": {"reasoning": "x"}}},
+            {"llm_judge_custom"},
+        )
+
     def test_bare_float_counts(self):
         assert row_has_real_score_for({"exact_match": 1.0}, {"exact_match"})
 

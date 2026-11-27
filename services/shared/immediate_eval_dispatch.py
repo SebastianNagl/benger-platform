@@ -124,8 +124,16 @@ def eligible_metrics(configs) -> set:
 
 
 def row_has_real_score_for(metrics, elig_metrics: set) -> bool:
-    """True if a TaskEvaluation.metrics blob carries a non-error score for any
-    eligible metric."""
+    """True if a TaskEvaluation.metrics blob carries a non-error grading for
+    any eligible metric.
+
+    A written feedback-only result (``details.feedback_only``, core 2.41)
+    counts even though its ``value`` stays null until a teacher releases it:
+    the grading is done and only waits for its release. ``evaluation_planning``
+    applies the same rule to "missing only" re-runs. Without it the hourly
+    sweep took every held-back draft for ungraded and graded it again each
+    hour until its attempt cap.
+    """
     if not isinstance(metrics, dict):
         return False
     for m in elig_metrics:
@@ -136,6 +144,9 @@ def row_has_real_score_for(metrics, elig_metrics: set) -> bool:
             if v.get("error"):
                 continue
             if v.get("value") is not None:
+                return True
+            details = v.get("details")
+            if isinstance(details, dict) and details.get("feedback_only") is True:
                 return True
         elif isinstance(v, (int, float)) and not isinstance(v, bool):
             return True
