@@ -2169,11 +2169,78 @@ API change).
     === 'done'``. Read-only views pass ``disabled``. On the server,
     ``before_task_questionnaire_pending`` (above) lets the timer route
     refuse a start while the questionnaire is owed.
+2.92 (2026-11-27): the review history of gradings and the held grading on
+  submit (migration 166, additive; API and workers). Existing configs and
+  projects behave as before.
+  - Table ``grading_review_events`` (model ``models.GradingReviewEvent``):
+    the append-only review history of a grading (a ``task_evaluations``
+    row, AI or human), like ``task_rubric_review_events`` for the sheets.
+    Columns: ``id`` (the writer's uuid4), ``project_id``, ``task_id``
+    (CASCADE), ``task_evaluation_id`` and ``annotation_id`` (the grading
+    and the submission it grades, SET NULL), ``evaluation_config_id``,
+    ``metric`` (whose review it is), ``actor_id`` (SET NULL), ``event``
+    (String 24, NOT NULL), ``created_at``, ``review_before`` and
+    ``review_after`` (snapshots of the row's review state around the
+    event), ``diff``, ``app_version`` (``app_version.app_version()``) and
+    ``context``. The vocabulary of ``event`` and the JSON shapes are the
+    overlay's; the platform only stores and exports them. A trigger refuses
+    every UPDATE except the three SET NULL actions; DELETE stays allowed.
+    The overlay writes one entry per review step in the transaction that
+    changes the row. Migration 166 backfilled the history from the review
+    JSON of the rows (``details.review``) with what it records exactly,
+    marked ``context.backfill``: ``released`` at ``released_at``
+    (``context.released_by`` ``judge`` / ``teacher``; the teacher as actor
+    only when the release call also stamped ``checked_by`` or
+    ``reviewed_by``), ``checked`` at ``checked_at`` by ``checked_by`` when
+    it was a call of its own, ``updated`` at ``updated_at`` by
+    ``reviewed_by`` when the last call was neither; the latest entry of a
+    review carries it as ``review_after``. Full project exports (JSON and
+    NDJSON) carry the history (``grading_review_events``, only when the
+    project has one); imports point it at the imported rows, merge imports
+    leave it out.
+  - The held AI grading, judge-agnostic: a config whose
+    ``metric_parameters`` set ``auto_release`` to exactly ``False`` holds
+    the AI grading of a submission for a teacher, on submit and in batch
+    runs. The worker stores each of its rows of a submitted answer that
+    did not fail as a draft,
+    ``details.review = {"status": "draft", "reason": "held"}``
+    (``grading_basis.held_review``, ``HELD_REASON``; in the flat
+    ``<metric>_details`` sibling for a flat row). The platform writers
+    (deterministic metrics, ``llm_judge_*``) store it in the commit that
+    writes the row; for an overlay writer (``llm_judge_falloesung``, the
+    inline judges) the config job stores it right after the writer
+    returns, in the job's own session, before the run completes. The run's
+    completion stamps every row once more, and a run that fails stores it
+    on the rows it already committed before it is marked failed. A batch
+    run (``run_evaluation``, also "missing only") stamps its row dicts
+    through ``grading_basis.stamp_rows`` before the cell writes them, so
+    its first grading of an answer is held the same way and the batch
+    notice announces nothing for it; a batch run over an answer with an
+    earlier released grading adds a held draft that readers skip, so the
+    student keeps reading the released one until a teacher releases the
+    new one. Rows of a model generation are never held. So
+    ``metric_filters.row_awaits_release`` and ``metric_awaits_release``
+    keep it from every attempt score and notice until the overlay releases
+    it. The row keeps the judge's
+    ``value``, so "missing only" planning and the submit sweep count it as
+    graded; an overlay writer that stores a held row without a value marks
+    it ``details.feedback_only`` as today. A row whose writer stored a
+    review itself keeps it (the feedback judge, which holds unless
+    ``auto_release: true``, is unchanged). A config without the key, or with
+    ``auto_release: true``, releases exactly as before; re-grade drafts
+    (``reason: "regrade"``) are unchanged and take the place of the held
+    draft in a re-grade run. An overlay writer that
+    stores the held draft in its own commit closes the short window before
+    the config job's stamp; ``grading_basis.holds_first_grading(config)``
+    tells it whose config holds. ``grading_basis.stamp_grading_basis(metrics, config, *, regrade=False,
+    on_submit=False)`` applies the rule for an overlay's own writer;
+    ``AUTO_RELEASE_KEY`` names the key. The key is not part of a config's
+    grading scheme (``scheme_fingerprint``): switching it outdates nothing.
 """
 
 import os
 
-CORE_API_VERSION = "2.91"
+CORE_API_VERSION = "2.92"
 
 
 def extended_required() -> bool:

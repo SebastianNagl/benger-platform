@@ -44,6 +44,7 @@ from models import (
     EvaluationRun,
     EvaluationRunMetric,
     Generation,
+    GradingReviewEvent,
     HumanEvaluationConfig,
     HumanEvaluationResult,
     HumanEvaluationSession,
@@ -76,6 +77,7 @@ from serializers import (
     serialize_evaluation_run,
     serialize_generation,
     serialize_grading_feedback,
+    serialize_grading_review_event,
     serialize_human_evaluation_data,
     serialize_korrektur_comment,
     serialize_task,
@@ -244,6 +246,15 @@ def _review_events_query(db: Session, project_id: str):
         db.query(TaskRubricReviewEvent)
         .filter(TaskRubricReviewEvent.project_id == project_id)
         .order_by(TaskRubricReviewEvent.created_at, TaskRubricReviewEvent.id)
+    )
+
+
+def _grading_review_events_query(db: Session, project_id: str):
+    """The project's ``grading_review_events`` in history order."""
+    return (
+        db.query(GradingReviewEvent)
+        .filter(GradingReviewEvent.project_id == project_id)
+        .order_by(GradingReviewEvent.created_at, GradingReviewEvent.id)
     )
 
 
@@ -1143,6 +1154,27 @@ def stream_comprehensive_project_data_json(
             stats["total_task_evaluations"] += 1
     yield "],"
 
+    # --- grading_review_events (light) ---
+    # The review history of the gradings above, after them (the importer
+    # remaps task_evaluation_id through their mapping). The key only appears
+    # when the project has rows, so exports of every other project stay
+    # byte-stable.
+    grading_review_q = _grading_review_events_query(db, project_id)
+    if grading_review_q.first() is not None:
+        yield '"grading_review_events": ['
+        first = True
+        for review_event in _drain(grading_review_q):
+            if review_event.actor_id:
+                user_ids.add(review_event.actor_id)
+            yield ("" if first else ",") + json.dumps(
+                serialize_grading_review_event(review_event), ensure_ascii=False
+            )
+            first = False
+            stats["total_grading_review_events"] = (
+                stats.get("total_grading_review_events", 0) + 1
+            )
+        yield "],"
+
     # --- human_evaluation_configs (small) ---
     hec_ids: list[str] = []
     yield '"human_evaluation_configs": ['
@@ -1426,6 +1458,13 @@ def stream_export_ndjson(
     ):
         if uid:
             user_ids.add(uid)
+    # Likewise who reviewed the gradings.
+    for (uid,) in (
+        db.query(GradingReviewEvent.actor_id)
+        .filter(GradingReviewEvent.project_id == project_id)
+    ):
+        if uid:
+            user_ids.add(uid)
 
     if user_ids:
         users = db.query(User).filter(User.id.in_(user_ids)).all()
@@ -1525,6 +1564,13 @@ def stream_export_ndjson(
                 _with_current_marker(serialize_task_evaluation(te, mode="full"), markers),
             )
             stats["total_task_evaluations"] += 1
+
+    # --- grading_review_events (light; after their gradings) ---
+    for review_event in _drain(_grading_review_events_query(db, project_id)):
+        yield _emit("grading_review_event", serialize_grading_review_event(review_event))
+        stats["total_grading_review_events"] = (
+            stats.get("total_grading_review_events", 0) + 1
+        )
 
     # --- human_evaluation_configs (small) ---
     hec_ids: list[str] = []

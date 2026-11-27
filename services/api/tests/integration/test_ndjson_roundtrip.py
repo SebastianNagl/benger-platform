@@ -1772,3 +1772,141 @@ class TestRubricReviewRoundtrip:
         assert payload["project"]["rubric_review_required"] is False
         types = [json.loads(ln)["_type"] for ln in _export_ndjson(test_db, project).splitlines()]
         assert "task_rubric_review_event" not in types
+
+
+class TestGradingReviewRoundtrip:
+    """The review history of the gradings (``grading_review_events``, core
+    2.92) travels with a full project export, in the comprehensive JSON and
+    the NDJSON format. Each entry is pointed at the imported task, grading
+    and submission; who reviewed follows the person, unknown people become
+    NULL, never the importer. An entry whose grading is gone stays without
+    one."""
+
+    RELEASED_AT = "2026-11-21T10:30:00+00:00"
+
+    def _seed(self, db, project, admin, reviewer):
+        from datetime import datetime
+
+        from models import GradingReviewEvent
+
+        task = db.query(Task).filter(Task.project_id == project.id).order_by(Task.inner_id).first()
+        ann = db.query(Annotation).filter(Annotation.task_id == task.id).first()
+        run = db.query(EvaluationRun).filter(EvaluationRun.project_id == project.id).first()
+        judge = db.query(EvaluationJudgeRun).filter(EvaluationJudgeRun.evaluation_id == run.id).first()
+        review = {"status": "released", "released_by": "teacher", "markdown": "Gut."}
+        grading = TaskEvaluation(
+            id=_uid(), evaluation_id=run.id, judge_run_id=judge.id, task_id=task.id,
+            annotation_id=ann.id, field_name="cfg-fb|answer|", evaluation_config_id="cfg-fb",
+            answer_type="text", ground_truth="", prediction="Ja", passed=True,
+            metrics={"llm_judge_feedback": {"value": 0.7, "method": "llm_judge_feedback",
+                                            "details": {"feedback_only": True, "review": review}}},
+        )
+        db.add(grading)
+        db.flush()
+        events = [
+            GradingReviewEvent(
+                id=_uid(), project_id=project.id, task_id=task.id, task_evaluation_id=grading.id,
+                annotation_id=ann.id, evaluation_config_id="cfg-fb", metric="llm_judge_feedback",
+                actor_id=reviewer.id, event="edited", review_before={"status": "draft"},
+                review_after={"status": "draft", "markdown": "Gut."}, diff={"markdown": True},
+                app_version="v2026.11.21-a-b",
+                created_at=datetime.fromisoformat("2026-11-21T10:00:00+00:00"),
+            ),
+            GradingReviewEvent(
+                id=_uid(), project_id=project.id, task_id=task.id, task_evaluation_id=grading.id,
+                annotation_id=ann.id, evaluation_config_id="cfg-fb", metric="llm_judge_feedback",
+                actor_id=reviewer.id, event="released", review_after=review,
+                context={"provenance": "ai_edited"},
+                created_at=datetime.fromisoformat(self.RELEASED_AT),
+            ),
+            # The history of a grading that was deleted since.
+            GradingReviewEvent(
+                id=_uid(), project_id=project.id, task_id=task.id, task_evaluation_id=None,
+                annotation_id=None, metric="llm_judge_feedback", actor_id=None,
+                event="released", context={"backfill": True},
+                created_at=datetime.fromisoformat("2026-11-22T08:00:00+00:00"),
+            ),
+        ]
+        db.add_all(events)
+        db.commit()
+        return grading, events
+
+    def _assert_imported(self, db, new_id, reviewer_id, *, actor_ids=None):
+        from models import GradingReviewEvent
+
+        events = (
+            db.query(GradingReviewEvent)
+            .filter(GradingReviewEvent.project_id == new_id)
+            .order_by(GradingReviewEvent.created_at)
+            .all()
+        )
+        assert [e.event for e in events] == ["edited", "released", "released"]
+        grading = (
+            db.query(TaskEvaluation)
+            .join(Task, Task.id == TaskEvaluation.task_id)
+            .filter(Task.project_id == new_id, TaskEvaluation.evaluation_config_id == "cfg-fb")
+            .one()
+        )
+        edited, released, orphan = events
+        assert {edited.task_evaluation_id, released.task_evaluation_id} == {grading.id}
+        assert {edited.annotation_id, released.annotation_id} == {grading.annotation_id}
+        assert {e.task_id for e in events} == {grading.task_id}
+        assert [e.actor_id for e in events] == (actor_ids or [reviewer_id, reviewer_id, None])
+        assert edited.review_before == {"status": "draft"}
+        assert edited.review_after == {"status": "draft", "markdown": "Gut."}
+        assert edited.diff == {"markdown": True}
+        assert edited.app_version == "v2026.11.21-a-b"
+        assert edited.evaluation_config_id == "cfg-fb"
+        assert edited.metric == "llm_judge_feedback"
+        assert released.context == {"provenance": "ai_edited"}
+        assert released.created_at.isoformat() == self.RELEASED_AT
+        assert orphan.task_evaluation_id is None and orphan.annotation_id is None
+        assert orphan.context == {"backfill": True}
+        return events
+
+    def test_ndjson_roundtrip(self, test_db, full_project, test_users):
+        project, admin = full_project
+        reviewer = test_users[1]
+        _, events = self._seed(test_db, project, admin, reviewer)
+        lines = [json.loads(ln) for ln in _export_ndjson(test_db, project).splitlines()]
+        types = [r["_type"] for r in lines]
+        assert types.count("grading_review_event") == 3
+        last_grading = len(types) - 1 - types[::-1].index("task_evaluation")
+        assert last_grading < types.index("grading_review_event")
+        assert lines[-1]["statistics"]["total_grading_review_events"] == 3
+        assert reviewer.id in {r["id"] for r in lines if r["_type"] == "user"}
+
+        ndjson = "\n".join(json.dumps(r) for r in lines) + "\n"
+        result = run_ndjson_import(test_db, io.BytesIO(ndjson.encode()), admin.id)
+        assert result["statistics"]["imported_counts"]["grading_review_events"] == 3
+        imported = self._assert_imported(test_db, result["project_id"], reviewer.id)
+        assert {e.id for e in imported}.isdisjoint({e.id for e in events})
+
+    def test_comprehensive_roundtrip_and_unknown_people(self, test_db, full_project, test_users):
+        project, admin = full_project
+        reviewer = test_users[1]
+        grading, events = self._seed(test_db, project, admin, reviewer)
+        payload = json.loads("".join(stream_comprehensive_project_data_json(test_db, project.id)))
+        records = payload["grading_review_events"]
+        assert [r["id"] for r in records] == [e.id for e in events]
+        assert records[0]["task_evaluation_id"] == grading.id
+        assert reviewer.id in {u["id"] for u in payload["users"]}
+
+        result = run_full_project_import(test_db, io.BytesIO(json.dumps(payload).encode()), admin.id)
+        stats = result.get("statistics") or result
+        assert stats["imported_counts"]["grading_review_events"] == 3
+        self._assert_imported(test_db, result["project_id"], reviewer.id)
+
+        stranger = _uid()
+        payload["grading_review_events"][0]["actor_id"] = stranger
+        result = run_full_project_import(test_db, io.BytesIO(json.dumps(payload).encode()), admin.id)
+        self._assert_imported(
+            test_db, result["project_id"], None, actor_ids=[None, reviewer.id, None]
+        )
+
+    def test_projects_without_a_history_export_no_key(self, test_db, full_project):
+        project, _ = full_project
+        payload = json.loads("".join(stream_comprehensive_project_data_json(test_db, project.id)))
+        assert "grading_review_events" not in payload
+        types = [json.loads(ln)["_type"] for ln in _export_ndjson(test_db, project).splitlines()]
+        assert "grading_review_event" not in types

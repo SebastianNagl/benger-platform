@@ -89,6 +89,7 @@ from models import (
     EvaluationRun,
     EvaluationRunMetric,
     Generation,
+    GradingReviewEvent,
     HumanEvaluationConfig,
     HumanEvaluationResult,
     HumanEvaluationSession,
@@ -133,6 +134,7 @@ from questionnaires import (
 )
 from serializers import (
     CALL_TELEMETRY_FIELDS,
+    GRADING_REVIEW_EVENT_FIELDS,
     TASK_RUBRIC_REVIEW_EVENT_FIELDS,
     _parse_iso,
 )
@@ -1775,6 +1777,7 @@ class _FullImportContext:
         "active_rubric_tasks",
         "rubric_review_required",
         "rubric_review_events",
+        "grading_review_events",
         "active_annotation_keys",
         "skipped_annotations",
         "stub_users_created",
@@ -1838,6 +1841,8 @@ class _FullImportContext:
         self.rubric_review_required = False
         # Imported task_rubric_review_events rows.
         self.rubric_review_events = 0
+        # Imported grading_review_events rows.
+        self.grading_review_events = 0
         self.user_email_to_id: Dict[str, str] = {}
         # Old->new user ids that matched a REAL user of this deployment by
         # email. `id_mappings["users"]` cannot answer that question: its
@@ -2447,6 +2452,39 @@ def _insert_task_rubric_review_event(ctx: _FullImportContext, data: dict) -> Non
     if review_event is not None:
         ctx.db.add(review_event)
         ctx.rubric_review_events += 1
+
+
+def _insert_grading_review_event(ctx: _FullImportContext, data: dict) -> None:
+    """Import one entry of the gradings' review history (comprehensive or
+    NDJSON format; after the gradings, whose id mapping it reads). Fresh id;
+    the task must have come along, the grading and the submission are
+    pointed at their imported rows (NULL when they did not come along, as
+    after their deletion). The person follows ``matched_user_ids`` (the same
+    account, the same person by email, or their own placeholder), else
+    NULL: a review is never attributed to whoever runs the import. The JSON
+    columns round-trip as exported."""
+    if not isinstance(data, dict):
+        return
+    task_id = ctx.id_mappings["tasks"].get(data.get("task_id"))
+    event = data.get("event")
+    if not task_id or not isinstance(event, str) or not event:
+        return
+    values = {field: data.get(field) for field in GRADING_REVIEW_EVENT_FIELDS}
+    ctx.db.add(
+        GradingReviewEvent(
+            **values,
+            id=str(uuid.uuid4()),
+            project_id=ctx.new_project_id,
+            task_id=task_id,
+            task_evaluation_id=ctx.id_mappings["task_evaluations"].get(
+                data.get("task_evaluation_id")
+            ),
+            annotation_id=ctx.id_mappings["annotations"].get(data.get("annotation_id")),
+            actor_id=ctx.matched_user_ids.get(data.get("actor_id")),
+            **_timestamps(data, "created_at"),
+        )
+    )
+    ctx.grading_review_events += 1
 
 
 def _insert_annotation(ctx: _FullImportContext, annotation_data: dict) -> None:
@@ -3817,6 +3855,7 @@ def _build_full_import_stats(
             "grading_feedback": len(ctx.grading_feedback_seen),
             "task_rubrics": len(ctx.id_mappings["task_rubrics"]),
             "task_rubric_review_events": ctx.rubric_review_events,
+            "grading_review_events": ctx.grading_review_events,
         },
         # Rows the payload carried that could NOT be stored. The job still
         # completes, so the client has to say so: a project imported on a
@@ -3864,6 +3903,7 @@ _NDJSON_INSERT_DISPATCH = {
     "evaluation_metric": _insert_evaluation_metric,
     "evaluation_judge_run": _insert_evaluation_judge_run,
     "task_evaluation": _insert_task_evaluation,
+    "grading_review_event": _insert_grading_review_event,
     "human_evaluation_config": _insert_human_evaluation_config,
     "human_evaluation_session": _insert_human_evaluation_session,
     "human_evaluation_result": _insert_human_evaluation_result,
@@ -4334,6 +4374,11 @@ def run_full_project_import(
 
     for te_data in _stream_rows(db, fileobj, "task_evaluations.item"):
         _insert_task_evaluation(ctx, te_data)
+    # The gradings' review history, after them: it has no relationship()
+    # for the unit of work to order by, so their rows are flushed first.
+    db.flush()
+    for review_data in _stream_rows(db, fileobj, "grading_review_events.item"):
+        _insert_grading_review_event(ctx, review_data)
 
     for config_data in _stream_rows(db, fileobj, "human_evaluation_configs.item"):
         _insert_human_evaluation_config(ctx, config_data)

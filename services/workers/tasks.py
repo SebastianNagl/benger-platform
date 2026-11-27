@@ -2951,12 +2951,17 @@ def _run_grading_finalize_hook(evaluation_run_id: str, success: bool) -> None:
 
 def _stamp_immediate_grading_basis(task_evals, configs) -> None:
     """Record on each row of an immediate grading the grading scheme its
-    config graded it on (``grading_basis.stamp_grading_basis``).
+    config graded it on and, for a config that holds its grading on submit
+    (``auto_release: false``), the held draft review
+    (``grading_basis.stamp_grading_basis(..., on_submit=True)``).
 
-    The config jobs write their rows in their own sessions, some through an
-    extension package's writer, so the stamp is applied here once they are
-    all in; the caller commits. Never raises: a missing stamp only makes the
-    row count as current until the next grading.
+    Each config job already stores the held draft with its own row
+    (``evaluation.orchestration``); this is the final pass over the run's
+    rows once they are all in, and the failure handlers apply it to the rows
+    committed before a run failed (:func:`_hold_committed_gradings`). A row
+    that already has a review keeps it. Never raises: a missing fingerprint
+    only makes the row count as current until the next grading; a failed
+    stamp is logged as an error.
     """
     try:
         from sqlalchemy.orm.attributes import flag_modified
@@ -2968,12 +2973,33 @@ def _stamp_immediate_grading_basis(task_evals, configs) -> None:
             config = by_id.get(str(row.evaluation_config_id))
             if config is None:
                 continue
-            stamped = stamp_grading_basis(row.metrics, config)
+            stamped = stamp_grading_basis(row.metrics, config, on_submit=True)
             if stamped is not row.metrics:
                 row.metrics = stamped
                 flag_modified(row, "metrics")
     except Exception as stamp_err:  # defensive: a stamp must not fail the grading
         logger.error(f"[SingleSampleEval] grading basis stamp failed: {stamp_err}")
+
+
+def _hold_committed_gradings(db, evaluation_run_id: str, configs) -> None:
+    """Apply :func:`_stamp_immediate_grading_basis` to the rows a failed run
+    already committed and commit it, so a held grading stays a draft."""
+    try:
+        from models import TaskEvaluation
+
+        rows = (
+            db.query(TaskEvaluation)
+            .filter(TaskEvaluation.evaluation_id == evaluation_run_id)
+            .all()
+        )
+        _stamp_immediate_grading_basis(rows, configs)
+        db.commit()
+    except Exception as hold_err:
+        logger.error(
+            f"[SingleSampleEval] held drafts of failed run {evaluation_run_id} "
+            f"not stored: {hold_err}"
+        )
+        db.rollback()
 
 
 def _notify_immediate_grading_received(
@@ -3742,6 +3768,7 @@ def run_single_sample_evaluation(
             evaluation_record_id,
         )
         db.rollback()
+        _hold_committed_gradings(db, evaluation_record_id, evaluation_configs)
         _mark_immediate_run_failed(
             db, evaluation_record_id, "Evaluation timed out"
         )
@@ -3750,6 +3777,7 @@ def run_single_sample_evaluation(
     except Exception as e:
         logger.error(f"[SingleSampleEval] Task failed: {e}")
         db.rollback()
+        _hold_committed_gradings(db, evaluation_record_id, evaluation_configs)
         _mark_immediate_run_failed(db, evaluation_record_id, str(e))
         _run_grading_finalize_hook(evaluation_record_id, False)
         return {"status": "error", "message": str(e)}

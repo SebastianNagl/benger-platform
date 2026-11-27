@@ -48,6 +48,26 @@ generation has nobody to release it to and keeps no review.
 ``metric_filters.row_awaits_release`` keeps the grading notices from
 announcing such a draft.
 
+Held gradings (core 2.92): a config whose ``metric_parameters`` say
+``auto_release: false`` holds the AI grading of a submission for a
+teacher, on submit and in batch runs. Each row of a submitted answer of
+such a config that did not fail is written as a draft
+(``details.review = {"status": "draft", "reason": "held"}``,
+:func:`held_review`). On submit, the immediate-eval worker's platform
+writers store it in the commit that writes the row, an overlay writer's
+row gets it right after the writer returns, and a failed run's committed
+rows get it before the run is marked failed. A batch run stamps its row
+dicts before the cell writes them (:func:`stamp_rows`); a re-grade run
+writes its re-grade draft instead, and a model generation's row is never
+held, there is nobody to release it to. A batch run over an answer that
+already has a released grading writes a held draft next to it, which
+readers skip until a teacher releases it. :func:`holds_first_grading`
+tells an overlay writer whose config holds, so it can store the draft in
+its own commit. A row whose writer already stored a review (an overlay judge that
+holds or releases by itself) keeps it. A config without the key, or with
+``auto_release: true``, releases as before. The rule is the same
+for every method: the platform knows no judge-specific release policy.
+
 Sync ``Session`` code over the shared models; the api runs it in the
 threadpool or through ``run_sync``.
 """
@@ -67,6 +87,11 @@ FINGERPRINT_KEY = "scheme_fingerprint"
 REVIEW_KEY = "review"
 REVIEW_DRAFT = "draft"
 REGRADE_REASON = "regrade"
+#: ``review.reason`` of a grading on submit its config holds for a teacher.
+HELD_REASON = "held"
+#: The ``metric_parameters`` key that says whether a config releases its
+#: grading on submit to the student by itself (absent: it does).
+AUTO_RELEASE_KEY = "auto_release"
 
 #: Why a row is outdated (:func:`outdated_reason`).
 REASON_SHEET = "sheet"
@@ -226,14 +251,35 @@ def regrade_review() -> Dict[str, Any]:
     return {"status": REVIEW_DRAFT, "reason": REGRADE_REASON}
 
 
+def held_review() -> Dict[str, Any]:
+    """The review a held grading on submit starts with: an unreviewed draft
+    (:func:`holds_first_grading`)."""
+    return {"status": REVIEW_DRAFT, "reason": HELD_REASON}
+
+
+def holds_first_grading(config: Any) -> bool:
+    """Whether ``config`` holds its grading on submit for a teacher: its
+    ``metric_parameters`` set ``auto_release`` to exactly ``False``. A
+    config without the key releases on submit, as every config did before
+    core 2.92. A method a person grades has no grading on submit."""
+    if not isinstance(config, Mapping) or is_human_method(config.get("metric")):
+        return False
+    params = config.get("metric_parameters")
+    return isinstance(params, Mapping) and params.get(AUTO_RELEASE_KEY) is False
+
+
 def stamp_grading_basis(
-    metrics: Any, config: Any, *, regrade: bool = False
+    metrics: Any, config: Any, *, regrade: bool = False, on_submit: bool = False
 ) -> Any:
     """``metrics`` with the config's fingerprint stamped into the details of
-    its metric and, for ``regrade``, the draft review on a result that did
-    not fail. Returns ``metrics`` itself when there is nothing to stamp (a
-    method without a scheme outside a re-grade, a row that holds no result
-    of the config's metric); otherwise a copy, the input is never changed.
+    its metric and the draft review on a result that did not fail: for
+    ``regrade`` always (:func:`regrade_review`), for ``on_submit`` (an AI
+    grading of a submitted answer, on submit or in a batch run) when the
+    config holds it (:func:`holds_first_grading`,
+    :func:`held_review`) and the writer stored no review of its own. Returns
+    ``metrics`` itself when there is nothing to stamp (a method without a
+    scheme and no draft, a row that holds no result of the config's
+    metric); otherwise a copy, the input is never changed.
     """
     if not isinstance(metrics, Mapping) or not isinstance(config, Mapping):
         return metrics
@@ -245,8 +291,17 @@ def stamp_grading_basis(
     # A failed result (an error blob, or a flat row without a score) holds
     # nothing to release.
     failed = blob is None or (isinstance(blob, Mapping) and bool(blob.get("error")))
-    draft = regrade and not failed
-    if fingerprint is None and not draft:
+    draft: Optional[Dict[str, Any]] = None
+    if regrade and not failed:
+        draft = regrade_review()
+    elif (
+        on_submit
+        and not failed
+        and holds_first_grading(config)
+        and not isinstance((metric_details(metrics, metric) or {}).get(REVIEW_KEY), Mapping)
+    ):
+        draft = held_review()
+    if fingerprint is None and draft is None:
         return metrics
     out = dict(metrics)
     if isinstance(blob, Mapping):
@@ -257,8 +312,8 @@ def stamp_grading_basis(
         details = dict(sibling) if isinstance(sibling, Mapping) else {}
     if fingerprint is not None:
         details[FINGERPRINT_KEY] = fingerprint
-    if draft:
-        details[REVIEW_KEY] = regrade_review()
+    if draft is not None:
+        details[REVIEW_KEY] = draft
     if isinstance(blob, dict):
         blob["details"] = details
         out[metric] = blob
@@ -272,14 +327,17 @@ def stamp_rows(
 ) -> None:
     """Stamp the bulk row dicts of one cell in place (``metrics`` of each
     row, by its ``evaluation_config_id``). Only rows of a submitted answer
-    become re-grade drafts."""
+    become drafts: re-grade drafts in a re-grade run, held drafts of a
+    config that holds its AI grading (:func:`holds_first_grading`)
+    otherwise."""
     by_id = {str(c.get("id")): c for c in configs or () if isinstance(c, Mapping) and c.get("id")}
     for row in rows or ():
         config = by_id.get(str(row.get("evaluation_config_id")))
         if config is None:
             continue
+        answer = bool(row.get("annotation_id"))
         row["metrics"] = stamp_grading_basis(
-            row.get("metrics"), config, regrade=regrade and bool(row.get("annotation_id"))
+            row.get("metrics"), config, regrade=regrade and answer, on_submit=answer
         )
 
 
@@ -608,8 +666,10 @@ def outdated_gradings_summary(db, project) -> Dict[str, Any]:
 __all__ = [
     "BasisRow",
     "ConfigBasis",
+    "AUTO_RELEASE_KEY",
     "FINGERPRINT_KEY",
     "GradingBasisSpec",
+    "HELD_REASON",
     "JUDGE_SCHEME_KEYS",
     "REASONS",
     "REASON_SCHEME",
@@ -621,6 +681,8 @@ __all__ = [
     "config_is_tracked",
     "details_key",
     "grading_basis_by_config",
+    "held_review",
+    "holds_first_grading",
     "is_human_method",
     "metric_details",
     "outdated_gradings_summary",
