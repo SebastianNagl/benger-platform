@@ -249,7 +249,9 @@ class TestExtensionLoader:
         # 2.93 adds BeforeTaskQuestionnaireError, the before-task phase
         # 'error' with retry and recheck, and the TimerIntegration prop
         # onBeforeTaskQuestionnairePending.
-        assert CORE_API_VERSION == "2.93"
+        # 2.94 adds the MetricEditorProps hooks onDraftChange and
+        # onSaveTransform.
+        assert CORE_API_VERSION == "2.94"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
