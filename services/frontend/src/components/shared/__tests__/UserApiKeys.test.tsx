@@ -1442,8 +1442,11 @@ describe('UserApiKeys Component', () => {
           available_providers: ['openai'],
         })
       })
+      // Held open until the assertions ran: a timer-resolved promise could
+      // settle before the busy state was found on a loaded machine.
+      let settle: (value?: unknown) => void = () => {}
       mockApiClient.setUserApiKey.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100)),
+        () => new Promise((resolve) => (settle = resolve)),
       )
 
       render(<UserApiKeys />)
@@ -1464,6 +1467,10 @@ describe('UserApiKeys Component', () => {
       const savingButton = await screen.findByText('Saving...')
       expect(savingButton).toBeInTheDocument()
       expect(savingButton).toBeDisabled()
+
+      await act(async () => {
+        settle()
+      })
     })
 
     it('disables buttons during remove operation', async () => {
@@ -1515,8 +1522,11 @@ describe('UserApiKeys Component', () => {
         },
         available_providers: ['openai'],
       })
+      // Held open until the assertions ran: a timer-resolved promise could
+      // settle before the busy state was found on a loaded machine.
+      let settle: (value?: unknown) => void = () => {}
       mockApiClient.testUserApiKey.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100)),
+        () => new Promise((resolve) => (settle = resolve)),
       )
 
       render(<UserApiKeys />)
@@ -1537,6 +1547,10 @@ describe('UserApiKeys Component', () => {
       const testingButton = await screen.findByText('Testing...')
       expect(testingButton).toBeInTheDocument()
       expect(testingButton).toBeDisabled()
+
+      await act(async () => {
+        settle()
+      })
     })
 
     it('handles very long API keys', async () => {
