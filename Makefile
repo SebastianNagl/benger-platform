@@ -663,19 +663,6 @@ build-prod: ## Build production images
 	@docker build -t benger-workers:latest $(WORKERS_DIR)
 	@echo "$(GREEN)✅ Production build complete$(NC)"
 
-.PHONY: deploy-staging
-deploy-staging: ## Deploy to staging environment
-	@echo "$(BLUE)🚀 Deploying to staging...$(NC)"
-	@./scripts/deployment/deploy-benger.sh staging
-	@echo "$(GREEN)✅ Staging deployment complete$(NC)"
-
-.PHONY: deploy-prod
-deploy-prod: ## Deploy to production
-	@echo "$(RED)🚀 Deploying to PRODUCTION...$(NC)"
-	@read -p "Are you sure you want to deploy to production? (y/N): " confirm && [ "$$confirm" = "y" ] || exit 1
-	@./scripts/deployment/deploy-benger.sh production
-	@echo "$(GREEN)✅ Production deployment complete$(NC)"
-
 # ==================== MONITORING & LOGS ====================
 
 .PHONY: logs

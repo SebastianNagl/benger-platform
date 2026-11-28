@@ -56,8 +56,8 @@ npm test --prefix services/frontend
 cd services/api && alembic upgrade head  # Run migrations
 cd services/api && alembic revision -m "description"  # Create migration
 
-# Production deployment
-./scripts/deployment/deploy-benger.sh
+# Production deployment: Helm chart, see infra/helm/benger/README.md
+helm upgrade --install benger ./infra/helm/benger --namespace benger
 ```
 
 ### Key Endpoints

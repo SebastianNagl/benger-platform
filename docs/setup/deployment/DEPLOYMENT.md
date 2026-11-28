@@ -143,8 +143,8 @@ sudo cp infra/k3s/traefik-config.yaml /var/lib/rancher/k3s/server/manifests/trae
 # 1. Server setup (one-time)
 ./scripts/server-setup.sh
 
-# 2. Deploy BenGER application
-./scripts/deploy-benger.sh
+# 2. Deploy BenGER application (Helm, see "Deploy BenGER" below)
+helm upgrade --install benger ./infra/helm/benger --namespace benger --create-namespace
 
 # 3. Setup CI/CD (optional but recommended)
 ./scripts/setup-github-cicd.sh

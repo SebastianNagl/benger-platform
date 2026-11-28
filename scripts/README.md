@@ -12,7 +12,6 @@ Essential testing and code quality scripts for development:
 
 ### `deployment/`
 Production deployment and infrastructure setup:
-- **`deploy-benger.sh`** - Main production deployment script (Kubernetes with Helm)
 - **`server-setup.sh`** - Initial server setup (k3s, Docker, kubectl, Helm)
 - **`validate-deployment.sh`** - Comprehensive deployment validation with multiple test types
 - **`setup-github-cicd.sh`** - GitHub Actions setup helper with SSH keys and secrets
@@ -49,8 +48,8 @@ System service definitions and core configurations:
 # Initial server setup
 ./deployment/server-setup.sh
 
-# Deploy to production
-./deployment/deploy-benger.sh
+# Deploy to production: Helm chart, see infra/helm/benger/README.md
+helm upgrade --install benger ./infra/helm/benger --namespace benger
 
 # Validate deployment
 ./deployment/validate-deployment.sh
