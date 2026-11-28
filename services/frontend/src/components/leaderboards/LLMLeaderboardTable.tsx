@@ -22,11 +22,13 @@ import { useProjects } from '@/hooks/useProjects'
 import {
   AvailableMetric,
   formatValueForScale,
+  getActiveMetricDefinitions,
   getMetricDefinitions,
   getMetricScale,
   getMetricSummable,
 } from '@/lib/api/evaluation-types'
 import type { LLMLeaderboardEntry } from '@/lib/api/leaderboards'
+import { useActiveExtensions } from '@/lib/featureFlags'
 import { intlTag } from '@/lib/i18n/locales'
 import { CheckIcon, ChevronDownIcon } from '@heroicons/react/20/solid'
 import {
@@ -47,12 +49,15 @@ const TIME_PERIOD_KEYS: { value: TimePeriod; key: string }[] = [
   { value: 'weekly', key: 'leaderboards.thisWeek' },
 ]
 
-// Always-shown ranking metrics. Extended on each render with whatever the
-// backend reports in `available_metrics` for the current project, intersected
-// with the metric registry so junk keys like *_response / *_passed never
-// appear in the dropdown. Notenpunkte sits in this list because it's the
-// default ranking metric in prod (German legal grading) — mirrors the human
-// and co-creation leaderboards which also default to grade points.
+// Always-shown ranking metrics, in order of preference for the landing
+// metric, each only while its owner is active (Notenpunkte is an overlay
+// metric: without that overlay no run produces it, and opening on it showed
+// an all n/a table). Extended on each render with whatever the backend
+// reports in `available_metrics` for the current project, intersected with
+// the metric registry so junk keys like *_response / *_passed never appear
+// in the dropdown. Notenpunkte comes first because it's the default ranking
+// metric in prod (German legal grading) — mirrors the human and co-creation
+// leaderboards which also default to grade points.
 //
 // `average` used to live here as a cross-metric mean, but pooling values
 // from incompatible scales (0–1 bleu, 0–18 Notenpunkte, 0–100 korrektur)
@@ -106,10 +111,12 @@ export function LLMLeaderboardTable() {
   // Clicking a row opens the per-project score view for that model.
   const [selectedModel, setSelectedModel] =
     useState<ModelDetailModalModel | null>(null)
-  // Default to Notenpunkte (Falllösung) so the LLM leaderboard opens on the
-  // same scoring axis as the human + co-creation leaderboards. Models
-  // without judge results just show n/a and sort to the bottom.
-  const [metric, setMetric] = useState('llm_judge_falloesung_grade_points')
+  // The metric the user picked; until then (or while it is not on offer)
+  // the leaderboard ranks by the first option (see metricOptions).
+  const [chosenMetric, setMetric] = useState<string | null>(null)
+  // Re-render (and re-derive the options) when an overlay turns active or
+  // inactive.
+  useActiveExtensions()
   const [aggregation, setAggregation] = useState<'average' | 'sum'>('average')
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([])
   const [selectedEvaluationTypes, setSelectedEvaluationTypes] = useState<
@@ -138,6 +145,33 @@ export function LLMLeaderboardTable() {
   useEffect(() => {
     fetchProjects()
   }, [fetchProjects])
+
+  // Dropdown options: the core ranking metrics whose owner is active plus
+  // any additional registered metric reported by the backend for this
+  // project (so e.g. korrektur_falloesung shows up automatically when
+  // present). The reported metrics come with the data, which is fetched for
+  // the selected metric, so they are kept in state rather than derived from
+  // the query below.
+  const [availableMetrics, setAvailableMetrics] = useState<string[]>([])
+  const metricOptions = (() => {
+    const defs = getMetricDefinitions()
+    const active = getActiveMetricDefinitions()
+    const core = CORE_METRICS.filter((value) => value in active).map(
+      (value) => ({ value, label: getMetricLabel(value, t, defs) }),
+    )
+    const seen = new Set<string>(core.map((o) => o.value))
+    const extra = availableMetrics
+      .filter((m) => !seen.has(m) && defs[m])
+      .map((m) => ({ value: m, label: getMetricLabel(m, t, defs) }))
+    return [...core, ...extra]
+  })()
+
+  // The selected metric: the user's pick while it is on offer, else the
+  // first option (Notenpunkte while its overlay is active, else accuracy).
+  const metric =
+    chosenMetric && metricOptions.some((o) => o.value === chosenMetric)
+      ? chosenMetric
+      : (metricOptions[0]?.value ?? 'accuracy')
 
   // Server state via TanStack Query: caches per (filter, page) tuple,
   // dedupes overlapping mounts, keeps the previous page visible during
@@ -189,7 +223,13 @@ export function LLMLeaderboardTable() {
   })
 
   const leaderboard = leaderboardQuery.data?.leaderboard ?? []
-  const availableMetrics = leaderboardQuery.data?.available_metrics ?? []
+  const reportedMetrics = leaderboardQuery.data?.available_metrics
+  useEffect(() => {
+    if (reportedMetrics) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAvailableMetrics(reportedMetrics)
+    }
+  }, [reportedMetrics])
   const availableEvaluationTypes =
     leaderboardQuery.data?.available_evaluation_types ?? []
   const totalItems = leaderboardQuery.data?.total_models ?? 0
@@ -293,39 +333,6 @@ export function LLMLeaderboardTable() {
   const getDisplayScore = (entry: LLMLeaderboardEntry): number | null => {
     return entry.metrics[metric] ?? null
   }
-
-  // Dropdown options: the core ranking metrics (always visible) plus any
-  // additional registered metric reported by the backend for this project
-  // (so e.g. korrektur_falloesung shows up automatically when present).
-  const metricOptions = useMemo(() => {
-    const defs = getMetricDefinitions()
-    const core = CORE_METRICS.map((value) => ({
-      value,
-      label: getMetricLabel(value, t, defs),
-    }))
-    const seen = new Set<string>(CORE_METRICS)
-    const extra = (availableMetrics ?? [])
-      .filter((m) => !seen.has(m) && defs[m])
-      .map((m) => ({ value: m, label: getMetricLabel(m, t, defs) }))
-    return [...core, ...extra]
-  }, [availableMetrics, t])
-
-  // If the selected metric is no longer in the option list (e.g. the user
-  // switched filters and the data dropped it), fall back to the first
-  // available option. The historical fallback was 'average' but that
-  // metric was removed in PR #116; default to Notenpunkte (the leaderboard's
-  // landing metric) if it's still on offer, otherwise the first option.
-  useEffect(() => {
-    if (metricOptions.length === 0) return
-    if (!metricOptions.some((o) => o.value === metric)) {
-      const fallback =
-        metricOptions.find(
-          (o) => o.value === 'llm_judge_falloesung_grade_points',
-        ) ?? metricOptions[0]
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setMetric(fallback.value)
-    }
-  }, [metricOptions, metric])
 
   // If the user has Sum selected and switches to a non-summable metric,
   // snap back to Average so the displayed numbers don't become nonsense
