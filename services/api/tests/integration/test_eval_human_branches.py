@@ -912,9 +912,8 @@ class TestDeleteSession:
     async def test_owner_can_delete_own_session(self, async_test_client, async_test_db):
         """A non-superadmin session owner can delete their own session (the
         ``evaluator_id == current_user.id`` arm of the permission check)."""
-        owner = await _make_user(async_test_db)
         actor = await _make_user(async_test_db, is_superadmin=False)
-        p, _ = await _setup_project(async_test_db, owner)
+        p, _ = await _setup_project(async_test_db, actor)
         # Session owned by the (non-superadmin) actor; the actor deletes it.
         s = await _make_session(async_test_db, p, actor.id)
         await async_test_db.commit()
