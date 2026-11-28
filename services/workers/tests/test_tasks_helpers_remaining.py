@@ -561,7 +561,16 @@ class TestRunSingleSampleEvaluationCreatePath:
 
     def test_outer_exception_rolls_back_and_returns_error(self):
         """A failure inside the body (here: the Project snapshot query blowing
-        up) lands in the outer except → rollback + error dict (3858-3861)."""
+        up) lands in the outer except: rollback first, then the failure
+        handlers, then the error dict.
+
+        Every query on this session raises, so each handler fails too. The
+        held-draft step (_hold_committed_gradings) rolls back after its own
+        failure so the mark-failed step gets a usable session; the mark-failed
+        step only logs (it never rolls back, see
+        TestMarkImmediateRunFailed). The run being flipped to failed when the
+        session still works is covered by
+        test_generic_failure_also_marks_the_run_failed."""
         db = MagicMock()
         db.query.side_effect = RuntimeError("snapshot query exploded")
 
@@ -583,8 +592,15 @@ class TestRunSingleSampleEvaluationCreatePath:
 
         assert result["status"] == "error"
         assert "snapshot query exploded" in result["message"]
-        db.rollback.assert_called_once()
-        db.close.assert_called_once()
+        assert [name for name, _args, _kwargs in db.method_calls] == [
+            "query",  # the Project snapshot: raises
+            "rollback",  # the outer except, before any handler
+            "query",  # _hold_committed_gradings: raises
+            "rollback",  # its own recovery
+            "query",  # _mark_immediate_run_failed: raises, logged only
+            "close",
+        ]
+        db.commit.assert_not_called()
 
 
 # ===========================================================================
