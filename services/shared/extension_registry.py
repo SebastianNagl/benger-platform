@@ -443,6 +443,34 @@ def worker_attrs(attr: str) -> List[Tuple[str, Any]]:
     return found
 
 
+def inactive_worker_attrs(attr: str) -> List[Tuple[str, Any]]:
+    """``[(package_name, value)]`` of ``<package>.workers.<attr>`` for every
+    configured package that has it but is NOT active for the attribute's
+    gating class in the current task context: the providers
+    :func:`worker_attrs` leaves out. Packages the handshake or the dependency
+    check refused are skipped here too.
+
+    For a caller that must tell "no package provides this" apart from "the
+    package that provides it is switched off for this task" (the latter
+    records ``feature_disabled`` instead of falling back to platform code).
+    """
+    gating = worker_attr_gating(attr)
+    found: List[Tuple[str, Any]] = []
+    for name in configured_names():
+        if _skipped_lazily(name):
+            continue
+        workers = worker_module(name)
+        if workers is None:
+            continue
+        value = getattr(workers, attr, None)
+        if value is None:
+            continue
+        if _package_active(name, gating):
+            continue
+        found.append((name, value))
+    return found
+
+
 def first_worker_attr(attr: str, *, call: bool = False) -> Any:
     """The first package's ``<package>.workers.<attr>`` (``None`` when none
     has it), called when ``call`` is set. Several providers log a warning:
@@ -496,6 +524,7 @@ __all__ = [
     "describe_owner",
     "extension_api_version",
     "first_worker_attr",
+    "inactive_worker_attrs",
     "is_loaded",
     "is_required",
     "load_all",

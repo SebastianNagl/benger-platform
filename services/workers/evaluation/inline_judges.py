@@ -8,7 +8,10 @@ in here instead. An overlay exposes::
     <package>.workers.get_inline_judge(metric) -> InlineJudge | None
 
 (looked up through ``extension_registry``, gating class gated, so it only
-answers while the package is active for the task)
+answers while the package is active for the task; while the package that
+answers for a metric is off for the task, the cell records the
+``feature_disabled`` result instead of running the generic judge, see
+:func:`inactive_inline_judge_owner`)
 
 where an ``InlineJudge`` provides
 
@@ -67,6 +70,59 @@ def resolve_inline_judge(metric: str) -> Optional[Any]:
             "inline judge lookup failed for %s", metric
         )
         return None
+
+
+def inactive_inline_judge_owner(metric: str) -> Optional[str]:
+    """The package whose inline judge answers for ``metric`` while that
+    package is switched off for the task, or None.
+
+    :func:`resolve_inline_judge` returns None both when no package judges the
+    metric (it takes the generic judge path) and when the package that does
+    is inactive. In the second case the generic path would make a paid judge
+    call with a prompt the metric was never meant for and store a junk score;
+    the caller records ``feature_disabled_result(owner)`` instead, as the
+    registered metric handlers do.
+    """
+    if not metric or metric == "llm_judge_falloesung":
+        return None
+    import extension_registry
+
+    for package, get_inline_judge in extension_registry.inactive_worker_attrs(
+        "get_inline_judge"
+    ):
+        try:
+            if get_inline_judge(metric) is not None:
+                return package
+        except Exception:  # pragma: no cover - a broken overlay must not stop grading
+            import logging
+
+            logging.getLogger(__name__).exception(
+                "inline judge lookup failed for %s", metric
+            )
+    return None
+
+
+def feature_disabled_metrics(metric: str, package: str) -> Dict[str, Any]:
+    """The ``metrics`` of the row a cell writes for ``metric`` while its
+    owning ``package`` is inactive for the task."""
+    import extension_activation
+
+    result = extension_activation.feature_disabled_result(package)
+    result["method"] = metric
+    return {metric: result}
+
+
+def feature_disabled_row(row: Dict[str, Any], metric: str, package: str) -> Dict[str, Any]:
+    """The full ``TaskEvaluation`` row dict of a bulk cell for ``metric``
+    while its owning ``package`` is inactive (``row`` carries the context)."""
+    import extension_activation
+
+    return {
+        **row,
+        "metrics": feature_disabled_metrics(metric, package),
+        "passed": False,
+        "error_message": str(extension_activation.ExtensionInactive(package)),
+    }
 
 
 def accepts_keyword(fn: Any, name: str) -> bool:

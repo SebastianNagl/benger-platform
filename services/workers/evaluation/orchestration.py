@@ -17,7 +17,13 @@ from typing import Any, Dict, Optional
 
 import tasks
 from grading_basis import holds_first_grading, stamp_grading_basis
-from evaluation.inline_judges import accepts_keyword, resolve_inline_judge
+from evaluation.inline_judges import (
+    accepts_keyword,
+    feature_disabled_metrics,
+    inactive_inline_judge_owner,
+    resolve_inline_judge,
+)
+from extension_activation import ExtensionInactive
 from task_rubric_resolution import NoUsableRubricError, is_rubric_judge
 
 
@@ -195,6 +201,13 @@ def _run_immediate_config_job_impl(
             _hold_written_row(db, record_id, submit_config)
             return outcome
 
+        elif (disabled_owner := inactive_inline_judge_owner(metric_type)) is not None:
+            # The package that judges this metric is off for the task: refuse
+            # (a feature_disabled row below) instead of a generic judge call.
+            import extension_activation
+
+            raise extension_activation.ExtensionInactive(disabled_owner)
+
         elif metric_type.startswith("llm_judge_"):
             # Other LLM judge metrics — LLMJudgeEvaluator persists its own row.
             return tasks._evaluate_llm_judge_single(
@@ -333,21 +346,26 @@ def _run_immediate_config_job_impl(
                         answer_type="text",
                         ground_truth=str(reference_value) if reference_value else "",
                         prediction=str(prediction_value) if prediction_value else "",
-                        metrics={
-                            metric_type: {
-                                "value": None,
-                                "method": metric_type,
-                                "details": {},
-                                "error": str(e),
-                                # A stable reason for readers that must not
-                                # show the developer text (participants).
-                                **(
-                                    {"error_code": e.code}
-                                    if isinstance(e, NoUsableRubricError)
-                                    else {}
-                                ),
+                        metrics=(
+                            feature_disabled_metrics(metric_type, e.package)
+                            if isinstance(e, ExtensionInactive)
+                            else {
+                                metric_type: {
+                                    "value": None,
+                                    "method": metric_type,
+                                    "details": {},
+                                    "error": str(e),
+                                    # A stable reason for readers that must
+                                    # not show the developer text
+                                    # (participants).
+                                    **(
+                                        {"error_code": e.code}
+                                        if isinstance(e, NoUsableRubricError)
+                                        else {}
+                                    ),
+                                }
                             }
-                        },
+                        ),
                         error_message=str(e),
                         passed=False,
                     )

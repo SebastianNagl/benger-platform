@@ -160,6 +160,57 @@ def test_generation_cell_writes_score_less_feedback_rows(
     assert row.metrics["llm_judge_feedback"]["value"] is None
 
 
+@pytest.fixture()
+def switched_off_overlay(monkeypatch):
+    """The package that judges llm_judge_feedback is off for the task."""
+    monkeypatch.setenv("E2E_TEST_MODE", "true")
+    monkeypatch.setattr(
+        tasks.user_aware_ai_service, "get_ai_service_for_user", lambda *a, **k: None
+    )
+    import evaluation.cell_evaluator as cell_evaluator
+
+    monkeypatch.setattr(cell_evaluator, "resolve_inline_judge", lambda metric: None)
+    monkeypatch.setattr(
+        cell_evaluator,
+        "inactive_inline_judge_owner",
+        lambda metric: "benger_extended" if metric == "llm_judge_feedback" else None,
+        raising=False,
+    )
+
+
+@pytest.mark.parametrize("pred_field", ["human:loesung", "__all_model__"])
+def test_a_switched_off_owner_writes_the_feature_disabled_row(
+    pred_field, db_conn, make_user, make_llm_model, make_project, make_task,
+    make_annotation, make_generation, make_evaluation_run, switched_off_overlay,
+):
+    user = make_user()
+    make_llm_model(model_id="gpt-4o", provider="OpenAI")
+    model = make_llm_model(provider="OpenAI")
+    project = make_project(created_by=user.id)
+    task = make_task(project.id, {"musterloesung": "reference text"}, created_by=user.id)
+    make_annotation(
+        project.id, task.id, completed_by=user.id,
+        result=[{"from_name": "loesung", "type": "textarea", "value": {"text": "answer text"}}],
+    )
+    make_generation(project.id, task.id, model.id, user.id, response_content="model answer")
+    run = make_evaluation_run(project.id, user.id, status="pending")
+    db_conn.commit()
+
+    tasks.run_evaluation(
+        evaluation_id=run.id, project_id=project.id,
+        evaluation_configs=[_config(pred_field)],
+    )
+    db_conn.expire_all()
+    [row] = db_conn.query(TaskEvaluation).filter(TaskEvaluation.evaluation_id == run.id).all()
+    blob = row.metrics["llm_judge_feedback"]
+    # No generic judge ran: no score, the switched-off package named.
+    assert blob["value"] is None
+    assert blob["error"] == "feature_disabled"
+    assert blob["details"]["reason"] == "feature_disabled"
+    assert row.passed is False
+    assert row.judge_prompts_used is None
+
+
 def _sheet_config():
     config = _config("human:loesung")
     config["metric_parameters"] = {**config["metric_parameters"], "use_task_rubric": True}
