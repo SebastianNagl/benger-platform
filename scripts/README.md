@@ -48,8 +48,7 @@ System service definitions and core configurations:
 # Initial server setup
 ./deployment/server-setup.sh
 
-# Deploy to production: Helm chart, see infra/helm/benger/README.md
-helm upgrade --install benger ./infra/helm/benger --namespace benger
+# Deploy to production: runs from a separate private distribution repository, not from this one
 
 # Validate deployment
 ./deployment/validate-deployment.sh
