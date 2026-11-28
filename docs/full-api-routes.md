@@ -22,7 +22,7 @@ project (`any`) or only for its own projects (`bound`).
 | GET | `/api/admin/grading-feedback/export` | `admin:platform` | bound |
 | GET | `/api/admin/llm-models/catalog-version` | `admin:platform` | any |
 | POST | `/api/admin/llm-models/reseed` | `admin:platform` | any |
-| GET | `/api/admin/lti/events` | `org:read` | any |
+| GET | `/api/admin/lti/events` | `org:read` | bound |
 | GET | `/api/admin/lti/grade-syncs` | `org:read` | bound |
 | POST | `/api/admin/lti/grade-syncs/{grade_sync_id}/retry` | `org:manage` | bound |
 | GET | `/api/admin/lti/registrations` | `org:read` | any |
@@ -37,7 +37,7 @@ project (`any`) or only for its own projects (`bound`).
 | POST | `/api/admin/lti/registrations/{registration_id}/deployments` | `org:manage` | any |
 | DELETE | `/api/admin/lti/registrations/{registration_id}/deployments/{deployment_pk}` | `org:manage` | any |
 | PATCH | `/api/admin/lti/registrations/{registration_id}/deployments/{deployment_pk}` | `org:manage` | any |
-| GET | `/api/admin/lti/registrations/{registration_id}/events` | `org:read` | any |
+| GET | `/api/admin/lti/registrations/{registration_id}/events` | `org:read` | bound |
 | POST | `/api/admin/lti/registrations/{registration_id}/grade-syncs/resend-all` | `org:manage` | bound |
 | GET | `/api/admin/lti/registrations/{registration_id}/resource-links` | `org:read` | bound |
 | GET | `/api/admin/lti/registrations/{registration_id}/tool-config` | `org:read` | any |
@@ -136,7 +136,7 @@ project (`any`) or only for its own projects (`bound`).
 | POST | `/api/evaluations/export/{project_id}` | `exports:read`, `results:read`, `tasks:read_reference` | bound |
 | GET | `/api/evaluations/human/config/{project_id}` | `annotations:read` | bound |
 | POST | `/api/evaluations/human/likert` | `annotations:write` | bound |
-| GET | `/api/evaluations/human/next-item` | `annotations:read` | bound |
+| GET | `/api/evaluations/human/next-item` | `annotations:read`, `tasks:read_reference` | bound |
 | POST | `/api/evaluations/human/preference` | `annotations:write` | bound |
 | POST | `/api/evaluations/human/session/start` | `annotations:write` | bound |
 | DELETE | `/api/evaluations/human/session/{session_id}` | `annotations:write` | bound |
@@ -273,7 +273,7 @@ project (`any`) or only for its own projects (`bound`).
 | POST | `/api/organizations/{org_id}/storage-connections/test` | `org:manage` | any |
 | DELETE | `/api/organizations/{org_id}/storage-connections/{conn_id}` | `org:manage` | any |
 | PUT | `/api/organizations/{org_id}/storage-connections/{conn_id}` | `org:manage` | any |
-| GET | `/api/organizations/{org_id}/storage-connections/{conn_id}/objects` | `org:read` | any |
+| GET | `/api/organizations/{org_id}/storage-connections/{conn_id}/objects` | `org:read`, `files:read` | bound |
 | POST | `/api/organizations/{org_id}/storage-connections/{conn_id}/test` | `org:manage` | any |
 | DELETE | `/api/organizations/{organization_id}` | `org:manage` | any |
 | GET | `/api/organizations/{organization_id}` | `org:read` | any |

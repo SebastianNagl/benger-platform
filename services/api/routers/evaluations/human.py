@@ -92,6 +92,37 @@ class NextEvaluationItem(BaseModel):
     session_id: str
 
 
+# ============= Helpers =============
+
+
+async def _require_visible_session(
+    db: AsyncSession, user: User, session: Optional[HumanEvaluationSession], detail: str
+) -> HumanEvaluationSession:
+    """404 unless the session exists and its project is still visible to the
+    user: a session outlives the evaluator's access to its project, and its
+    tasks and progress are project data. (Deleting one's own session stays
+    possible.)"""
+    if session is None or not await check_project_accessible_async(
+        db, user, session.project_id
+    ):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+    return session
+
+
+async def _require_session_task(
+    db: AsyncSession, session: HumanEvaluationSession, task_id: str
+) -> None:
+    """A rating names a task of the session's own project."""
+    project_id = (
+        await db.execute(select(Task.project_id).where(Task.id == task_id))
+    ).scalar_one_or_none()
+    if project_id != session.project_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found in this session's project",
+        )
+
+
 # ============= Endpoints =============
 
 
@@ -190,13 +221,12 @@ async def get_next_evaluation_item(
                 HumanEvaluationSession.evaluator_id == current_user.id,
             )
         )
-        session = session_result.scalar_one_or_none()
-
-        if not session:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Session not found or unauthorized",
-            )
+        session = await _require_visible_session(
+            db,
+            current_user,
+            session_result.scalar_one_or_none(),
+            "Session not found or unauthorized",
+        )
 
         if session.status != "active":
             raise HTTPException(
@@ -302,13 +332,13 @@ async def submit_likert_rating(
                 HumanEvaluationSession.session_type == "likert",
             )
         )
-        session = session_result.scalar_one_or_none()
-
-        if not session:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Session not found or unauthorized",
-            )
+        session = await _require_visible_session(
+            db,
+            current_user,
+            session_result.scalar_one_or_none(),
+            "Session not found or unauthorized",
+        )
+        await _require_session_task(db, session, request.task_id)
 
         # Create Likert evaluations for each dimension
         for dimension, rating in request.ratings.items():
@@ -364,13 +394,13 @@ async def submit_preference_ranking(
                 HumanEvaluationSession.session_type == "preference",
             )
         )
-        session = session_result.scalar_one_or_none()
-
-        if not session:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Session not found or unauthorized",
-            )
+        session = await _require_visible_session(
+            db,
+            current_user,
+            session_result.scalar_one_or_none(),
+            "Session not found or unauthorized",
+        )
+        await _require_session_task(db, session, request.task_id)
 
         # Create preference ranking
         ranking = PreferenceRanking(
@@ -437,6 +467,7 @@ async def get_human_evaluation_progress(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to view this session",
             )
+        await _require_visible_session(db, current_user, session, "Session not found")
 
         # Calculate progress percentage
         progress_percentage = 0.0
