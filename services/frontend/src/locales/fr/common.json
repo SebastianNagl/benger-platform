@@ -2448,6 +2448,7 @@
     "passwordChangeFailed": "Impossible de modifier le mot de passe",
     "updateSuccess": "Profil mis à jour",
     "updateFailed": "Impossible de mettre à jour le profil",
+    "loadFailed": "Impossible de charger le profil",
     "passwordsDoNotMatch": "Les mots de passe ne correspondent pas",
     "accessKeys": "Accès API",
     "bundeslaender": {

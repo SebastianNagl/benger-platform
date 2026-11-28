@@ -17,7 +17,13 @@ from typing import Any, Dict, Optional
 
 import tasks
 from grading_basis import holds_first_grading, stamp_grading_basis
-from evaluation.inline_judges import accepts_keyword, resolve_inline_judge
+from evaluation.inline_judges import (
+    accepts_keyword,
+    feature_disabled_metrics,
+    inactive_inline_judge_owner,
+    resolve_inline_judge,
+)
+from extension_activation import ExtensionInactive
 from task_rubric_resolution import NoUsableRubricError, is_rubric_judge
 
 
@@ -56,6 +62,20 @@ def _hold_written_row(db, record_id: str, config: Dict[str, Any]) -> None:
             db.rollback()
         except Exception:
             pass
+
+
+_FALLOESUNG_MISSING = (
+    "Metric 'llm_judge_falloesung' requires the benger_extended package; it "
+    "is not installed (or was refused) in this worker. Configure the project "
+    "to use a different LLM-judge metric or load the extended edition."
+)
+
+
+def _falloesung_available() -> bool:
+    """Whether the overlay's Falllösung surface may run for this task."""
+    import extension_registry
+
+    return extension_registry.first_worker_attr("get_falloesung_compute_fn") is not None
 
 
 def _run_immediate_config_job_impl(
@@ -105,20 +125,13 @@ def _run_immediate_config_job_impl(
             # Community edition (no benger_extended) raises an informative
             # error rather than crashing.
             # Core 2.42: an inactive benger_extended (master flag off for
-            # this task's caller/project) refuses instead of grading.
-            import extension_activation
+            # this task's caller/project) refuses instead of grading; a
+            # package the registry refused is not used at all.
+            import extension_registry
 
-            extension_activation.ensure_active("benger_extended")
-            try:
-                from benger_extended.workers import get_falloesung_compute_fn
-            except ImportError as exc:
-                raise RuntimeError(
-                    "Metric 'llm_judge_falloesung' requires the benger_extended "
-                    "package; it is not installed in this worker. Configure the "
-                    "project to use a different LLM-judge metric or load the "
-                    "extended edition."
-                ) from exc
-            falloesung_fn = get_falloesung_compute_fn()
+            falloesung_fn = extension_registry.require_worker_attr(
+                "get_falloesung_compute_fn", missing=_FALLOESUNG_MISSING
+            )()
             # Older extended packages may not accept judge_run_id /
             # evaluation_config_id; introspect and pass only what's supported.
             fn_params = set(_inspect.signature(falloesung_fn).parameters.keys())
@@ -194,6 +207,13 @@ def _run_immediate_config_job_impl(
             )
             _hold_written_row(db, record_id, submit_config)
             return outcome
+
+        elif (disabled_owner := inactive_inline_judge_owner(metric_type)) is not None:
+            # The package that judges this metric is off for the task: refuse
+            # (a feature_disabled row below) instead of a generic judge call.
+            import extension_activation
+
+            raise extension_activation.ExtensionInactive(disabled_owner)
 
         elif metric_type.startswith("llm_judge_"):
             # Other LLM judge metrics — LLMJudgeEvaluator persists its own row.
@@ -286,7 +306,10 @@ def _run_immediate_config_job_impl(
         # used to raise an IntegrityError that escaped and left the whole run
         # stuck "running". Falllösung routes through the extended helper (it
         # owns the canonical row shape); everything else writes a minimal row.
-        if metric_type == "llm_judge_falloesung":
+        # The overlay owns the canonical Falllösung row shape, but its code
+        # runs only while its Falllösung surface is available for the task
+        # (not refused, not switched off); otherwise the platform's row.
+        if metric_type == "llm_judge_falloesung" and _falloesung_available():
             try:
                 from benger_extended.workers.falloesung_tasks import (
                     _persist_falloesung_eval_error,
@@ -333,21 +356,26 @@ def _run_immediate_config_job_impl(
                         answer_type="text",
                         ground_truth=str(reference_value) if reference_value else "",
                         prediction=str(prediction_value) if prediction_value else "",
-                        metrics={
-                            metric_type: {
-                                "value": None,
-                                "method": metric_type,
-                                "details": {},
-                                "error": str(e),
-                                # A stable reason for readers that must not
-                                # show the developer text (participants).
-                                **(
-                                    {"error_code": e.code}
-                                    if isinstance(e, NoUsableRubricError)
-                                    else {}
-                                ),
+                        metrics=(
+                            feature_disabled_metrics(metric_type, e.package)
+                            if isinstance(e, ExtensionInactive)
+                            else {
+                                metric_type: {
+                                    "value": None,
+                                    "method": metric_type,
+                                    "details": {},
+                                    "error": str(e),
+                                    # A stable reason for readers that must
+                                    # not show the developer text
+                                    # (participants).
+                                    **(
+                                        {"error_code": e.code}
+                                        if isinstance(e, NoUsableRubricError)
+                                        else {}
+                                    ),
+                                }
                             }
-                        },
+                        ),
                         error_message=str(e),
                         passed=False,
                     )

@@ -28,6 +28,10 @@ jest.mock('@/contexts/I18nContext', () => ({
     t: (key: string, params?: Record<string, any>) => {
       const translations: Record<string, string> = {
         'evaluation.multiFieldResults.title': 'Evaluation Results',
+        'evaluations.detail.statusLabels.completed': 'Completed',
+        'evaluations.detail.statusLabels.failed': 'Failed',
+        'evaluations.detail.statusLabels.running': 'Running',
+        'evaluations.detail.statusLabels.pending': 'Pending',
         'evaluation.multiFieldResults.noResultsYet':
           'No evaluation results yet',
         'evaluation.multiFieldResults.noResultsYetDesc':
@@ -528,7 +532,7 @@ describe('EvaluationResults', () => {
       render(<EvaluationResults projectId="project-123" />)
 
       await waitFor(() => {
-        expect(screen.getByText('completed')).toBeInTheDocument()
+        expect(screen.getByText('Completed')).toBeInTheDocument()
       })
     })
 
@@ -548,7 +552,7 @@ describe('EvaluationResults', () => {
       render(<EvaluationResults projectId="project-123" />)
 
       await waitFor(() => {
-        expect(screen.getByText('completed')).toBeInTheDocument()
+        expect(screen.getByText('Completed')).toBeInTheDocument()
       })
 
       // The component conditionally renders model chip: model_id && model_id !== 'unknown'
@@ -578,7 +582,7 @@ describe('EvaluationResults', () => {
       render(<EvaluationResults projectId="project-123" />)
 
       await waitFor(() => {
-        expect(screen.getByText('completed')).toBeInTheDocument()
+        expect(screen.getByText('Completed')).toBeInTheDocument()
       })
       expect(
         screen.queryByTestId('evaluation-run-models'),
@@ -702,7 +706,7 @@ describe('EvaluationResults', () => {
       render(<EvaluationResults projectId="project-123" />)
 
       await waitFor(() => {
-        expect(screen.getByText('running')).toBeInTheDocument()
+        expect(screen.getByText('Running')).toBeInTheDocument()
         expect(screen.getByText('Processing...')).toBeInTheDocument()
       })
     })
@@ -759,7 +763,7 @@ describe('EvaluationResults', () => {
       render(<EvaluationResults projectId="project-123" />)
 
       await waitFor(() => {
-        expect(screen.getByText('failed')).toBeInTheDocument()
+        expect(screen.getByText('Failed')).toBeInTheDocument()
       })
     })
 
@@ -786,7 +790,7 @@ describe('EvaluationResults', () => {
       render(<EvaluationResults projectId="project-123" />)
 
       await waitFor(() => {
-        expect(screen.getByText('pending')).toBeInTheDocument()
+        expect(screen.getByText('Pending')).toBeInTheDocument()
       })
     })
   })
@@ -1784,7 +1788,7 @@ describe('EvaluationResults', () => {
       render(<EvaluationResults projectId="project-123" />)
 
       await waitFor(() => {
-        expect(screen.getByText(/Completed/)).toBeInTheDocument()
+        expect(screen.getByText(/Completed \S/)).toBeInTheDocument()
       })
     })
 

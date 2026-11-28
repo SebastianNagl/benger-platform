@@ -32,8 +32,16 @@ class TestEmailService:
             mock_session.return_value = session
             yield session
 
-    def test_initialization(self, email_service):
+    def test_initialization(self, monkeypatch):
         """Test email service initialization"""
+        # The defaults, whatever sender a local .env (loaded by
+        # load_dotenv at import) configures.
+        monkeypatch.delenv("EMAIL_FROM_ADDRESS", raising=False)
+        monkeypatch.delenv("EMAIL_FROM_NAME", raising=False)
+        with patch('mailer.email_service.SendGridClient') as mock_client:
+            with patch('database.SessionLocal'):
+                email_service = EmailService()
+                email_service.mail_client = mock_client.return_value
         assert email_service.from_email == 'noreply@what-a-benger.net'  # Default
         assert email_service.from_name == 'BenGER Platform'  # Default
         assert email_service.mail_client != None  # noqa: E711

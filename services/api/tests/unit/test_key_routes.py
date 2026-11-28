@@ -68,6 +68,7 @@ def test_credential_and_test_routes_stay_closed(method, path):
         ("POST", "/api/projects/bulk-export"),
         ("GET", "/api/evaluations/e1/samples"),
         ("GET", "/api/data/"),
+        ("GET", "/api/evaluations/human/next-item"),
     ],
 )
 def test_task_content_needs_read_reference(method, path):
@@ -177,6 +178,9 @@ def test_student_reads_are_not_neutral():
         ("POST", "/api/admin/lti/registrations/r1/grade-syncs/resend-all"),
         ("PUT", "/api/admin/lti/registrations/r1"),
         ("DELETE", "/api/admin/lti/registrations/r1"),
+        ("GET", "/api/admin/lti/events"),
+        ("GET", "/api/admin/lti/registrations/r1/events"),
+        ("GET", "/api/organizations/o1/storage-connections/c1/objects"),
     ],
 )
 def test_cross_project_routes_are_not_neutral(method, path):

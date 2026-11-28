@@ -10,10 +10,12 @@
 
 import { DynamicAnnotationInterface } from '@/components/labeling/DynamicAnnotationInterface'
 import { useI18n } from '@/contexts/I18nContext'
+import { useActivityTracker } from '@/hooks/useActivityTracker'
 import { projectsAPI } from '@/lib/api/projects'
 import type { AnnotationResult } from '@/lib/labelConfig/dataBinding'
 import type { Annotation, Task } from '@/types/labelStudio'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { buildSubmissionPayload } from './submissionPayload'
 
 interface AnnotationCreatorProps {
   task: Task
@@ -35,6 +37,14 @@ export function AnnotationCreator({
   const { t } = useI18n()
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Timing of a new submission, as on the labeling page.
+  const activityTracker = useActivityTracker()
+  const startTimeRef = useRef(Date.now())
+  useEffect(() => {
+    startTimeRef.current = Date.now()
+    activityTracker.start()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task.id])
 
   // Handle final submission
   const handleSubmit = async (results: AnnotationResult[]) => {
@@ -57,10 +67,16 @@ export function AnnotationCreator({
         )
       } else {
         // Create new annotation as submitted
-        finalAnnotation = await projectsAPI.createAnnotation(task.id, {
-          result: results,
-          was_cancelled: false,
-        })
+        finalAnnotation = await projectsAPI.createAnnotation(
+          task.id,
+          buildSubmissionPayload({
+            result: results,
+            leadTimeSeconds: Math.round(
+              (Date.now() - startTimeRef.current) / 1000,
+            ),
+            timing: activityTracker.getData(),
+          }),
+        )
       }
 
       onSubmit(finalAnnotation)

@@ -11,6 +11,11 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 import { BugReportDialog, MAX_SCREENSHOT_BYTES } from '../BugReportDialog'
 
+// The real API client (the shared test setup mocks it), so its requests and
+// token refresh run against the mocked fetch below.
+jest.unmock('@/lib/api')
+jest.unmock('@/lib/api/base')
+
 let mockAuth: { user: any; organizations: any[] } | null = null
 jest.mock('@/contexts/AuthContext', () => ({
   useOptionalAuth: () => mockAuth,
@@ -27,10 +32,17 @@ jest.mock('@/lib/extensions/active', () => ({
 
 const fetchMock = jest.fn()
 
-function jsonResponse(status: number, body: unknown) {
+function jsonResponse(
+  status: number,
+  body: unknown,
+  headers: Record<string, string> = {},
+) {
   return {
     ok: status >= 200 && status < 300,
     status,
+    statusText: '',
+    headers: new Headers({ 'content-type': 'application/json', ...headers }),
+    text: async () => JSON.stringify(body),
     json: async () => body,
   }
 }
@@ -155,6 +167,46 @@ describe('BugReportDialog', () => {
     expect((form.get('screenshot') as File).name).toBe('shot.png')
   })
 
+  it('refreshes an expired session first, so a signed-in report is not filed anonymously', async () => {
+    // The report route takes anonymous reports too, so an expired access
+    // token is no 401 there: the report would be stored without its author.
+    mockAuth = { user: { id: 'u-1', name: 'Ann' }, organizations: [] }
+    let sessionFresh = false
+    fetchMock.mockImplementation((url: string) => {
+      if (url.endsWith('/auth/me')) {
+        return Promise.resolve(
+          sessionFresh
+            ? jsonResponse(200, { id: 'u-1' })
+            : jsonResponse(401, { detail: 'Token expired' }),
+        )
+      }
+      if (url.endsWith('/auth/refresh')) {
+        sessionFresh = true
+        return Promise.resolve(jsonResponse(200, {}))
+      }
+      if (url.endsWith('/bug-reports')) {
+        return Promise.resolve(
+          jsonResponse(201, {
+            id: 'r1',
+            status: sessionFresh ? 'pending' : 'anonymous',
+          }),
+        )
+      }
+      return Promise.resolve(jsonResponse(404, {}))
+    })
+    renderDialog()
+    fill()
+    await act(async () => {
+      fireEvent.click(screen.getByText('bugReport.send'))
+    })
+    expect(await screen.findByTestId('bug-report-sent')).toBeInTheDocument()
+    const urls = fetchMock.mock.calls.map(([url]) => String(url))
+    const refreshAt = urls.findIndex((u) => u.endsWith('/auth/refresh'))
+    const reportAt = urls.findIndex((u) => u.endsWith('/bug-reports'))
+    expect(refreshAt).toBeGreaterThanOrEqual(0)
+    expect(reportAt).toBeGreaterThan(refreshAt)
+  })
+
   it('takes a pasted screenshot and refuses other types and huge files', () => {
     renderDialog()
     const form = screen.getByTestId('bug-report-form')
@@ -188,7 +240,11 @@ describe('BugReportDialog', () => {
 
   it('explains a refusal of the API', async () => {
     fetchMock.mockResolvedValue(
-      jsonResponse(429, { detail: { code: 'rate_limited' } }),
+      jsonResponse(
+        429,
+        { detail: { code: 'rate_limited' } },
+        { 'retry-after': '3600' },
+      ),
     )
     renderDialog()
     fill()

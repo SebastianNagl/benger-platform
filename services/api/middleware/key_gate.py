@@ -178,6 +178,12 @@ def _resolver_statement(kind: str, value: str):
         from project_models import MarketplaceListing
 
         return select(MarketplaceListing.project_id).where(MarketplaceListing.id == value)
+    if kind == "human_evaluation_session":
+        from models import HumanEvaluationSession
+
+        return select(HumanEvaluationSession.project_id).where(
+            HumanEvaluationSession.id == value
+        )
     return _overlay_resolvers[kind](value)
 
 

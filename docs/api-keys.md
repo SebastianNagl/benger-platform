@@ -171,7 +171,10 @@ field the rule binds); routes that name no project and are not
 account-level answer `403 key_project_restricted`. A route that returns
 data of several projects counts as project data even when it lists the
 user's own (dashboard counters, notification texts, report, share and
-marketplace lists, files, key lists): a limited key is refused there too.
+marketplace lists, files, key lists, the LMS connection history, the object
+listing of an organization's storage bucket): a limited key is refused
+there too. A route that loads a record by id (a task, an evaluation run, a
+human evaluation session) names the project of that record.
 
 ## Deny by default
 

@@ -42,7 +42,7 @@ const REQUIRED_URLS = [
   '/settings/models',
   '/users-organizations',
   '/organizations',
-  '/admin/users',
+  '/users-organizations?tab=users',
   '/admin/lti',
 ]
 
@@ -78,7 +78,9 @@ describe('Search index - static pages are real routes', () => {
     const urls = staticUrls(source)
     expect(urls.length).toBeGreaterThan(20)
     urls.forEach((u) => {
-      const route = u === '/' ? '' : u
+      // A query string picks a tab of the page; the route is the path.
+      const pathOnly = u.split('?')[0]
+      const route = pathOnly === '/' ? '' : pathOnly
       const pagePath = path.join(appDir, route, 'page.tsx')
       expect({ url: u, exists: fs.existsSync(pagePath) }).toEqual({
         url: u,

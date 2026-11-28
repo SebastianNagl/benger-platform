@@ -478,6 +478,52 @@ describe('LabelingInterface - TimerSlot onAutoSubmit', () => {
     })
   })
 
+  it('auto-submit sends the same research fields as the manual submit', async () => {
+    // A conditional-instruction experiment: the variant shown and the
+    // activity timing must reach the annotation row on a timer
+    // auto-submit too, or the analysis loses those submissions.
+    const { selectVariant } = require('@/lib/utils/variantHash')
+    ;(selectVariant as jest.Mock).mockReturnValue('v1')
+    mountTimerSlot()
+    setupMocks({
+      currentProject: {
+        ...strictProject,
+        conditional_instructions: [
+          { id: 'v1', content: 'Variant one instructions', weight: 1 },
+        ],
+      },
+      currentTask: { id: 'task-1', data: {} },
+      currentTaskPosition: 1,
+      currentTaskTotal: 5,
+    })
+
+    render(<LabelingInterface projectId="proj-1" />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fire-auto-submit')).toBeInTheDocument()
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('fire-auto-submit'))
+    })
+
+    await waitFor(() => {
+      expect(projectsAPI.createAnnotation).toHaveBeenCalled()
+    })
+    const payload = (projectsAPI.createAnnotation as jest.Mock).mock.calls[0][1]
+    expect(payload).toEqual(
+      expect.objectContaining({
+        auto_submitted: true,
+        was_cancelled: false,
+        lead_time: 600,
+        instruction_variant: 'v1',
+        active_duration_ms: expect.any(Number),
+        focused_duration_ms: expect.any(Number),
+        tab_switches: expect.any(Number),
+      }),
+    )
+  })
+
   it('auto-submit shows the questionnaire modal when questionnaire is enabled', async () => {
     mockQuestionnaireList = AFTER_SUBMIT_ON
     mountTimerSlot()

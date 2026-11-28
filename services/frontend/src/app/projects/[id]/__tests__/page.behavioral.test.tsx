@@ -868,12 +868,25 @@ describe('ProjectDetailPage — feature visibility toggles', () => {
 })
 
 describe('ProjectDetailPage: report card', () => {
-  const reportResponse = (body: Record<string, unknown>, status = 200) =>
-    jest.fn().mockResolvedValue({
-      ok: status < 400,
-      status,
-      json: jest.fn().mockResolvedValue(body),
-    }) as any
+  // The report status comes through the API client (GET .../report); every
+  // other GET keeps the default answer of the suite.
+  const reportResponse = (body: Record<string, unknown>, status = 200) => {
+    ;(apiClient.get as jest.Mock).mockImplementation((url: string) => {
+      if (String(url).endsWith('/report')) {
+        if (status < 400) return Promise.resolve(body)
+        return Promise.reject(
+          Object.assign(new Error(`HTTP error! status: ${status}`), {
+            response: { status },
+          }),
+        )
+      }
+      return Promise.resolve({ task: null, remaining: 0 })
+    })
+  }
+  const reportRequested = () =>
+    (apiClient.get as jest.Mock).mock.calls.some((c) =>
+      String(c[0]).endsWith('/projects/proj-1/report'),
+    )
 
   beforeEach(() => {
     // Report authors besides superadmins belong to report_paper.
@@ -886,24 +899,21 @@ describe('ProjectDetailPage: report card', () => {
       user: { ...superadmin, is_superadmin: false },
       currentOrganization: null,
     })
-    global.fetch = reportResponse({ is_published: true, can_edit: true })
+    reportResponse({ is_published: true, can_edit: true })
     render(<ProjectDetailPage params={params()} />)
     await screen.findByText('proj-1')
-    expect(global.fetch).not.toHaveBeenCalledWith(
-      expect.stringContaining('/api/projects/proj-1/report'),
-      expect.anything(),
-    )
+    expect(reportRequested()).toBe(false)
     expect(screen.queryByTestId('publication-toggle')).not.toBeInTheDocument()
   })
 
   it('shows no card when the API refuses the report (403) or has none (404)', async () => {
     for (const status of [403, 404]) {
-      global.fetch = reportResponse({}, status)
+      reportResponse({}, status)
       const { unmount } = render(<ProjectDetailPage params={params()} />)
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining('/api/projects/proj-1/report'),
-          expect.objectContaining({ credentials: 'include' }),
+        expect(apiClient.get).toHaveBeenCalledWith(
+          '/projects/proj-1/report',
+          expect.objectContaining({ cache: 'no-store' }),
         )
       })
       await screen.findByText('proj-1')
@@ -914,7 +924,7 @@ describe('ProjectDetailPage: report card', () => {
   })
 
   it('renders the publication toggle + edit button for a report author', async () => {
-    global.fetch = reportResponse({
+    reportResponse({
       is_published: false,
       can_publish: true,
       can_publish_reason: '',
@@ -928,7 +938,7 @@ describe('ProjectDetailPage: report card', () => {
   })
 
   it('reflects a publish toggle into local state with a success toast', async () => {
-    global.fetch = reportResponse({
+    reportResponse({
       is_published: false,
       can_publish: true,
       can_publish_reason: '',
@@ -948,7 +958,7 @@ describe('ProjectDetailPage: report card', () => {
       user: { ...superadmin, is_superadmin: false },
       currentOrganization: null,
     })
-    global.fetch = reportResponse({
+    reportResponse({
       is_published: true,
       can_publish: true,
       can_publish_reason: '',
@@ -963,7 +973,7 @@ describe('ProjectDetailPage: report card', () => {
       user: { ...superadmin, is_superadmin: false },
       currentOrganization: null,
     })
-    global.fetch = reportResponse({
+    reportResponse({
       is_published: true,
       can_publish: true,
       can_publish_reason: '',
@@ -972,11 +982,7 @@ describe('ProjectDetailPage: report card', () => {
     render(<ProjectDetailPage params={params()} />)
     await screen.findByText('proj-1')
     await waitFor(() => {
-      expect(
-        (global.fetch as jest.Mock).mock.calls.some((c) =>
-          String(c[0]).includes('/report'),
-        ),
-      ).toBe(true)
+      expect(reportRequested()).toBe(true)
     })
     expect(screen.queryByTestId('publication-toggle')).not.toBeInTheDocument()
   })

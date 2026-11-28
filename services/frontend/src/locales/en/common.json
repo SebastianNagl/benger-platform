@@ -2448,6 +2448,7 @@
     "passwordChangeFailed": "Failed to change password",
     "updateSuccess": "Profile updated successfully",
     "updateFailed": "Failed to update profile",
+    "loadFailed": "Failed to load profile",
     "passwordsDoNotMatch": "Passwords do not match",
     "accessKeys": "API access",
     "bundeslaender": {

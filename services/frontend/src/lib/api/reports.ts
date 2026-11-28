@@ -240,8 +240,9 @@ function invalidateReportLists() {
  */
 export async function getProjectReport(
   projectId: string,
+  options: RequestInit = {},
 ): Promise<ReportResponse> {
-  return await apiClient.get(`/projects/${projectId}/report`)
+  return await apiClient.get(`/projects/${projectId}/report`, options)
 }
 
 /**

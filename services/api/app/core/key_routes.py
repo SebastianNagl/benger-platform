@@ -67,6 +67,7 @@ PROJECT_PARAMS: Dict[str, str] = {
     "code_validation_id": "code_validation",
     "trial_id": "generation_trial",
     "listing_id": "marketplace_listing",
+    "session_id": "human_evaluation_session",
 }
 
 
@@ -237,6 +238,18 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
             methods=("PUT", "DELETE"),
             note="re-syncs, unlinks and detaches the linked projects",
         ),
+        allow(
+            "/api/admin/lti/events",
+            "org:read",
+            methods="read",
+            note="history entries list the projects a change re-synced, unlinked or detached",
+        ),
+        allow(
+            "/api/admin/lti/registrations/{registration_id}/events",
+            "org:read",
+            methods="read",
+            note="history entries list the projects a change re-synced, unlinked or detached",
+        ),
         area("/api/admin/lti*", ["org:read"], ["org:manage"], neutral=True),
         # Superadmin reads and writes over project data name their project
         # through an optional filter: a restricted key must give one.
@@ -361,6 +374,13 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
             ["models:read"],
             ["models:manage"],
             neutral=True,
+        ),
+        allow(
+            "/api/organizations/{org_id}/storage-connections/{conn_id}/objects",
+            "org:read",
+            "files:read",
+            methods="read",
+            note="the objects in the organization's bucket, import files of any project",
         ),
         area(
             "/api/organizations/{org_id}/storage-connections*",
@@ -517,11 +537,21 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
             "annotations:read",
             methods="read",
         ),
+        # Sessions are loaded by id (``session_id`` in the path, query or
+        # body), which the gate resolves to the session's project.
+        allow(
+            "/api/evaluations/human/next-item",
+            "annotations:read",
+            REF,
+            methods="read",
+            bind=("query:session_id",),
+            note="the next task of a session, with its task data",
+        ),
         area(
             "/api/evaluations/human/*",
             ["annotations:read"],
             ["annotations:write"],
-            bind=("query:project_id", "body:project_id"),
+            bind=("query:project_id", "body:project_id", "body:session_id", "body:task_id"),
         ),
         allow("/api/evaluations/{evaluation_id}/samples", "results:read", REF, methods="read"),
         allow("/api/evaluations/*/results*", "results:read", methods="read"),

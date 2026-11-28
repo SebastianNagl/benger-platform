@@ -513,14 +513,16 @@ describe('ProjectDetailPage - Surgical Branch Coverage 2', () => {
         deleteProject: jest.fn().mockResolvedValue({}),
       })
 
-      // Mock fetch for report status 404
-      global.fetch = jest.fn().mockResolvedValue({
-        ok: false,
-        status: 404,
-        json: jest.fn(),
-      }) as any
-
-      ;(apiClient.get as jest.Mock).mockResolvedValue({ status: 'ok' })
+      // Report status 404 (no report yet)
+      ;(apiClient.get as jest.Mock).mockImplementation((url: string) =>
+        String(url).endsWith('/report')
+          ? Promise.reject(
+              Object.assign(new Error('HTTP error! status: 404'), {
+                response: { status: 404 },
+              }),
+            )
+          : Promise.resolve({ status: 'ok' }),
+      )
 
       const params = Promise.resolve({ id: 'test-project-123' })
       render(<ProjectDetailPage params={params} />)
@@ -531,9 +533,9 @@ describe('ProjectDetailPage - Surgical Branch Coverage 2', () => {
 
       // Wait for report status fetch to complete
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining('/report'),
-          expect.any(Object),
+        expect(apiClient.get).toHaveBeenCalledWith(
+          '/projects/test-project-123/report',
+          expect.objectContaining({ cache: 'no-store' }),
         )
       })
     })
@@ -587,18 +589,14 @@ describe('ProjectDetailPage - Surgical Branch Coverage 2', () => {
         deleteProject: jest.fn().mockResolvedValue({}),
       })
 
-      // Mock fetch for report status success (OK)
-      global.fetch = jest.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: jest.fn().mockResolvedValue({
-          is_published: true,
-          can_publish: true,
-          can_publish_reason: '',
-        }),
-      }) as any
-
-      ;(apiClient.get as jest.Mock).mockResolvedValue({ status: 'ok' })
+      // Report status success (OK)
+      ;(apiClient.get as jest.Mock).mockImplementation((url: string) =>
+        Promise.resolve(
+          String(url).endsWith('/report')
+            ? { is_published: true, can_publish: true, can_publish_reason: '' }
+            : { status: 'ok' },
+        ),
+      )
 
       const params = Promise.resolve({ id: 'test-project-123' })
       render(<ProjectDetailPage params={params} />)
@@ -608,9 +606,9 @@ describe('ProjectDetailPage - Surgical Branch Coverage 2', () => {
       })
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining('/report'),
-          expect.any(Object),
+        expect(apiClient.get).toHaveBeenCalledWith(
+          '/projects/test-project-123/report',
+          expect.objectContaining({ cache: 'no-store' }),
         )
       })
     })

@@ -21,6 +21,7 @@ import { Label } from '@/components/shared/Label'
 import { Textarea } from '@/components/shared/Textarea'
 import { useOptionalAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { apiClient } from '@/lib/api/client'
 import {
   buildBugReportContext,
   type BugReportContextInput,
@@ -164,26 +165,19 @@ export function BugReportDialog({
     form.append('context', JSON.stringify(context))
     if (screenshot) form.append('screenshot', screenshot)
     try {
-      const response = await fetch('/api/bug-reports', {
-        method: 'POST',
-        body: form,
-        credentials: 'include',
-      })
-      if (response.ok) {
-        setPhase('sent')
-        return
+      // The report route also takes anonymous reports, so an expired access
+      // token is no 401 there and the report would lose its author. Asking
+      // for the session first lets the API client refresh it.
+      if (user) await apiClient.getUser().catch(() => undefined)
+      await apiClient.post('/bug-reports', form)
+      setPhase('sent')
+    } catch (err: any) {
+      if (err?.response) {
+        const code: string | undefined = err.response.data?.detail?.code
+        setError(t(ERROR_KEYS[code ?? ''] ?? 'bugReport.errors.generic'))
+      } else {
+        setError(t('bugReport.errors.network'))
       }
-      let code: string | undefined
-      try {
-        const data = await response.json()
-        code = data?.detail?.code
-      } catch {
-        code = undefined
-      }
-      setError(t(ERROR_KEYS[code ?? ''] ?? 'bugReport.errors.generic'))
-      setPhase('editing')
-    } catch {
-      setError(t('bugReport.errors.network'))
       setPhase('editing')
     }
   }

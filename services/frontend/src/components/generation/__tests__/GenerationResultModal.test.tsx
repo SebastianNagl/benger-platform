@@ -23,6 +23,10 @@ jest.mock('@/contexts/I18nContext', () => ({
       const vars = typeof arg2 === 'object' ? arg2 : arg3
       const translations: Record<string, string> = {
         'generation.resultModal.title': 'Generation Result',
+        'evaluations.detail.statusLabels.completed': 'Completed',
+        'evaluations.detail.statusLabels.failed': 'Failed',
+        'evaluations.detail.statusLabels.running': 'Running',
+        'evaluations.detail.statusLabels.pending': 'Pending',
         'generation.resultModal.model': 'Model:',
         'generation.resultModal.task': 'Task:',
         'generation.resultModal.loading': 'Loading...',
@@ -369,7 +373,8 @@ describe('GenerationResultModal Component', () => {
         />,
       )
 
-      const statusBadge = screen.getByText('completed')
+      const statusBadge = screen.getByText('Completed')
+      expect(statusBadge).toHaveAttribute('data-status', 'completed')
       expect(statusBadge).toHaveClass('bg-emerald-100', 'text-emerald-800')
     })
 
@@ -384,11 +389,12 @@ describe('GenerationResultModal Component', () => {
         />,
       )
 
-      const statusBadge = screen.getByText('failed')
+      const statusBadge = screen.getByText('Failed')
+      expect(statusBadge).toHaveAttribute('data-status', 'failed')
       expect(statusBadge).toHaveClass('bg-red-100', 'text-red-800')
     })
 
-    it('displays running status with yellow badge', () => {
+    it('displays running status with amber badge', () => {
       render(
         <GenerationResultModal
           isOpen={true}
@@ -399,11 +405,12 @@ describe('GenerationResultModal Component', () => {
         />,
       )
 
-      const statusBadge = screen.getByText('running')
+      const statusBadge = screen.getByText('Running')
+      expect(statusBadge).toHaveAttribute('data-status', 'running')
       expect(statusBadge).toHaveClass('bg-amber-100', 'text-amber-800')
     })
 
-    it('displays pending status with gray badge', () => {
+    it('displays pending status with amber badge', () => {
       render(
         <GenerationResultModal
           isOpen={true}
@@ -414,8 +421,9 @@ describe('GenerationResultModal Component', () => {
         />,
       )
 
-      const statusBadge = screen.getByText('pending')
-      expect(statusBadge).toHaveClass('bg-zinc-100', 'text-zinc-800')
+      const statusBadge = screen.getByText('Pending')
+      expect(statusBadge).toHaveAttribute('data-status', 'pending')
+      expect(statusBadge).toHaveClass('bg-amber-100', 'text-amber-800')
     })
   })
 
@@ -1340,10 +1348,10 @@ describe('GenerationResultModal Component', () => {
 
       await waitFor(() => {
         // Status badges visible (multiple "completed" entries, so use getAllByText)
-        expect(screen.getAllByText('completed').length).toBeGreaterThanOrEqual(
+        expect(screen.getAllByText('Completed').length).toBeGreaterThanOrEqual(
           1,
         )
-        expect(screen.getAllByText('failed').length).toBeGreaterThanOrEqual(1)
+        expect(screen.getAllByText('Failed').length).toBeGreaterThanOrEqual(1)
       })
 
       // Created by names visible

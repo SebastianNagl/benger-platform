@@ -247,6 +247,50 @@ class TestImmediateLane:
         assert kwargs["task_data"] == {"sachverhalt": "Cas"}
         db.close.assert_called_once()
 
+    def test_a_switched_off_owner_records_feature_disabled(self):
+        # The package that judges the metric is off for this task: no
+        # generic judge call, a feature_disabled row instead.
+        import tasks as tasks_module
+        from tasks import _run_immediate_config_job
+
+        db = MagicMock()
+        job = {
+            "metric_type": "llm_judge_feedback",
+            "metric_params": {},
+            "field_name": "loesung",
+            "prediction_value": "answer text",
+            "reference_value": "",
+            "judge_run_id": "jr-1",
+            "evaluation_config_id": "cfg-1",
+            "record_id": "rec-1",
+        }
+        generic = MagicMock(return_value={"status": "completed"})
+        with patch.object(tasks_module, "SessionLocal", return_value=db), patch(
+            "evaluation.orchestration.resolve_inline_judge", return_value=None
+        ), patch(
+            "evaluation.orchestration.inactive_inline_judge_owner",
+            return_value="benger_extended",
+            create=True,
+        ), patch.object(tasks_module, "_evaluate_llm_judge_single", generic):
+            result = _run_immediate_config_job(
+                job=job,
+                dispatch_eval_id="eval-1",
+                project_id="proj-1",
+                task_id="task-1",
+                annotation_id="ann-1",
+                organization_id=None,
+                user_id="user-1",
+                task_data={"sachverhalt": "Cas"},
+            )
+        generic.assert_not_called()
+        assert result["status"] == "error"
+        [row] = [c.args[0] for c in db.add.call_args_list]
+        blob = row.metrics["llm_judge_feedback"]
+        assert blob["value"] is None
+        assert blob["error"] == "feature_disabled"
+        assert blob["details"]["reason"] == "feature_disabled"
+        assert row.passed is False
+
     @pytest.fixture
     def registered(self):
         register_sheet_judge_metric("llm_judge_feedback")

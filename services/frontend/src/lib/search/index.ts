@@ -282,7 +282,7 @@ export function buildPageIndex(ctx: SearchIndexContext): SearchEntry[] {
     pages.push(
       page(
         t,
-        '/admin/users',
+        '/users-organizations?tab=users',
         'userManagement',
         cat.admin,
         'benutzerverwaltung admin users',

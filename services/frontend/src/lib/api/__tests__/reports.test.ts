@@ -47,7 +47,7 @@ describe('Report API', () => {
 
       const result = await getProjectReport('p1')
 
-      expect(mockGet).toHaveBeenCalledWith('/projects/p1/report')
+      expect(mockGet).toHaveBeenCalledWith('/projects/p1/report', {})
       expect(result).toEqual(mockReport)
     })
   })

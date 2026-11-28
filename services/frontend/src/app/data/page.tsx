@@ -64,10 +64,10 @@ export default function DataManagementPage() {
             </svg>
           </div>
           <h3 className="mt-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
-            {t('dataManagement.accessDenied')}
+            {t('projects.data.accessDenied')}
           </h3>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            {t('dataManagement.accessDeniedDescription')}
+            {t('projects.data.accessDeniedDescription')}
           </p>
           <div className="mt-6">
             <button

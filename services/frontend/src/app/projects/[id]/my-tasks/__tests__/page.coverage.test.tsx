@@ -74,9 +74,6 @@ jest.mock('@/components/shared', () => {
   }
 })
 
-// Mock fetch
-global.fetch = jest.fn()
-
 // Translations
 const translations: Record<string, string> = {
   'navigation.dashboard': 'Dashboard',
@@ -106,6 +103,13 @@ const translations: Record<string, string> = {
 
 import MyTasksPage from '../page'
 
+const mockGetMyTasks = jest.fn()
+jest.mock('@/lib/api/projects', () => ({
+  projectsAPI: {
+    getMyTasks: (...args: unknown[]) => mockGetMyTasks(...args),
+  },
+}))
+
 describe('MyTasksPage - branch coverage', () => {
   const mockPush = jest.fn()
   const mockFetchProject = jest.fn()
@@ -134,16 +138,12 @@ describe('MyTasksPage - branch coverage', () => {
       loading: false,
       fetchProject: mockFetchProject,
     })
-    ;(global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          tasks: [],
-          total: 0,
-          page: 1,
-          page_size: 20,
-          pages: 1,
-        }),
+    mockGetMyTasks.mockResolvedValue({
+      tasks: [],
+      total: 0,
+      page: 1,
+      page_size: 20,
+      pages: 1,
     })
   })
 
@@ -180,10 +180,11 @@ describe('MyTasksPage - branch coverage', () => {
   })
 
   it('shows error toast when fetch fails', async () => {
-    ;(global.fetch as jest.Mock).mockResolvedValue({
-      ok: false,
-      status: 500,
-    })
+    mockGetMyTasks.mockRejectedValue(
+      Object.assign(new Error('HTTP error! status: 500'), {
+        response: { status: 500 },
+      }),
+    )
 
     render(<MyTasksPage />)
 
@@ -193,26 +194,22 @@ describe('MyTasksPage - branch coverage', () => {
   })
 
   it('renders tasks with high priority (>=3) icon', async () => {
-    ;(global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          tasks: [
-            {
-              id: '1',
-              inner_id: 42,
-              assignment: {
-                status: 'assigned',
-                priority: 3,
-                assigned_at: '2024-01-01T10:00:00Z',
-              },
-            },
-          ],
-          total: 1,
-          page: 1,
-          page_size: 20,
-          pages: 1,
-        }),
+    mockGetMyTasks.mockResolvedValue({
+      tasks: [
+        {
+          id: '1',
+          inner_id: 42,
+          assignment: {
+            status: 'assigned',
+            priority: 3,
+            assigned_at: '2024-01-01T10:00:00Z',
+          },
+        },
+      ],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
     })
 
     render(<MyTasksPage />)
@@ -224,25 +221,21 @@ describe('MyTasksPage - branch coverage', () => {
   })
 
   it('renders tasks with medium priority (>=2, <3) icon', async () => {
-    ;(global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          tasks: [
-            {
-              id: '2',
-              assignment: {
-                status: 'in_progress',
-                priority: 2,
-                assigned_at: '2024-01-01T10:00:00Z',
-              },
-            },
-          ],
-          total: 1,
-          page: 1,
-          page_size: 20,
-          pages: 1,
-        }),
+    mockGetMyTasks.mockResolvedValue({
+      tasks: [
+        {
+          id: '2',
+          assignment: {
+            status: 'in_progress',
+            priority: 2,
+            assigned_at: '2024-01-01T10:00:00Z',
+          },
+        },
+      ],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
     })
 
     render(<MyTasksPage />)
@@ -256,25 +249,21 @@ describe('MyTasksPage - branch coverage', () => {
   })
 
   it('renders tasks with low priority (>=1, <2) icon', async () => {
-    ;(global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          tasks: [
-            {
-              id: '3',
-              assignment: {
-                status: 'completed',
-                priority: 1,
-                assigned_at: '2024-01-01T10:00:00Z',
-              },
-            },
-          ],
-          total: 1,
-          page: 1,
-          page_size: 20,
-          pages: 1,
-        }),
+    mockGetMyTasks.mockResolvedValue({
+      tasks: [
+        {
+          id: '3',
+          assignment: {
+            status: 'completed',
+            priority: 1,
+            assigned_at: '2024-01-01T10:00:00Z',
+          },
+        },
+      ],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
     })
 
     render(<MyTasksPage />)
@@ -286,25 +275,21 @@ describe('MyTasksPage - branch coverage', () => {
   })
 
   it('renders tasks with zero priority (no icon)', async () => {
-    ;(global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          tasks: [
-            {
-              id: '4',
-              assignment: {
-                status: 'skipped',
-                priority: 0,
-                assigned_at: '2024-01-01T10:00:00Z',
-              },
-            },
-          ],
-          total: 1,
-          page: 1,
-          page_size: 20,
-          pages: 1,
-        }),
+    mockGetMyTasks.mockResolvedValue({
+      tasks: [
+        {
+          id: '4',
+          assignment: {
+            status: 'skipped',
+            priority: 0,
+            assigned_at: '2024-01-01T10:00:00Z',
+          },
+        },
+      ],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
     })
 
     render(<MyTasksPage />)
@@ -316,25 +301,21 @@ describe('MyTasksPage - branch coverage', () => {
   })
 
   it('renders default status badge for unknown status', async () => {
-    ;(global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          tasks: [
-            {
-              id: '5',
-              assignment: {
-                status: 'custom_status',
-                priority: 0,
-                assigned_at: '2024-01-01T10:00:00Z',
-              },
-            },
-          ],
-          total: 1,
-          page: 1,
-          page_size: 20,
-          pages: 1,
-        }),
+    mockGetMyTasks.mockResolvedValue({
+      tasks: [
+        {
+          id: '5',
+          assignment: {
+            status: 'custom_status',
+            priority: 0,
+            assigned_at: '2024-01-01T10:00:00Z',
+          },
+        },
+      ],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
     })
 
     render(<MyTasksPage />)
@@ -345,26 +326,22 @@ describe('MyTasksPage - branch coverage', () => {
   })
 
   it('shows is_labeled badge when task is labeled', async () => {
-    ;(global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          tasks: [
-            {
-              id: '6',
-              is_labeled: true,
-              assignment: {
-                status: 'completed',
-                priority: 0,
-                assigned_at: '2024-01-01T10:00:00Z',
-              },
-            },
-          ],
-          total: 1,
-          page: 1,
-          page_size: 20,
-          pages: 1,
-        }),
+    mockGetMyTasks.mockResolvedValue({
+      tasks: [
+        {
+          id: '6',
+          is_labeled: true,
+          assignment: {
+            status: 'completed',
+            priority: 0,
+            assigned_at: '2024-01-01T10:00:00Z',
+          },
+        },
+      ],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
     })
 
     render(<MyTasksPage />)
@@ -375,16 +352,12 @@ describe('MyTasksPage - branch coverage', () => {
   })
 
   it('renders task without assignment (no status badge, no priority)', async () => {
-    ;(global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          tasks: [{ id: '7' }],
-          total: 1,
-          page: 1,
-          page_size: 20,
-          pages: 1,
-        }),
+    mockGetMyTasks.mockResolvedValue({
+      tasks: [{ id: '7' }],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
     })
 
     render(<MyTasksPage />)
@@ -396,27 +369,23 @@ describe('MyTasksPage - branch coverage', () => {
   })
 
   it('renders task with due_date in assignment', async () => {
-    ;(global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          tasks: [
-            {
-              id: '8',
-              assignment: {
-                status: 'assigned',
-                priority: 0,
-                assigned_at: '2024-01-01T10:00:00Z',
-                due_date: '2024-12-31T23:59:59Z',
-                notes: 'Note text here',
-              },
-            },
-          ],
-          total: 1,
-          page: 1,
-          page_size: 20,
-          pages: 1,
-        }),
+    mockGetMyTasks.mockResolvedValue({
+      tasks: [
+        {
+          id: '8',
+          assignment: {
+            status: 'assigned',
+            priority: 0,
+            assigned_at: '2024-01-01T10:00:00Z',
+            due_date: '2024-12-31T23:59:59Z',
+            notes: 'Note text here',
+          },
+        },
+      ],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
     })
 
     render(<MyTasksPage />)
@@ -427,25 +396,21 @@ describe('MyTasksPage - branch coverage', () => {
   })
 
   it('renders pagination when totalPages > 1', async () => {
-    ;(global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          tasks: [
-            {
-              id: '1',
-              assignment: {
-                status: 'assigned',
-                priority: 0,
-                assigned_at: '2024-01-01T10:00:00Z',
-              },
-            },
-          ],
-          total: 40,
-          page: 1,
-          page_size: 20,
-          pages: 2,
-        }),
+    mockGetMyTasks.mockResolvedValue({
+      tasks: [
+        {
+          id: '1',
+          assignment: {
+            status: 'assigned',
+            priority: 0,
+            assigned_at: '2024-01-01T10:00:00Z',
+          },
+        },
+      ],
+      total: 40,
+      page: 1,
+      page_size: 20,
+      pages: 2,
     })
 
     render(<MyTasksPage />)
@@ -460,16 +425,12 @@ describe('MyTasksPage - branch coverage', () => {
   it('navigates to label page and sets localStorage on task click', async () => {
     const setItemSpy = jest.spyOn(Storage.prototype, 'setItem')
 
-    ;(global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          tasks: [{ id: 'task-99' }],
-          total: 1,
-          page: 1,
-          page_size: 20,
-          pages: 1,
-        }),
+    mockGetMyTasks.mockResolvedValue({
+      tasks: [{ id: 'task-99' }],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
     })
 
     const user = userEvent.setup()

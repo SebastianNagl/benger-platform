@@ -143,8 +143,8 @@ sudo cp infra/k3s/traefik-config.yaml /var/lib/rancher/k3s/server/manifests/trae
 # 1. Server setup (one-time)
 ./scripts/server-setup.sh
 
-# 2. Deploy BenGER application
-./scripts/deploy-benger.sh
+# 2. Deploy BenGER application: production deployments run from a separate
+#    private distribution repository, not from this one
 
 # 3. Setup CI/CD (optional but recommended)
 ./scripts/setup-github-cicd.sh
