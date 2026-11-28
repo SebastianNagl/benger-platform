@@ -15,38 +15,38 @@ project (`any`) or only for its own projects (`bound`).
 | GET | `/` | - | any |
 | GET | `/api/access-keys/availability` | - | any |
 | GET | `/api/access-keys/scopes` | - | any |
-| GET | `/api/admin/access-keys` | `keys:manage`, `admin:platform` | any |
-| GET | `/api/admin/access-keys/usage/export.csv` | `keys:manage`, `admin:platform` | any |
-| POST | `/api/admin/access-keys/{key_id}/revoke` | `keys:manage`, `admin:platform` | any |
-| POST | `/api/admin/evaluation-runs/relabel` | `admin:platform` | any |
-| GET | `/api/admin/grading-feedback/export` | `admin:platform` | any |
+| GET | `/api/admin/access-keys` | `keys:manage`, `admin:platform` | bound |
+| GET | `/api/admin/access-keys/usage/export.csv` | `keys:manage`, `admin:platform` | bound |
+| POST | `/api/admin/access-keys/{key_id}/revoke` | `keys:manage`, `admin:platform` | bound |
+| POST | `/api/admin/evaluation-runs/relabel` | `admin:platform` | bound |
+| GET | `/api/admin/grading-feedback/export` | `admin:platform` | bound |
 | GET | `/api/admin/llm-models/catalog-version` | `admin:platform` | any |
 | POST | `/api/admin/llm-models/reseed` | `admin:platform` | any |
 | GET | `/api/admin/lti/events` | `org:read` | any |
-| GET | `/api/admin/lti/grade-syncs` | `org:read` | any |
-| POST | `/api/admin/lti/grade-syncs/{grade_sync_id}/retry` | `org:manage` | any |
+| GET | `/api/admin/lti/grade-syncs` | `org:read` | bound |
+| POST | `/api/admin/lti/grade-syncs/{grade_sync_id}/retry` | `org:manage` | bound |
 | GET | `/api/admin/lti/registrations` | `org:read` | any |
 | POST | `/api/admin/lti/registrations` | `org:manage` | any |
 | GET | `/api/admin/lti/registrations/invites` | `org:read` | any |
 | POST | `/api/admin/lti/registrations/invites` | `org:manage` | any |
 | DELETE | `/api/admin/lti/registrations/invites/{invite_id}` | `org:manage` | any |
-| DELETE | `/api/admin/lti/registrations/{registration_id}` | `org:manage` | any |
+| DELETE | `/api/admin/lti/registrations/{registration_id}` | `org:manage` | bound |
 | GET | `/api/admin/lti/registrations/{registration_id}` | `org:read` | any |
-| PUT | `/api/admin/lti/registrations/{registration_id}` | `org:manage` | any |
+| PUT | `/api/admin/lti/registrations/{registration_id}` | `org:manage` | bound |
 | GET | `/api/admin/lti/registrations/{registration_id}/anonymization` | `org:read` | any |
 | POST | `/api/admin/lti/registrations/{registration_id}/deployments` | `org:manage` | any |
 | DELETE | `/api/admin/lti/registrations/{registration_id}/deployments/{deployment_pk}` | `org:manage` | any |
 | PATCH | `/api/admin/lti/registrations/{registration_id}/deployments/{deployment_pk}` | `org:manage` | any |
 | GET | `/api/admin/lti/registrations/{registration_id}/events` | `org:read` | any |
-| POST | `/api/admin/lti/registrations/{registration_id}/grade-syncs/resend-all` | `org:manage` | any |
-| GET | `/api/admin/lti/registrations/{registration_id}/resource-links` | `org:read` | any |
+| POST | `/api/admin/lti/registrations/{registration_id}/grade-syncs/resend-all` | `org:manage` | bound |
+| GET | `/api/admin/lti/registrations/{registration_id}/resource-links` | `org:read` | bound |
 | GET | `/api/admin/lti/registrations/{registration_id}/tool-config` | `org:read` | any |
 | GET | `/api/admin/lti/registrations/{registration_id}/user-links` | `org:read` | any |
 | DELETE | `/api/admin/lti/registrations/{registration_id}/user-links/{link_id}` | `org:manage` | any |
 | GET | `/api/admin/lti/registrations/{registration_id}/user-links/{link_id}/anonymization` | `org:read` | any |
 | POST | `/api/admin/lti/registrations/{registration_id}/user-links/{link_id}/anonymize` | `org:manage` | any |
 | GET | `/api/admin/lti/tool-hosts` | `org:read` | any |
-| GET | `/api/admin/rubric-generation-jobs` | `admin:platform` | any |
+| GET | `/api/admin/rubric-generation-jobs` | `admin:platform` | bound |
 | GET | `/api/admin/vendors` | `admin:platform` | any |
 | POST | `/api/admin/vendors` | `admin:platform` | any |
 | DELETE | `/api/admin/vendors/{organization_id}` | `admin:platform` | any |
@@ -121,7 +121,7 @@ project (`any`) or only for its own projects (`bound`).
 | PUT | `/api/custom-models/{model_id}/credential` | `models:manage` | any |
 | POST | `/api/custom-models/{model_id}/test` | `models:manage` | any |
 | PATCH | `/api/custom-models/{model_id}/visibility` | `models:manage` | any |
-| GET | `/api/dashboard/stats` | `results:read` | any |
+| GET | `/api/dashboard/stats` | `results:read` | bound |
 | GET | `/api/data/` | `tasks:read_reference` | bound |
 | POST | `/api/data/bulk-assign` | `tasks:write` | bound |
 | POST | `/api/data/bulk-update-status` | `tasks:write` | bound |
@@ -171,7 +171,7 @@ project (`any`) or only for its own projects (`bound`).
 | GET | `/api/evaluations/significance/{project_id}` | `results:read` | bound |
 | GET | `/api/evaluations/stream/{evaluation_id}` | `evaluations:read` | bound |
 | GET | `/api/evaluations/supported-metrics` | `evaluations:read` | any |
-| POST | `/api/evaluations/validate-config` | `evaluations:read` | any |
+| POST | `/api/evaluations/validate-config` | `evaluations:read` | bound |
 | GET | `/api/evaluations/{evaluation_id}/confusion-matrix` | `results:read` | bound |
 | GET | `/api/evaluations/{evaluation_id}/metrics/{metric_name}/distribution` | `results:read` | bound |
 | GET | `/api/evaluations/{evaluation_id}/results/by-task-model` | `results:read` | bound |
@@ -188,11 +188,11 @@ project (`any`) or only for its own projects (`bound`).
 | PUT | `/api/feature-flags/{name}` | `admin:platform` | any |
 | POST | `/api/feature-flags/{name}/targets` | `admin:platform` | any |
 | DELETE | `/api/feature-flags/{name}/targets/{target_id}` | `admin:platform` | any |
-| GET | `/api/files/` | `files:read` | any |
+| GET | `/api/files/` | `files:read` | bound |
 | POST | `/api/files/extract-text` | `files:write` | any |
 | POST | `/api/files/upload` | `files:write` | any |
-| DELETE | `/api/files/{file_id}` | `files:write` | any |
-| GET | `/api/files/{file_id}/download` | `files:read` | any |
+| DELETE | `/api/files/{file_id}` | `files:write` | bound |
+| GET | `/api/files/{file_id}/download` | `files:read` | bound |
 | GET | `/api/generation-tasks/generation-result` | `runs:read`, `tasks:read_reference` | bound |
 | POST | `/api/generation-tasks/projects/{project_id}/generate` | `runs:write` | bound |
 | GET | `/api/generation-tasks/projects/{project_id}/task-status` | `runs:read` | bound |
@@ -212,36 +212,36 @@ project (`any`) or only for its own projects (`bound`).
 | DELETE | `/api/invitations/{invitation_id}` | `org:manage` | any |
 | POST | `/api/invitations/{invitation_id}/resend` | `org:manage` | any |
 | GET | `/api/leaderboards/llm-models` | `results:read` | any |
-| GET | `/api/leaderboards/llm-models/{model_id:path}` | `results:read` | any |
-| GET | `/api/leaderboards/llm-models/{model_id:path}/projects` | `results:read` | any |
+| GET | `/api/leaderboards/llm-models/{model_id:path}` | `results:read` | bound |
+| GET | `/api/leaderboards/llm-models/{model_id:path}/projects` | `results:read` | bound |
 | GET | `/api/leaderboards/statistics` | `results:read` | any |
 | POST | `/api/llm-models/cost-estimate` | `runs:read` | bound |
 | GET | `/api/llm_models/public/models` | `models:read` | any |
 | GET | `/api/llm_models/public/provider-capabilities` | `models:read` | any |
-| GET | `/api/marketplace/discover` | `projects:read` | any |
-| GET | `/api/marketplace/entitlements` | `projects:read` | any |
-| GET | `/api/marketplace/grading/credits` | `projects:read` | any |
-| GET | `/api/marketplace/grading/queue` | `projects:read` | any |
-| GET | `/api/marketplace/grading/requests` | `projects:read` | any |
-| POST | `/api/marketplace/listings` | `projects:write` | any |
-| DELETE | `/api/marketplace/listings/{listing_id}` | `projects:write` | any |
-| GET | `/api/marketplace/listings/{listing_id}` | `projects:read` | any |
-| PATCH | `/api/marketplace/listings/{listing_id}` | `projects:write` | any |
+| GET | `/api/marketplace/discover` | `projects:read` | bound |
+| GET | `/api/marketplace/entitlements` | `projects:read` | bound |
+| GET | `/api/marketplace/grading/credits` | `projects:read` | bound |
+| GET | `/api/marketplace/grading/queue` | `projects:read` | bound |
+| GET | `/api/marketplace/grading/requests` | `projects:read` | bound |
+| POST | `/api/marketplace/listings` | `projects:write` | bound |
+| DELETE | `/api/marketplace/listings/{listing_id}` | `projects:write` | bound |
+| GET | `/api/marketplace/listings/{listing_id}` | `projects:read` | bound |
+| PATCH | `/api/marketplace/listings/{listing_id}` | `projects:write` | bound |
 | GET | `/api/marketplace/vendor/account` | `projects:read` | any |
-| GET | `/api/marketplace/vendor/listings` | `projects:read` | any |
-| GET | `/api/notifications/` | `account:read` | any |
+| GET | `/api/marketplace/vendor/listings` | `projects:read` | bound |
+| GET | `/api/notifications/` | `account:read` | bound |
 | POST | `/api/notifications/bulk/delete` | `account:write` | any |
 | POST | `/api/notifications/bulk/mark-read` | `account:write` | any |
 | POST | `/api/notifications/digest/test` | never |  |
 | GET | `/api/notifications/email/status` | `account:read` | any |
 | POST | `/api/notifications/email/test` | never |  |
-| GET | `/api/notifications/groups` | `account:read` | any |
+| GET | `/api/notifications/groups` | `account:read` | bound |
 | POST | `/api/notifications/mark-all-read` | `account:write` | any |
 | POST | `/api/notifications/mark-read/{notification_id}` | `account:write` | any |
 | GET | `/api/notifications/preferences` | `account:read` | any |
 | POST | `/api/notifications/preferences` | `account:write` | any |
 | PUT | `/api/notifications/preferences` | `account:write` | any |
-| GET | `/api/notifications/stream` | `account:read` | any |
+| GET | `/api/notifications/stream` | `account:read` | bound |
 | GET | `/api/notifications/summary` | `account:read` | any |
 | POST | `/api/notifications/test` | never |  |
 | POST | `/api/notifications/test/create` | never |  |
@@ -253,13 +253,13 @@ project (`any`) or only for its own projects (`bound`).
 | GET | `/api/organizations/manage/users` | `admin:platform` | any |
 | DELETE | `/api/organizations/manage/users/{user_id}` | `admin:platform` | any |
 | PUT | `/api/organizations/manage/users/{user_id}/superadmin` | `admin:platform` | any |
-| GET | `/api/organizations/{org_id}/access-keys` | `keys:manage` | any |
-| POST | `/api/organizations/{org_id}/access-keys` | `keys:manage` | any |
-| GET | `/api/organizations/{org_id}/access-keys/usage/export.csv` | `keys:manage` | any |
-| PATCH | `/api/organizations/{org_id}/access-keys/{key_id}` | `keys:manage` | any |
-| POST | `/api/organizations/{org_id}/access-keys/{key_id}/revoke` | `keys:manage` | any |
-| GET | `/api/organizations/{org_id}/access-keys/{key_id}/usage` | `keys:manage` | any |
-| GET | `/api/organizations/{org_id}/access-keys/{key_id}/usage/events` | `keys:manage` | any |
+| GET | `/api/organizations/{org_id}/access-keys` | `keys:manage` | bound |
+| POST | `/api/organizations/{org_id}/access-keys` | `keys:manage` | bound |
+| GET | `/api/organizations/{org_id}/access-keys/usage/export.csv` | `keys:manage` | bound |
+| PATCH | `/api/organizations/{org_id}/access-keys/{key_id}` | `keys:manage` | bound |
+| POST | `/api/organizations/{org_id}/access-keys/{key_id}/revoke` | `keys:manage` | bound |
+| GET | `/api/organizations/{org_id}/access-keys/{key_id}/usage` | `keys:manage` | bound |
+| GET | `/api/organizations/{org_id}/access-keys/{key_id}/usage/events` | `keys:manage` | bound |
 | GET | `/api/organizations/{org_id}/api-keys/available-models` | `models:read` | any |
 | GET | `/api/organizations/{org_id}/api-keys/settings` | `models:read` | any |
 | PUT | `/api/organizations/{org_id}/api-keys/settings` | `models:manage` | any |
@@ -434,19 +434,19 @@ project (`any`) or only for its own projects (`bound`).
 | POST | `/api/projects/{project_id}/wizard-draft/finish` | never |  |
 | GET | `/api/projects/{project_id}/wizard-draft/tasks` | never |  |
 | PUT | `/api/projects/{project_id}/wizard-draft/tasks/{task_id}` | never |  |
-| GET | `/api/reports` | `results:read` | any |
+| GET | `/api/reports` | `results:read` | bound |
 | GET | `/api/reports/{report_id}/data` | `results:read` | bound |
 | GET | `/api/runs` | `runs:read` | bound |
 | GET | `/api/runs/generations/{generation_id}` | `runs:read` | bound |
 | GET | `/api/runs/generations/{generation_id}/trials/{trial_id}/request` | `runs:read` | bound |
 | GET | `/api/runs/trials/{trial_id}/request` | `runs:read` | bound |
-| GET | `/api/shares/discover` | `projects:read` | any |
+| GET | `/api/shares/discover` | `projects:read` | bound |
 | GET | `/api/shares/{token}` | `projects:read` | any |
 | POST | `/api/shares/{token}/join` | `account:write` | any |
 | DELETE | `/api/shares/{token}/membership` | `account:write` | any |
-| GET | `/api/student/activity` | `results:read` | any |
-| GET | `/api/student/retention` | `results:read` | any |
-| GET | `/api/student/score-history` | `results:read` | any |
+| GET | `/api/student/activity` | `results:read` | bound |
+| GET | `/api/student/retention` | `results:read` | bound |
+| GET | `/api/student/score-history` | `results:read` | bound |
 | POST | `/api/task-rubrics/parse` | `tasks:write` | any |
 | DELETE | `/api/test/cleanup/{project_id}` | never |  |
 | POST | `/api/test/force-profile-overdue` | never |  |
@@ -456,16 +456,16 @@ project (`any`) or only for its own projects (`bound`).
 | GET | `/api/test/status` | never |  |
 | GET | `/api/users` | `admin:platform` | any |
 | GET | `/api/users/api-keys/available-models` | `models:read` | any |
-| GET | `/api/users/api-keys/billing-options` | `models:read` | any |
+| GET | `/api/users/api-keys/billing-options` | `models:read` | bound |
 | GET | `/api/users/api-keys/status` | `models:read` | any |
 | DELETE | `/api/users/api-keys/{provider}` | `models:manage` | any |
 | POST | `/api/users/api-keys/{provider}` | `models:manage` | any |
 | POST | `/api/users/api-keys/{provider}/test` | `models:manage` | any |
 | POST | `/api/users/api-keys/{provider}/test-saved` | `models:manage` | any |
-| GET | `/api/users/me/access-keys` | `keys:manage` | any |
-| POST | `/api/users/me/access-keys` | `keys:manage` | any |
-| POST | `/api/users/me/access-keys/{key_id}/revoke` | `keys:manage` | any |
-| GET | `/api/users/me/access-keys/{key_id}/usage` | `keys:manage` | any |
+| GET | `/api/users/me/access-keys` | `keys:manage` | bound |
+| POST | `/api/users/me/access-keys` | `keys:manage` | bound |
+| POST | `/api/users/me/access-keys/{key_id}/revoke` | `keys:manage` | bound |
+| GET | `/api/users/me/access-keys/{key_id}/usage` | `keys:manage` | bound |
 | DELETE | `/api/users/{user_id}` | `admin:platform` | any |
 | GET | `/api/users/{user_id}/anonymization` | `admin:platform` | any |
 | POST | `/api/users/{user_id}/anonymize` | `admin:platform` | any |
@@ -481,8 +481,8 @@ project (`any`) or only for its own projects (`bound`).
 | GET | `/storage/cdn/assets/{path:path}` | `files:read` | any |
 | GET | `/storage/cdn/health` | `files:read` | any |
 | POST | `/storage/cdn/invalidate` | `admin:platform` | any |
-| GET | `/storage/download-url/{file_id}` | `files:read` | any |
-| DELETE | `/storage/file/{file_id}` | `files:write` | any |
+| GET | `/storage/download-url/{file_id}` | `files:read` | bound |
+| DELETE | `/storage/file/{file_id}` | `files:write` | bound |
 | GET | `/storage/health` | `files:read` | any |
 | POST | `/storage/multipart/complete` | `files:write` | any |
 | POST | `/storage/multipart/init` | `files:write` | any |

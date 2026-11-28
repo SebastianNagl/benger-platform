@@ -25,7 +25,12 @@ Project-restricted keys (a project list, or a group) may call a route only
 when it names its project: a path parameter from :data:`PROJECT_PARAMS`
 (resolved by ``middleware/key_gate.py``), or a query/body field listed in
 the rule's ``bind``. Rules for account-level routes that touch no project
-data carry ``neutral=True`` and stay open to restricted keys.
+data carry ``neutral=True`` and stay open to restricted keys. A route that
+returns or changes data of the user's projects (names, ids, counts, scores,
+notification texts, files) is not neutral, even when it is the user's own
+data: a restricted key would otherwise read its other projects through it.
+A neutral rule may still bind an optional project filter, so a restricted
+key that names a project gets only a project of its own.
 
 Routes that return task content need ``tasks:read_reference``: unlike
 v1, the full API does not blind reference solutions.
@@ -61,6 +66,7 @@ PROJECT_PARAMS: Dict[str, str] = {
     "analysis_run_id": "analysis_run",
     "code_validation_id": "code_validation",
     "trial_id": "generation_trial",
+    "listing_id": "marketplace_listing",
 }
 
 
@@ -177,11 +183,84 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
         # -- access keys --------------------------------------------------- #
         allow("/api/access-keys/availability", methods="read", neutral=True),
         allow("/api/access-keys/scopes", methods="read", neutral=True),
-        allow("/api/users/me/access-keys*", "keys:manage", neutral=True),
-        allow("/api/organizations/{org_id}/access-keys*", "keys:manage", neutral=True),
-        allow("/api/admin/access-keys*", "keys:manage", "admin:platform", neutral=True),
+        # Key lists and usage events name the projects of every key, and an
+        # update re-scopes a key to other projects. A restricted key already
+        # cannot create keys (routers/access_keys._grant_context); it does
+        # not manage them either.
+        allow(
+            "/api/users/me/access-keys*",
+            "keys:manage",
+            note="the owner's keys with their project lists and usage",
+        ),
+        allow(
+            "/api/organizations/{org_id}/access-keys*",
+            "keys:manage",
+            note="the organization's keys with their project lists and usage",
+        ),
+        allow(
+            "/api/admin/access-keys*",
+            "keys:manage",
+            "admin:platform",
+            note="every key with its project list and usage",
+        ),
         # -- superadmin ----------------------------------------------------- #
+        # LTI connections are organization settings (neutral), except where
+        # they list or change the projects their activities point at.
+        allow(
+            "/api/admin/lti/registrations/{registration_id}/resource-links",
+            "org:read",
+            methods="read",
+            note="the linked projects with titles and task counts",
+        ),
+        allow(
+            "/api/admin/lti/grade-syncs",
+            "org:read",
+            methods="read",
+            bind=("query:project_id",),
+            note="grade syncs with project titles",
+        ),
+        allow(
+            "/api/admin/lti/grade-syncs/{grade_sync_id}/retry",
+            "org:manage",
+            methods="POST",
+            note="one grade sync with its project",
+        ),
+        allow(
+            "/api/admin/lti/registrations/{registration_id}/grade-syncs/resend-all",
+            "org:manage",
+            methods="POST",
+            note="resends the grades of every linked project",
+        ),
+        allow(
+            "/api/admin/lti/registrations/{registration_id}",
+            "org:manage",
+            methods=("PUT", "DELETE"),
+            note="re-syncs, unlinks and detaches the linked projects",
+        ),
         area("/api/admin/lti*", ["org:read"], ["org:manage"], neutral=True),
+        # Superadmin reads and writes over project data name their project
+        # through an optional filter: a restricted key must give one.
+        allow(
+            "/api/admin/grading-feedback/export",
+            "admin:platform",
+            methods="read",
+            bind=("query:project_id",),
+            note="grading feedback of every project",
+        ),
+        allow(
+            "/api/admin/evaluation-runs/relabel",
+            "admin:platform",
+            methods="POST",
+            bind=("body:project_id",),
+            note="evaluation runs of every project",
+        ),
+        allow(
+            "/api/admin/rubric-generation-jobs",
+            "admin:platform",
+            methods="read",
+            bind=("query:project_id",),
+            note="rubric generation jobs of every project",
+        ),
         allow("/api/admin/*", "admin:platform", neutral=True),
         allow("/api/feature-flags/me", methods="read", neutral=True),
         allow("/api/ext/feature-flags/me", methods="read", neutral=True),
@@ -192,11 +271,35 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
         allow("/api/users/{user_id}*", "admin:platform", neutral=True),
         allow("/storage/cdn/invalidate", "admin:platform", neutral=True),
         # -- account -------------------------------------------------------- #
+        # Notification texts name the project they come from (a grading in
+        # a project, a new project of the organization). The counts, the
+        # preferences and marking as read stay neutral.
+        allow(
+            "/api/notifications/",
+            "account:read",
+            methods="read",
+            note="notification texts with project titles and ids",
+        ),
+        allow("/api/notifications/groups", "account:read", methods="read"),
+        allow("/api/notifications/stream", "account:read", methods="read"),
         area(
             "/api/notifications*",
             ["account:read"],
             ["account:write"],
             neutral=True,
+        ),
+        allow(
+            "/api/users/api-keys/billing-options",
+            "models:read",
+            methods="read",
+            bind=("query:project_id",),
+        ),
+        allow(
+            "/api/users/api-keys/available-models",
+            "models:read",
+            methods="read",
+            neutral=True,
+            bind=("query:project_id",),
         ),
         area(
             "/api/users/api-keys*",
@@ -204,15 +307,47 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
             ["models:manage"],
             neutral=True,
         ),
-        allow("/api/shares/discover", "projects:read", methods="read", neutral=True),
+        allow(
+            "/api/shares/discover",
+            "projects:read",
+            methods="read",
+            note="every listed share, and which of them the user joined",
+        ),
+        # A share token opens its one project to whoever holds it, key or not.
         area("/api/shares/{token}*", ["projects:read"], ["account:write"], neutral=True),
         area(
             "/api/projects/{project_id}/participation",
             ["account:read"],
             ["account:write"],
         ),
-        allow("/api/student/*", "results:read", methods="read", neutral=True),
-        allow("/api/dashboard/*", "results:read", methods="read", neutral=True),
+        # The personal student reads aggregate the caller's data over all
+        # their projects and name none, so they are not neutral: a
+        # project-restricted key is refused, as on the other cross-project
+        # lists. One rule per route, so a new route needs its own decision.
+        allow(
+            "/api/student/score-history",
+            "results:read",
+            methods="read",
+            note="project ids, titles and scores of every graded attempt",
+        ),
+        allow(
+            "/api/student/retention",
+            "results:read",
+            methods="read",
+            note="flashcard reviews of every deck",
+        ),
+        allow(
+            "/api/student/activity",
+            "results:read",
+            methods="read",
+            note="flashcard reviews and the exam projects submitted to, per day",
+        ),
+        allow(
+            "/api/dashboard/stats",
+            "results:read",
+            methods="read",
+            note="counts over every project the user reaches, or their own answers",
+        ),
         allow("/api/defaults/*", "projects:read", methods="read", neutral=True),
         # -- organizations -------------------------------------------------- #
         area(
@@ -256,14 +391,80 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
         # -- problem reports ------------------------------------------------ #
         never("/api/bug-reports*", note="problem reports: browser sessions only"),
         # -- marketplace (vendor listings) ----------------------------------- #
-        area("/api/marketplace*", ["projects:read"], ["projects:write"], neutral=True),
+        # A listing leads to its project (``listing_id``). The catalogue, the
+        # purchases, the grading wallets and queues list many projects.
+        allow(
+            "/api/marketplace/listings",
+            "projects:write",
+            methods="POST",
+            bind=("body:project_id",),
+        ),
+        area("/api/marketplace/listings/{listing_id}", ["projects:read"], ["projects:write"]),
+        allow(
+            "/api/marketplace/vendor/account",
+            "projects:read",
+            methods="read",
+            neutral=True,
+            note="the vendor status of an organization",
+        ),
+        area("/api/marketplace*", ["projects:read"], ["projects:write"]),
         # -- files ----------------------------------------------------------- #
-        area("/api/files*", ["files:read"], ["files:write"], neutral=True),
+        # The user's uploads may belong to tasks of any of their projects:
+        # reading or deleting a stored file is not neutral. Text extraction
+        # stores nothing, and a new upload names its task when it has one.
+        allow("/api/files/extract-text", "files:write", methods="POST", neutral=True),
+        allow(
+            "/api/files/upload",
+            "files:write",
+            methods="POST",
+            neutral=True,
+            bind=("query:task_id",),
+        ),
+        allow("/api/files/", "files:read", methods="read", bind=("query:task_id",)),
+        area("/api/files*", ["files:read"], ["files:write"]),
         allow("/storage/upload-url", "files:write", methods="POST", neutral=True),
+        allow("/storage/download-url/{file_id}", "files:read", methods="read"),
+        allow("/storage/file/{file_id}", "files:write", methods="DELETE"),
         area("/storage/*", ["files:read"], ["files:write"], neutral=True),
         # -- leaderboards, reports ------------------------------------------ #
-        allow("/api/leaderboards*", "results:read", methods="read", neutral=True),
-        allow("/api/reports", "results:read", methods="read", neutral=True),
+        # The default model leaderboard and its statistics are the public
+        # ones anonymous visitors see too (public and trusted projects); an
+        # explicit project filter is bound. A model's details aggregate every
+        # project for a signed-in user, and its per-project view lists the
+        # user's projects by title, so neither is neutral.
+        allow(
+            "/api/leaderboards/statistics",
+            "results:read",
+            methods="read",
+            neutral=True,
+            bind=("query:project_ids",),
+        ),
+        allow(
+            "/api/leaderboards/llm-models",
+            "results:read",
+            methods="read",
+            neutral=True,
+            bind=("query:project_ids",),
+        ),
+        allow(
+            "/api/leaderboards/llm-models/*/projects",
+            "results:read",
+            methods="read",
+            note="the model's scores in every project the user reaches, by title",
+        ),
+        allow(
+            "/api/leaderboards/llm-models/*",
+            "results:read",
+            methods="read",
+            bind=("query:project_ids",),
+            note="the model's scores over every project unless filtered",
+        ),
+        allow(
+            "/api/reports",
+            "results:read",
+            methods="read",
+            note="published reports of every project of the user's organizations",
+        ),
         allow("/api/reports/{report_id}/data", "results:read", methods="read"),
         # -- generation ------------------------------------------------------ #
         allow("/api/runs", "runs:read", methods="read", bind=("query:project_id",)),
@@ -296,7 +497,7 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
             "/api/evaluations/validate-config",
             "evaluations:read",
             methods="POST",
-            neutral=True,
+            bind=("query:project_id",),
         ),
         allow("/api/evaluations/evaluation-types*", "evaluations:read", methods="read", neutral=True),
         allow("/api/evaluations/supported-metrics", "evaluations:read", methods="read", neutral=True),

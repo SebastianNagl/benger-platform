@@ -142,7 +142,7 @@ declare their scopes, everywhere else the rule table in
 | `evaluations:read`, `evaluations:run` | reading and starting evaluations |
 | `results:read` | reading results |
 | `exports:read` | downloading exports |
-| `keys:manage` | managing access keys through the API (personal keys only; a key never grants more than it holds, and a project- or group-limited key cannot create keys) |
+| `keys:manage` | managing access keys through the API (personal keys only; a key never grants more than it holds, and a project- or group-limited key cannot create, list, change or revoke keys) |
 | `account:read`, `account:write` | the own account, notifications and settings; joining projects through a share link |
 | `org:manage` | members, groups, invitations, storage connections and settings of the organisation (implies `org:read`; personal keys and ORG_ADMIN organisation keys) |
 | `projects:write` | creating, configuring, sharing, importing into, archiving and deleting projects |
@@ -168,7 +168,10 @@ requires the Safe Exam Browser. For a key, every project it may not see
 answers 404. On the full API a key limited to projects or a group can only
 call routes that name their project (in the path, or in the query or body
 field the rule binds); routes that name no project and are not
-account-level answer `403 key_project_restricted`.
+account-level answer `403 key_project_restricted`. A route that returns
+data of several projects counts as project data even when it lists the
+user's own (dashboard counters, notification texts, report, share and
+marketplace lists, files, key lists): a limited key is refused there too.
 
 ## Deny by default
 
