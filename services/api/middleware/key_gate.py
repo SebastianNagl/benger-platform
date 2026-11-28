@@ -174,6 +174,10 @@ def _resolver_statement(kind: str, value: str):
         from models import CodeValidation
 
         return select(CodeValidation.project_id).where(CodeValidation.id == value)
+    if kind == "marketplace_listing":
+        from project_models import MarketplaceListing
+
+        return select(MarketplaceListing.project_id).where(MarketplaceListing.id == value)
     return _overlay_resolvers[kind](value)
 
 

@@ -134,6 +134,100 @@ def test_student_reads_are_not_neutral():
         assert not e.rule.neutral, e.template
 
 
+@pytest.mark.parametrize(
+    "method,path",
+    [
+        ("GET", "/api/dashboard/stats"),
+        ("GET", "/api/reports"),
+        ("GET", "/api/leaderboards/llm-models/gpt-4o"),
+        ("GET", "/api/leaderboards/llm-models/openai/gpt-4o/projects"),
+        ("GET", "/api/notifications/"),
+        ("GET", "/api/notifications/groups"),
+        ("GET", "/api/notifications/stream"),
+        ("GET", "/api/shares/discover"),
+        ("GET", "/api/marketplace/discover"),
+        ("GET", "/api/marketplace/entitlements"),
+        ("GET", "/api/marketplace/grading/credits"),
+        ("GET", "/api/marketplace/grading/requests"),
+        ("GET", "/api/marketplace/grading/queue"),
+        ("GET", "/api/marketplace/vendor/listings"),
+        ("POST", "/api/marketplace/listings"),
+        ("GET", "/api/marketplace/listings/l1"),
+        ("PATCH", "/api/marketplace/listings/l1"),
+        ("DELETE", "/api/marketplace/listings/l1"),
+        ("GET", "/api/files/"),
+        ("GET", "/api/files/f1/download"),
+        ("DELETE", "/api/files/f1"),
+        ("GET", "/storage/download-url/f1"),
+        ("DELETE", "/storage/file/f1"),
+        ("GET", "/api/users/me/access-keys"),
+        ("POST", "/api/users/me/access-keys/k1/revoke"),
+        ("GET", "/api/organizations/o1/access-keys"),
+        ("PATCH", "/api/organizations/o1/access-keys/k1"),
+        ("GET", "/api/organizations/o1/access-keys/usage/export.csv"),
+        ("GET", "/api/admin/access-keys"),
+        ("GET", "/api/users/api-keys/billing-options"),
+        ("POST", "/api/evaluations/validate-config"),
+        ("GET", "/api/admin/grading-feedback/export"),
+        ("POST", "/api/admin/evaluation-runs/relabel"),
+        ("GET", "/api/admin/rubric-generation-jobs"),
+        ("GET", "/api/admin/lti/registrations/r1/resource-links"),
+        ("GET", "/api/admin/lti/grade-syncs"),
+        ("POST", "/api/admin/lti/grade-syncs/g1/retry"),
+        ("POST", "/api/admin/lti/registrations/r1/grade-syncs/resend-all"),
+        ("PUT", "/api/admin/lti/registrations/r1"),
+        ("DELETE", "/api/admin/lti/registrations/r1"),
+    ],
+)
+def test_cross_project_routes_are_not_neutral(method, path):
+    """These routes name no project but return or change data of many
+    projects (titles, ids, counts, scores, notification texts, files, key
+    project lists): a project-restricted key must name its project or is
+    refused, so none of them may be neutral."""
+    rule, _ = _rule(method, path)
+    assert rule.allowed and not rule.neutral, (method, path, rule)
+
+
+@pytest.mark.parametrize(
+    "method,path,bind",
+    [
+        ("GET", "/api/leaderboards/llm-models", "query:project_ids"),
+        ("GET", "/api/leaderboards/statistics", "query:project_ids"),
+        ("GET", "/api/users/api-keys/available-models", "query:project_id"),
+        ("POST", "/api/files/upload", "query:task_id"),
+    ],
+)
+def test_neutral_routes_bind_their_project_filter(method, path, bind):
+    """Neutral without a project (the public leaderboard, the account's
+    models, a personal upload), bound once the request names one."""
+    rule, _ = _rule(method, path)
+    assert rule.neutral and bind in rule.bind, (method, path, rule)
+
+
+@pytest.mark.parametrize(
+    "method,path",
+    [
+        ("GET", "/api/notifications/unread-count"),
+        ("POST", "/api/notifications/mark-all-read"),
+        ("GET", "/api/admin/lti/registrations/r1"),
+        ("GET", "/api/marketplace/vendor/account"),
+        ("GET", "/api/shares/t1"),
+        ("POST", "/api/files/extract-text"),
+        ("GET", "/api/admin/vendors"),
+    ],
+)
+def test_account_and_organization_routes_stay_neutral(method, path):
+    rule, _ = _rule(method, path)
+    assert rule.allowed and rule.neutral, (method, path, rule)
+
+
+def test_listing_id_leads_to_its_project():
+    from middleware.key_gate import _resolver_statement
+
+    assert kr.PROJECT_PARAMS["listing_id"] == "marketplace_listing"
+    assert "marketplace_listings" in str(_resolver_statement("marketplace_listing", "l1"))
+
+
 def test_match_returns_template_and_params():
     entry, params = kr.match(get_index(app), "GET", "/api/projects/abc/tasks")
     assert entry.template == "/api/projects/{project_id}/tasks"
