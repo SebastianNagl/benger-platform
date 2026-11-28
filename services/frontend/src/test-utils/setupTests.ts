@@ -308,8 +308,8 @@ jest.mock('@/contexts/I18nContext', () => {
     'register.alreadyHaveAccount': 'Already have an account?',
     'register.success': 'Registration successful',
     // Data management translations
-    'dataManagement.accessDenied': 'Access Denied',
-    'dataManagement.accessDeniedDescription':
+    'projects.data.accessDenied': 'Access Denied',
+    'projects.data.accessDeniedDescription':
       'You do not have permission to access this page',
     'common.backToProjects': 'Back to Projects',
     // Labeling translations

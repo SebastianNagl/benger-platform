@@ -191,7 +191,7 @@ describe('GenerationPage br9', () => {
       is_superadmin: false,
     }
     render(<GenerationPage />)
-    expect(screen.getByText('dataManagement.accessDenied')).toBeInTheDocument()
+    expect(screen.getByText('projects.data.accessDenied')).toBeInTheDocument()
   })
 
   it('renders page title when user has access', () => {

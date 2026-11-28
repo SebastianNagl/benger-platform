@@ -69,8 +69,8 @@ jest.mock('@/contexts/I18nContext', () => ({
         'generation.project': 'Project',
         'generation.selectProject': 'Select project',
         'common.loading': 'Loading...',
-        'dataManagement.accessDenied': 'Access Denied',
-        'dataManagement.accessDeniedDescription':
+        'projects.data.accessDenied': 'Access Denied',
+        'projects.data.accessDeniedDescription':
           'Only superadmins, organization admins, and contributors can access project data.',
         'common.backToProjects': 'Back to Projects',
       }

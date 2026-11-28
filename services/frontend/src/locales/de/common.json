@@ -2448,6 +2448,7 @@
     "passwordChangeFailed": "Passwort konnte nicht geändert werden",
     "updateSuccess": "Profil erfolgreich aktualisiert",
     "updateFailed": "Profil konnte nicht aktualisiert werden",
+    "loadFailed": "Profil konnte nicht geladen werden",
     "passwordsDoNotMatch": "Passwörter stimmen nicht überein",
     "accessKeys": "API-Zugänge",
     "bundeslaender": {
