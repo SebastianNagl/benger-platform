@@ -49,7 +49,7 @@ the API checks, in this order:
 | the API feature is switched on for the key ([Availability](api-keys.md#availability)) | `404 feature_disabled` |
 | the key holds the route's scopes | `403 insufficient_scope` (`required_scopes` in the body) |
 | the projects the request names are visible to the key (project list, group, no Safe Exam Browser project) | `404 not_found` |
-| a project- or group-limited key names a project on a project-level route | `403 key_project_restricted` |
+| a project- or group-limited key names no project on a route marked `bound` in the [route table](full-api-routes.md), such as the dashboard counters, notification texts, report and share lists, files and key lists | `403 key_project_restricted` |
 | rate limit | `429 rate_limited` with `Retry-After` |
 
 After these checks the route runs as it does for a browser session of the
