@@ -56,8 +56,7 @@ npm test --prefix services/frontend
 cd services/api && alembic upgrade head  # Run migrations
 cd services/api && alembic revision -m "description"  # Create migration
 
-# Production deployment
-./scripts/deployment/deploy-benger.sh
+# Production deployment: runs from a separate private distribution repository, not from this one
 ```
 
 ### Key Endpoints

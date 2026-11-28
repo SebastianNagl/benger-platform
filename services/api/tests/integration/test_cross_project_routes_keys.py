@@ -5,7 +5,9 @@ These routes used to be neutral, so a key limited to one project (a project
 list, or a group) read through them the titles, ids, counts and scores of
 its user's other projects: the dashboard counters, the report list, a
 model's leaderboard details and per-project scores, the notification texts,
-the share and marketplace directories, the user's files, the key lists, and
+the share and marketplace directories, the user's files, the key lists, the
+LMS connection history (it lists the projects a change re-synced, unlinked
+or detached), the object listing of the organization's storage bucket, and
 the superadmin and LTI reads over all projects. Now a restricted key gets
 403 ``key_project_restricted`` there, or, where the route takes a project
 filter, only a project of its own (404 ``not_found`` otherwise). The public
@@ -18,7 +20,13 @@ from datetime import datetime, timezone
 import pytest
 from sqlalchemy import select
 
-from models import Notification, NotificationType, OrganizationRole, UploadedData
+from models import (
+    LtiAdminEvent,
+    Notification,
+    NotificationType,
+    OrganizationRole,
+    UploadedData,
+)
 from project_models import Annotation, MarketplaceListing, ProjectShareLink
 from report_models import ProjectReport
 from services import api_key_service as svc
@@ -94,6 +102,9 @@ REFUSED = [
     ("POST", f"/api/admin/lti/registrations/{DUMMY}/grade-syncs/resend-all", None),
     ("PUT", f"/api/admin/lti/registrations/{DUMMY}", {"name": "x"}),
     ("DELETE", f"/api/admin/lti/registrations/{DUMMY}", None),
+    ("GET", "/api/admin/lti/events?organization_id={org}", None),
+    ("GET", f"/api/admin/lti/registrations/{DUMMY}/events", None),
+    ("GET", "/api/organizations/{org}/storage-connections/" + DUMMY + "/objects", None),
 ]
 
 #: Neutral routes that stay open to a restricted key without a project.
@@ -408,6 +419,49 @@ async def test_leaderboard_project_filter_is_bound(async_test_client, async_test
         headers=headers,
     )
     assert r.status_code == 200, r.text
+
+
+async def test_lti_history_names_other_projects_only_without_restriction(
+    async_test_client, async_test_db, world
+):
+    """The reported leak: a key limited to one project read the ids of the
+    projects an LMS connection change touched."""
+    c, db = async_test_client, async_test_db
+    db.add(
+        LtiAdminEvent(
+            id=str(uuid.uuid4()),
+            organization_id=world["org"].id,
+            actor_user_id=world["admin"].id,
+            actor_kind="user",
+            action="registration_deleted",
+            changes={"unlinked_project_ids": [world["other"].id]},
+            created_at=datetime.now(timezone.utc),
+        )
+    )
+    await db.flush()
+    path = f"/api/admin/lti/events?organization_id={world['org'].id}"
+    r = await c.get(path, headers=bearer(await _personal(db, world["admin"])))
+    assert r.status_code == 200, r.text
+    assert world["other"].id in r.text
+    r = await c.get(path, headers=await _restricted(db, world, "admin"))
+    assert r.status_code == 403 and _code(r) == "key_project_restricted", r.text
+    assert world["other"].id not in r.text
+
+
+async def test_storage_object_listing_needs_files_read(async_test_client, async_test_db, world):
+    """The bucket holds the import files of every project: listing it reads
+    files, not only the organization."""
+    c, db = async_test_client, async_test_db
+    path = f"/api/organizations/{world['org'].id}/storage-connections/{DUMMY}/objects"
+    plain = (
+        await svc.create_personal_key(
+            db, world["admin"].id, {"name": "o", "scopes": ["org:read"]}
+        )
+    )[1]
+    r = await c.get(path, headers=bearer(plain))
+    assert r.status_code == 403 and _code(r) == "insufficient_scope", r.text
+    r = await c.get(path, headers=bearer(await _personal(db, world["admin"])))
+    assert r.status_code == 404 and _code(r) not in GATE_CODES, r.text
 
 
 @pytest.mark.parametrize(
