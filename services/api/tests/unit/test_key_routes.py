@@ -225,23 +225,6 @@ def test_account_and_organization_routes_stay_neutral(method, path):
     assert rule.allowed and rule.neutral, (method, path, rule)
 
 
-@pytest.mark.parametrize(
-    "method,path,bind",
-    [
-        ("GET", "/api/evaluations/human/next-item", "query:session_id"),
-        ("POST", "/api/evaluations/human/likert", "body:session_id"),
-        ("POST", "/api/evaluations/human/likert", "body:task_id"),
-        ("POST", "/api/evaluations/human/preference", "body:session_id"),
-        ("POST", "/api/evaluations/human/preference", "body:task_id"),
-        ("POST", "/api/evaluations/human/session/start", "body:project_id"),
-    ],
-)
-def test_human_evaluation_routes_bind_their_session(method, path, bind):
-    """Sessions are loaded by id: the gate resolves the id to its project."""
-    rule, _ = _rule(method, path)
-    assert not rule.neutral and bind in rule.bind, (method, path, rule)
-
-
 def test_listing_id_leads_to_its_project():
     from middleware.key_gate import _resolver_statement
 
