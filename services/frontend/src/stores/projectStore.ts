@@ -847,23 +847,8 @@ export const useProjectStore = create<ProjectStore>()(
         if (!currentTask || !currentProject) return
 
         try {
-          // Call skip endpoint with optional comment
-          const response = await fetch(
-            `/api/projects/${currentProject.id}/tasks/${currentTask.id}/skip`,
-            {
-              method: 'POST',
-              credentials: 'include',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ comment: comment || null }),
-            },
-          )
-
-          if (!response.ok) {
-            const errorData = await response.json()
-            throw new Error(errorData.detail || t('store.project.skipFailed'))
-          }
+          // Through the API client, so an expired access token is refreshed.
+          await projectsAPI.skipTask(currentProject.id, currentTask.id, comment)
 
           // Handle task cycling after skip
           const isAutoMode = currentProject?.assignment_mode === 'auto'

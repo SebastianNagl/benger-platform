@@ -16,7 +16,12 @@ unchanged.
 """
 from typing import Any, Dict, List, Optional  # noqa: F401  (used by the bodies)
 
-from evaluation.inline_judges import inline_judge_row, resolve_inline_judge
+from evaluation.inline_judges import (
+    feature_disabled_row,
+    inactive_inline_judge_owner,
+    inline_judge_row,
+    resolve_inline_judge,
+)
 from grading_basis import stamp_rows as stamp_grading_basis_rows
 from metric_filters import (
     graded_reference_fields,
@@ -729,6 +734,19 @@ def evaluate_generation_cell_impl(
                                         **_rubric_score_unit_kwargs(config.get("metric_parameters")),
                                     )
 
+                                inline_row = {
+                                    "id": str(_gen_uuid.uuid4()),
+                                    "evaluation_id": evaluation_id,
+                                    "judge_run_id": jr_id,
+                                    "task_id": task.id,
+                                    "generation_id": gen.id,
+                                    "annotation_id": None,
+                                    "field_name": field_key,
+                                    "evaluation_config_id": config_id,
+                                    "answer_type": "text",
+                                    "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
+                                    "prediction": str(prediction)[:1000] if prediction else "",
+                                }
                                 if inline_judge is not None:
                                     per_judge_results.append(inline_judge_row(
                                         inline_judge,
@@ -737,20 +755,16 @@ def evaluate_generation_cell_impl(
                                         prediction=prediction,
                                         metric_params=config.get("metric_parameters"),
                                         task_rubric=task_rubric,
-                                        row={
-                                            "id": str(_gen_uuid.uuid4()),
-                                            "evaluation_id": evaluation_id,
-                                            "judge_run_id": jr_id,
-                                            "task_id": task.id,
-                                            "generation_id": gen.id,
-                                            "annotation_id": None,
-                                            "field_name": field_key,
-                                            "evaluation_config_id": config_id,
-                                            "answer_type": "text",
-                                            "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
-                                            "prediction": str(prediction)[:1000] if prediction else "",
-                                        },
+                                        row=inline_row,
                                     ))
+                                    continue
+                                disabled_owner = inactive_inline_judge_owner(metric)
+                                if disabled_owner is not None:
+                                    # The judging package is off for this task:
+                                    # no generic judge call in its place.
+                                    per_judge_results.append(
+                                        feature_disabled_row(inline_row, metric, disabled_owner)
+                                    )
                                     continue
 
                                 multidim_mode = (
@@ -759,19 +773,17 @@ def evaluate_generation_cell_impl(
                                 )
 
                                 if metric == "llm_judge_falloesung":
-                                    import extension_activation
+                                    # Inactive for the task: refuses (ExtensionInactive); refused
+                                    # by the registry or absent: not used at all.
+                                    import extension_registry
 
-                                    extension_activation.ensure_active("benger_extended")
-                                    try:
-                                        from benger_extended.workers import (
-                                            get_falloesung_bulk_compute_fn,
-                                        )
-                                    except ImportError as exc:
-                                        raise RuntimeError(
+                                    falloesung_bulk_fn = extension_registry.require_worker_attr(
+                                        "get_falloesung_bulk_compute_fn",
+                                        missing=(
                                             "Metric 'llm_judge_falloesung' requires the "
-                                            "benger_extended package; it is not installed."
-                                        ) from exc
-                                    falloesung_bulk_fn = get_falloesung_bulk_compute_fn()
+                                            "benger_extended package; it is not installed (or was refused)."
+                                        ),
+                                    )()
                                     sachverhalt = (
                                         _get_insensitive(task.data, "sachverhalt")
                                         if task.data
@@ -1428,6 +1440,19 @@ def evaluate_annotation_cell_impl(
                                             **_rubric_score_unit_kwargs(config.get("metric_parameters")),
                                         )
 
+                                    inline_row = {
+                                        "id": str(_ann_uuid.uuid4()),
+                                        "evaluation_id": evaluation_id,
+                                        "judge_run_id": jr_id,
+                                        "task_id": task.id,
+                                        "generation_id": None,
+                                        "annotation_id": annotation.id,
+                                        "field_name": field_key,
+                                        "evaluation_config_id": config_id,
+                                        "answer_type": "text",
+                                        "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
+                                        "prediction": str(prediction)[:1000] if prediction else "",
+                                    }
                                     if inline_judge is not None:
                                         per_judge_results.append(inline_judge_row(
                                             inline_judge,
@@ -1436,20 +1461,16 @@ def evaluate_annotation_cell_impl(
                                             prediction=prediction,
                                             metric_params=config.get("metric_parameters"),
                                             task_rubric=task_rubric,
-                                            row={
-                                                "id": str(_ann_uuid.uuid4()),
-                                                "evaluation_id": evaluation_id,
-                                                "judge_run_id": jr_id,
-                                                "task_id": task.id,
-                                                "generation_id": None,
-                                                "annotation_id": annotation.id,
-                                                "field_name": field_key,
-                                                "evaluation_config_id": config_id,
-                                                "answer_type": "text",
-                                                "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
-                                                "prediction": str(prediction)[:1000] if prediction else "",
-                                            },
+                                            row=inline_row,
                                         ))
+                                        continue
+                                    disabled_owner = inactive_inline_judge_owner(metric)
+                                    if disabled_owner is not None:
+                                        # The judging package is off for this
+                                        # task: no generic judge call in its place.
+                                        per_judge_results.append(
+                                            feature_disabled_row(inline_row, metric, disabled_owner)
+                                        )
                                         continue
 
                                     multidim_mode = (
@@ -1458,19 +1479,17 @@ def evaluate_annotation_cell_impl(
                                     )
 
                                     if metric == "llm_judge_falloesung":
-                                        import extension_activation
+                                        # Inactive for the task: refuses (ExtensionInactive); refused
+                                        # by the registry or absent: not used at all.
+                                        import extension_registry
 
-                                        extension_activation.ensure_active("benger_extended")
-                                        try:
-                                            from benger_extended.workers import (
-                                                get_falloesung_bulk_compute_fn,
-                                            )
-                                        except ImportError as exc:
-                                            raise RuntimeError(
+                                        falloesung_bulk_fn = extension_registry.require_worker_attr(
+                                            "get_falloesung_bulk_compute_fn",
+                                            missing=(
                                                 "Metric 'llm_judge_falloesung' requires the "
-                                                "benger_extended package; it is not installed."
-                                            ) from exc
-                                        falloesung_bulk_fn = get_falloesung_bulk_compute_fn()
+                                                "benger_extended package; it is not installed (or was refused)."
+                                            ),
+                                        )()
                                         sachverhalt = (
                                             _get_insensitive(task.data, "sachverhalt")
                                             if task.data

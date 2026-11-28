@@ -13,6 +13,13 @@ import '@testing-library/jest-dom'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import MyTasksPage from '../page'
 
+const mockGetMyTasks = jest.fn()
+jest.mock('@/lib/api/projects', () => ({
+  projectsAPI: {
+    getMyTasks: (...args: unknown[]) => mockGetMyTasks(...args),
+  },
+}))
+
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(() => ({ push: jest.fn(), replace: jest.fn() })),
   useParams: jest.fn(() => ({ id: 'proj-1' })),
@@ -46,17 +53,13 @@ describe('MyTasksPage — extended slots', () => {
       fetchProject: jest.fn(),
       loading: false,
     })
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          tasks: [task],
-          total: 1,
-          page: 1,
-          page_size: 20,
-          pages: 1,
-        }),
-    }) as any
+    mockGetMyTasks.mockResolvedValue({
+      tasks: [task],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
+    })
   })
   afterEach(() => {
     registerSlot('MyTaskRowResult', null as any)
@@ -66,27 +69,23 @@ describe('MyTasksPage — extended slots', () => {
 
   it('renders the row result for a submitted task and opens its review modal', async () => {
     const summary = { status: 'completed', grade_points: 11 }
-    ;(global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          tasks: [
-            { ...task, has_evaluation: false, grade_summary: summary },
-            {
-              id: 't2',
-              inner_id: 2,
-              is_labeled: false,
-              has_evaluation: false,
-              has_feedback: false,
-              grade_summary: null,
-              assignment: null,
-            },
-          ],
-          total: 2,
-          page: 1,
-          page_size: 20,
-          pages: 1,
-        }),
+    mockGetMyTasks.mockResolvedValue({
+      tasks: [
+        { ...task, has_evaluation: false, grade_summary: summary },
+        {
+          id: 't2',
+          inner_id: 2,
+          is_labeled: false,
+          has_evaluation: false,
+          has_feedback: false,
+          grade_summary: null,
+          assignment: null,
+        },
+      ],
+      total: 2,
+      page: 1,
+      page_size: 20,
+      pages: 1,
     })
     const RowResult = jest.fn(({ task: rowTask }: any) => (
       <span data-testid="row-result">
@@ -111,16 +110,12 @@ describe('MyTasksPage — extended slots', () => {
   })
 
   it('renders rows without a result in the community edition', async () => {
-    ;(global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          tasks: [{ ...task, grade_summary: null }],
-          total: 1,
-          page: 1,
-          page_size: 20,
-          pages: 1,
-        }),
+    mockGetMyTasks.mockResolvedValue({
+      tasks: [{ ...task, grade_summary: null }],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
     })
     render(<MyTasksPage />)
     expect(await screen.findByTestId('my-task-item')).toBeInTheDocument()

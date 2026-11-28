@@ -1385,6 +1385,7 @@ describe('projectsAPI', () => {
 
       expect(apiClient.get).toHaveBeenCalledWith(
         '/projects/proj-1/my-tasks?page=1&page_size=50',
+        { cache: 'no-store' },
       )
       expect(result).toEqual(mockResponse)
     })
@@ -1400,10 +1401,32 @@ describe('projectsAPI', () => {
 
       ;(apiClient.get as jest.Mock).mockResolvedValue(mockResponse)
 
-      await projectsAPI.getMyTasks('proj-1', 1, 50, 'completed')
+      await projectsAPI.getMyTasks('proj-1', {
+        page: 2,
+        pageSize: 20,
+        status: 'completed',
+        search: 'contract',
+      })
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        '/projects/proj-1/my-tasks?page=1&page_size=50&status=completed',
+        '/projects/proj-1/my-tasks?page=2&page_size=20&status=completed&search=contract',
+        { cache: 'no-store' },
+      )
+    })
+
+    it('should skip a task with its comment', async () => {
+      ;(apiClient.post as jest.Mock).mockResolvedValue({})
+
+      await projectsAPI.skipTask('proj-1', 'task-1', 'Unclear wording')
+      await projectsAPI.skipTask('proj-1', 'task-2')
+
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/projects/proj-1/tasks/task-1/skip',
+        { comment: 'Unclear wording' },
+      )
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/projects/proj-1/tasks/task-2/skip',
+        { comment: null },
       )
     })
 

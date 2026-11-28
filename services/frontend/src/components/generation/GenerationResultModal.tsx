@@ -3,6 +3,7 @@
 import { GenerationReasoning } from '@/components/generation/GenerationReasoning'
 import { SeedNotSentNotice } from '@/components/generation/SeedNotSentNotice'
 import { Button } from '@/components/shared/Button'
+import { RunStatusBadge } from '@/components/shared/RunStatusBadge'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
 import { formatDecimal, intlTag } from '@/lib/i18n/locales'
@@ -183,27 +184,6 @@ export function GenerationResultModal({
         .join('\n')
     }
     return JSON.stringify(data)
-  }
-
-  const getStatusBadge = (status: string) => {
-    const statusColors: Record<string, string> = {
-      completed:
-        'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300',
-      failed: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300',
-      running:
-        'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300',
-      pending: 'bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200',
-      cancelled:
-        'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300',
-    }
-
-    return (
-      <span
-        className={`inline-flex items-center rounded-full px-3 py-0.5 text-sm font-medium ${statusColors[status] || statusColors.pending}`}
-      >
-        {status}
-      </span>
-    )
   }
 
   // Filter history results by selected structure tab
@@ -466,7 +446,7 @@ export function GenerationResultModal({
                                   <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                                     {t('generation.resultModal.status')}
                                   </span>
-                                  {getStatusBadge(result.status)}
+                                  <RunStatusBadge status={result.status} />
                                 </div>
                                 {result.generated_at && (
                                   <div className="flex items-center justify-between">
@@ -613,7 +593,9 @@ export function GenerationResultModal({
                                       <>
                                         <Disclosure.Button className="flex w-full items-center justify-between rounded-lg bg-zinc-50 px-4 py-3 text-sm hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800">
                                           <div className="flex items-center gap-3">
-                                            {getStatusBadge(entry.status)}
+                                            <RunStatusBadge
+                                              status={entry.status}
+                                            />
                                             <span className="text-zinc-600 dark:text-zinc-400">
                                               {entry.generated_at
                                                 ? new Date(

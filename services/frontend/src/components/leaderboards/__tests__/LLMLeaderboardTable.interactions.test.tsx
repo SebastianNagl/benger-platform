@@ -150,9 +150,8 @@ const dataResponse = {
       evaluation_count: 10,
       generation_count: 1234,
       samples_evaluated: 500,
-      // The default selected metric is llm_judge_falloesung_grade_points, so
-      // the displayed score reads from that key. accuracy is kept for the
-      // "switch metric" test.
+      // Without the overlay that defines Notenpunkte the leaderboard ranks
+      // by accuracy, so the displayed score reads from that key.
       metrics: { llm_judge_falloesung_grade_points: 0.9, accuracy: 0.92 },
       average_score: 0.9,
       ci_lower: 0.85,
@@ -267,9 +266,8 @@ describe('LLMLeaderboardTable interactions', () => {
     // generation_count rendered via toLocaleString for the top row.
     expect(text).toMatch(/1[.,]234/)
 
-    // Default metric (llm_judge_falloesung_grade_points) is unregistered, so
-    // getMetricScale falls back to '0-1' and scores render as a percentage.
-    expect(text).toMatch(/90\.0%|85\.0%|78\.0%/)
+    // The default metric is accuracy (0-1), rendered as a percentage.
+    expect(text).toMatch(/92\.0%/)
     // CI for the top row (both bounds present) is shown in brackets.
     expect(text).toMatch(/\[.*%.*–.*%.*\]/)
 
@@ -376,23 +374,24 @@ describe('LLMLeaderboardTable interactions', () => {
     expect(monthlyCall[0].offset).toBe(0)
   })
 
-  it('switches metric to accuracy and re-queries with metric=accuracy', async () => {
-    mockGetLLMLeaderboard.mockResolvedValue(dataResponse)
+  it('switches metric to a reported one and re-queries with it', async () => {
+    mockGetLLMLeaderboard.mockResolvedValue({
+      ...dataResponse,
+      available_metrics: ['bleu'],
+    })
     render(<LLMLeaderboardTable />)
 
     await screen.findByText('GPT-4o')
     await openFilterPanel()
 
-    // The metric select includes the registered "Accuracy" option.
+    // The metric select offers accuracy and the reported, registered bleu.
     const metricSelect = findSelectByOption('Accuracy')
     mockGetLLMLeaderboard.mockClear()
-    await userEvent.selectOptions(metricSelect, 'accuracy')
+    await userEvent.selectOptions(metricSelect, 'bleu')
 
     await waitFor(() => {
       expect(
-        mockGetLLMLeaderboard.mock.calls.some(
-          (c) => c[0].metric === 'accuracy',
-        ),
+        mockGetLLMLeaderboard.mock.calls.some((c) => c[0].metric === 'bleu'),
       ).toBe(true)
     })
   })

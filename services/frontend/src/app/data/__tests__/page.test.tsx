@@ -89,8 +89,8 @@ describe('DataManagementPage', () => {
         'navigation.dashboard': 'Home',
         'navigation.dataManagement': 'Data Management',
         'dataManagement.title': 'Data Management',
-        'dataManagement.accessDenied': 'Access Denied',
-        'dataManagement.accessDeniedDescription':
+        'projects.data.accessDenied': 'Access Denied',
+        'projects.data.accessDeniedDescription':
           'Only superadmins, organization admins, and contributors can access project data.',
         'common.loading': 'Loading...',
         'common.backToProjects': 'Back to Projects',

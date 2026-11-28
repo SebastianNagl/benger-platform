@@ -443,6 +443,34 @@ def worker_attrs(attr: str) -> List[Tuple[str, Any]]:
     return found
 
 
+def inactive_worker_attrs(attr: str) -> List[Tuple[str, Any]]:
+    """``[(package_name, value)]`` of ``<package>.workers.<attr>`` for every
+    configured package that has it but is NOT active for the attribute's
+    gating class in the current task context: the providers
+    :func:`worker_attrs` leaves out. Packages the handshake or the dependency
+    check refused are skipped here too.
+
+    For a caller that must tell "no package provides this" apart from "the
+    package that provides it is switched off for this task" (the latter
+    records ``feature_disabled`` instead of falling back to platform code).
+    """
+    gating = worker_attr_gating(attr)
+    found: List[Tuple[str, Any]] = []
+    for name in configured_names():
+        if _skipped_lazily(name):
+            continue
+        workers = worker_module(name)
+        if workers is None:
+            continue
+        value = getattr(workers, attr, None)
+        if value is None:
+            continue
+        if _package_active(name, gating):
+            continue
+        found.append((name, value))
+    return found
+
+
 def first_worker_attr(attr: str, *, call: bool = False) -> Any:
     """The first package's ``<package>.workers.<attr>`` (``None`` when none
     has it), called when ``call`` is set. Several providers log a warning:
@@ -459,6 +487,33 @@ def first_worker_attr(attr: str, *, call: bool = False) -> Any:
         )
     value = hits[0][1]
     return value() if call else value
+
+
+def require_worker_attr(attr: str, *, missing: str) -> Any:
+    """``first_worker_attr(attr)`` for a surface the caller cannot do without.
+
+    Raises ``extension_activation.ExtensionInactive`` when only a package
+    that is switched off for the task provides it (the caller records
+    ``feature_disabled``), and ``RuntimeError(missing)`` when no usable
+    package does: none installed, or the one installed was refused at the
+    handshake or the dependency check. A direct ``from <package> import``
+    finds a refused package too, so a surface must be reached through here.
+    """
+    value = first_worker_attr(attr)
+    if value is not None:
+        return value
+    inactive = inactive_worker_attrs(attr)
+    if inactive:
+        import extension_activation
+
+        raise extension_activation.ExtensionInactive(inactive[0][0])
+    raise RuntimeError(missing)
+
+
+def is_refused(name: str) -> bool:
+    """Whether package ``name`` is importable but was refused (handshake,
+    dependency check or empty namespace): none of its code may run."""
+    return _skipped_lazily(name)
 
 
 # --------------------------------------------------------------------------- #
@@ -496,6 +551,9 @@ __all__ = [
     "describe_owner",
     "extension_api_version",
     "first_worker_attr",
+    "inactive_worker_attrs",
+    "is_refused",
+    "require_worker_attr",
     "is_loaded",
     "is_required",
     "load_all",

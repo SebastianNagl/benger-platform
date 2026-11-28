@@ -6,10 +6,13 @@
  * @jest-environment jsdom
  */
 
+import { projectsAPI } from '@/lib/api/projects'
 import '@testing-library/jest-dom'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TaskAssignmentModal } from '../TaskAssignmentModal'
+
+const mockAssign = projectsAPI.assignTasks as jest.Mock
 
 // Mock the API module
 jest.mock('@/lib/api/projects', () => ({
@@ -210,13 +213,8 @@ describe('TaskAssignmentModal', () => {
   it('submits assignment with correct data', async () => {
     const user = userEvent.setup()
 
-    // Mock fetch for the assignment API call
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          assignments_created: 3,
-        }),
+    mockAssign.mockResolvedValue({
+      assignments_created: 3,
     })
 
     render(<TaskAssignmentModal {...defaultProps} />)
@@ -234,14 +232,11 @@ describe('TaskAssignmentModal', () => {
     await user.click(assignButton)
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        '/api/projects/project-123/tasks/assign',
+      expect(mockAssign).toHaveBeenCalledWith(
+        'project-123',
         expect.objectContaining({
-          method: 'POST',
-          headers: expect.objectContaining({
-            'Content-Type': 'application/json',
-          }),
-          body: expect.stringContaining('"user_ids":["user-1"]'),
+          user_ids: ['user-1'],
+          notes: 'Test notes',
         }),
       )
     })
@@ -273,8 +268,7 @@ describe('TaskAssignmentModal', () => {
         addToast: mockAddToast,
       })
 
-    // Mock fetch to reject
-    global.fetch = jest.fn().mockRejectedValue(new Error('API Error'))
+    mockAssign.mockRejectedValue(new Error('API Error'))
 
     render(<TaskAssignmentModal {...defaultProps} />)
 
@@ -296,18 +290,10 @@ describe('TaskAssignmentModal', () => {
   it('disables form during submission', async () => {
     const user = userEvent.setup()
 
-    // Mock fetch to delay the response
-    global.fetch = jest.fn().mockImplementation(
+    mockAssign.mockImplementation(
       () =>
         new Promise((resolve) =>
-          setTimeout(
-            () =>
-              resolve({
-                ok: true,
-                json: () => Promise.resolve({ assignments_created: 3 }),
-              }),
-            100,
-          ),
+          setTimeout(() => resolve({ assignments_created: 3 }), 100),
         ),
     )
 
@@ -446,13 +432,9 @@ describe('TaskAssignmentModal', () => {
         addToast: mockAddToast,
       })
 
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          assignments_skipped: 2,
-          assignments_created: 0,
-        }),
+    mockAssign.mockResolvedValue({
+      assignments_skipped: 2,
+      assignments_created: 0,
     })
 
     render(<TaskAssignmentModal {...defaultProps} />)
@@ -481,13 +463,9 @@ describe('TaskAssignmentModal', () => {
         addToast: mockAddToast,
       })
 
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          assignments_updated: 3,
-          assignments_created: 0,
-        }),
+    mockAssign.mockResolvedValue({
+      assignments_updated: 3,
+      assignments_created: 0,
     })
 
     render(<TaskAssignmentModal {...defaultProps} />)
@@ -516,13 +494,9 @@ describe('TaskAssignmentModal', () => {
         addToast: mockAddToast,
       })
 
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          message: 'Custom success message',
-          assignments_created: 0,
-        }),
+    mockAssign.mockResolvedValue({
+      message: 'Custom success message',
+      assignments_created: 0,
     })
 
     render(<TaskAssignmentModal {...defaultProps} />)
@@ -551,10 +525,7 @@ describe('TaskAssignmentModal', () => {
         addToast: mockAddToast,
       })
 
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: false,
-      status: 500,
-    })
+    mockAssign.mockRejectedValue(new Error('HTTP error! status: 500'))
 
     render(<TaskAssignmentModal {...defaultProps} />)
 
@@ -575,10 +546,7 @@ describe('TaskAssignmentModal', () => {
   it('includes due date in assignment request when provided', async () => {
     const user = userEvent.setup()
 
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ assignments_created: 1 }),
-    })
+    mockAssign.mockResolvedValue({ assignments_created: 1 })
 
     render(<TaskAssignmentModal {...defaultProps} />)
 
@@ -592,11 +560,9 @@ describe('TaskAssignmentModal', () => {
     await user.click(assignButton)
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          body: expect.stringContaining('2025-12-31T23:59'),
-        }),
+      expect(mockAssign).toHaveBeenCalledWith(
+        'project-123',
+        expect.objectContaining({ due_date: '2025-12-31T23:59' }),
       )
     })
   })
@@ -604,10 +570,7 @@ describe('TaskAssignmentModal', () => {
   it('excludes due date from request when not provided', async () => {
     const user = userEvent.setup()
 
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ assignments_created: 1 }),
-    })
+    mockAssign.mockResolvedValue({ assignments_created: 1 })
 
     render(<TaskAssignmentModal {...defaultProps} />)
 
@@ -618,9 +581,8 @@ describe('TaskAssignmentModal', () => {
     await user.click(assignButton)
 
     await waitFor(() => {
-      const fetchCall = (global.fetch as jest.Mock).mock.calls[0]
-      const body = JSON.parse(fetchCall[1].body)
-      expect(body.due_date).toBeUndefined()
+      expect(mockAssign).toHaveBeenCalled()
+      expect(mockAssign.mock.calls[0][1].due_date).toBeUndefined()
     })
   })
 
@@ -632,10 +594,7 @@ describe('TaskAssignmentModal', () => {
       completeCalled = true
     })
 
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ assignments_created: 1 }),
-    })
+    mockAssign.mockResolvedValue({ assignments_created: 1 })
 
     render(
       <TaskAssignmentModal
@@ -668,17 +627,10 @@ describe('TaskAssignmentModal', () => {
   it('disables cancel button during submission', async () => {
     const user = userEvent.setup()
 
-    global.fetch = jest.fn().mockImplementation(
+    mockAssign.mockImplementation(
       () =>
         new Promise((resolve) =>
-          setTimeout(
-            () =>
-              resolve({
-                ok: true,
-                json: () => Promise.resolve({ assignments_created: 1 }),
-              }),
-            100,
-          ),
+          setTimeout(() => resolve({ assignments_created: 1 }), 100),
         ),
     )
 

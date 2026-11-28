@@ -51,6 +51,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { useRouter, useSearchParams } from 'next/navigation'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { DynamicAnnotationInterface } from './DynamicAnnotationInterface'
+import { buildSubmissionPayload } from './submissionPayload'
 
 interface LabelingInterfaceProps {
   projectId: string
@@ -1200,10 +1201,15 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
           let annotation: any
           try {
             annotation = await projectsAPI.createAnnotation(currentTask.id, {
-              result,
-              was_cancelled: false,
+              ...buildSubmissionPayload({
+                result,
+                // The full time limit ran out.
+                leadTimeSeconds:
+                  currentProject.annotation_time_limit_seconds || 0,
+                timing: activityTracker.getData(),
+                instructionVariant: selectedVariantId,
+              }),
               auto_submitted: true,
-              lead_time: currentProject.annotation_time_limit_seconds || 0,
             } as any)
           } catch (err) {
             logger.error('Auto-submit failed:', err)
@@ -1453,14 +1459,12 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                       const skipAdvance = !!hasQuestionnaire || hasImmediateEval
                       const annotation = await createAnnotationInternal(
                         currentTask.id,
-                        {
+                        buildSubmissionPayload({
                           result: results,
-                          lead_time: leadTime,
-                          active_duration_ms: timing.activeMs,
-                          focused_duration_ms: timing.focusedMs,
-                          tab_switches: timing.tabSwitches,
-                          instruction_variant: selectedVariantId || undefined,
-                        },
+                          leadTimeSeconds: leadTime,
+                          timing,
+                          instructionVariant: selectedVariantId,
+                        }),
                         skipAdvance,
                       )
 

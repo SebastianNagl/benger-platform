@@ -23,6 +23,7 @@ import { useOptionalAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { ModelScopeProvider } from '@/contexts/ModelScopeContext'
 import { apiClient } from '@/lib/api/client'
+import { putEvaluationConfigs } from '@/lib/api/evaluationConfig'
 import { projectsAPI } from '@/lib/api/projects'
 import { describeEvaluationConfigWarnings } from '@/lib/evaluation/configWarnings'
 import {
@@ -981,9 +982,12 @@ export function ProjectCreationWizard() {
         draftCtl.evalConfigsChanged(wizardData.evaluationConfigs))
     ) {
       try {
-        const evalResponse: any = await apiClient.put(
-          `/evaluations/projects/${projectId}/evaluation-config`,
-          { evaluation_configs: wizardData.evaluationConfigs },
+        // A draft read the configs back (other writers may have added
+        // keys since): that list is the base. A new project has none.
+        const evalResponse: any = await putEvaluationConfigs(
+          projectId,
+          wizardData.evaluationConfigs,
+          draftProjectId ? draftCtl.evalConfigsBase() : null,
         )
         // Saved, but some configs will grade nothing as written.
         const evalWarnings = describeEvaluationConfigWarnings(

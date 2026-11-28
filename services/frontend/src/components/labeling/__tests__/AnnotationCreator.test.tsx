@@ -110,6 +110,34 @@ describe('AnnotationCreator', () => {
   })
 
   describe('Submission Flow', () => {
+    it('sends the lead time and activity timing with a new submission', async () => {
+      // The comparison modal's submission must carry the same research
+      // fields as one from the labeling page; the backend fills none.
+      ;(projectsAPI.createAnnotation as jest.Mock).mockResolvedValue({
+        id: 'new-ann',
+        was_cancelled: false,
+        result: [],
+      })
+
+      render(<AnnotationCreator {...defaultProps} />)
+      fireEvent.click(screen.getByText('Submit'))
+
+      await waitFor(() => {
+        expect(projectsAPI.createAnnotation).toHaveBeenCalled()
+      })
+      expect(
+        (projectsAPI.createAnnotation as jest.Mock).mock.calls[0][1],
+      ).toEqual(
+        expect.objectContaining({
+          was_cancelled: false,
+          lead_time: expect.any(Number),
+          active_duration_ms: expect.any(Number),
+          focused_duration_ms: expect.any(Number),
+          tab_switches: expect.any(Number),
+        }),
+      )
+    })
+
     it('should create new annotation on submit when no initial annotation exists', async () => {
       const onSubmit = jest.fn()
       ;(projectsAPI.createAnnotation as jest.Mock).mockResolvedValue({

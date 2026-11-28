@@ -1,6 +1,7 @@
 'use client'
 
 import { GenerationReasoning } from '@/components/generation/GenerationReasoning'
+import { RunStatusBadge } from '@/components/shared/RunStatusBadge'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
 import { formatDecimal, intlTag } from '@/lib/i18n/locales'
@@ -136,32 +137,13 @@ export function TaskGenerationComparisonModal({
     return JSON.stringify(data)
   }
 
-  const getStatusBadge = (status: string) => {
-    const statusColors: Record<string, string> = {
-      completed: 'bg-emerald-100 text-emerald-800',
-      failed: 'bg-red-100 text-red-800',
-      running: 'bg-amber-100 text-amber-800',
-      pending: 'bg-zinc-100 text-zinc-800',
-      cancelled: 'bg-orange-100 text-orange-800',
-    }
-    return (
-      <span
-        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-          statusColors[status] || statusColors.pending
-        }`}
-      >
-        {status}
-      </span>
-    )
-  }
-
   const renderResult = (result: GenerationResult, index: number) => (
     <div
       key={result.generation_id || index}
       className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"
     >
       <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
-        {getStatusBadge(result.status)}
+        <RunStatusBadge status={result.status} />
         {result.structure_key && (
           <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
             {result.structure_key}

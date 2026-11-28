@@ -226,9 +226,6 @@ jest.mock('@/components/shared/FilterToolbar', () => {
   return { FilterToolbar }
 })
 
-// Mock fetch for API calls
-global.fetch = jest.fn()
-
 // Translation map for tests
 const translations: Record<string, string> = {
   'navigation.dashboard': 'Dashboard',
@@ -282,11 +279,7 @@ describe('MyTasksPage', () => {
       fetchProject: jest.fn(),
     })
 
-    // Mock fetch for the API call to /api/projects/${projectId}/my-tasks
-    ;(global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockTasks),
-    })
+    ;(projectsAPI.getMyTasks as jest.Mock).mockResolvedValue(mockTasks)
   })
 
   it('renders page with project title', async () => {
@@ -446,26 +439,22 @@ describe('MyTasksPage', () => {
 
   it('shows the evaluation badge for an annotated open-mode task', async () => {
     // An open-mode annotated task: no assignment, has_evaluation flagged.
-    ;(global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          tasks: [
-            {
-              id: 'open-1',
-              inner_id: 7,
-              data: { text: 'open task' },
-              is_labeled: true,
-              has_feedback: false,
-              has_evaluation: true,
-              assignment: null,
-            },
-          ],
-          total: 1,
-          page: 1,
-          page_size: 20,
-          pages: 1,
-        }),
+    ;(projectsAPI.getMyTasks as jest.Mock).mockResolvedValue({
+      tasks: [
+        {
+          id: 'open-1',
+          inner_id: 7,
+          data: { text: 'open task' },
+          is_labeled: true,
+          has_feedback: false,
+          has_evaluation: true,
+          assignment: null,
+        },
+      ],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
     })
 
     render(<MyTasksPage />)

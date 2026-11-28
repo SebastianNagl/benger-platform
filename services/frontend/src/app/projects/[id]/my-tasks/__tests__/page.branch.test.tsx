@@ -18,6 +18,13 @@ import { render, screen } from '@testing-library/react'
 import { useParams, useRouter } from 'next/navigation'
 import MyTasksPage from '../page'
 
+const mockGetMyTasks = jest.fn()
+jest.mock('@/lib/api/projects', () => ({
+  projectsAPI: {
+    getMyTasks: (...args: unknown[]) => mockGetMyTasks(...args),
+  },
+}))
+
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(() => ({
     push: jest.fn(),
@@ -48,11 +55,13 @@ jest.mock('@/components/shared/Toast', () => ({
   useToast: () => ({ addToast: jest.fn() }),
 }))
 
-// Prevent actual fetch calls
-global.fetch = jest.fn().mockResolvedValue({
-  ok: true,
-  json: () =>
-    Promise.resolve({ tasks: [], total: 0, page: 1, page_size: 20, pages: 1 }),
+// The assigned-tasks list
+mockGetMyTasks.mockResolvedValue({
+  tasks: [],
+  total: 0,
+  page: 1,
+  page_size: 20,
+  pages: 1,
 })
 
 describe('MyTasksPage Branch Coverage', () => {

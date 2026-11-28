@@ -59,7 +59,7 @@ describe('buildPageIndex', () => {
       expect(urls).toContain(core)
     }
     expect(urls).not.toContain('/organizations')
-    expect(urls).not.toContain('/admin/users')
+    expect(urls).not.toContain('/users-organizations?tab=users')
   })
 
   it('shows /organizations to org admins and admin pages to superadmins', () => {
@@ -70,7 +70,7 @@ describe('buildPageIndex', () => {
       organizations: [{ role: 'ORG_ADMIN' }],
     }).map((p) => p.url)
     expect(orgAdmin).toContain('/organizations')
-    expect(orgAdmin).not.toContain('/admin/users')
+    expect(orgAdmin).not.toContain('/users-organizations?tab=users')
     const superadmin = buildPageIndex({
       t,
       locale: 'de',
@@ -80,12 +80,14 @@ describe('buildPageIndex', () => {
     expect(superadmin).toEqual(
       expect.arrayContaining([
         '/organizations',
-        '/admin/users',
+        // The user list itself, not its legacy address (two redirects).
+        '/users-organizations?tab=users',
         '/admin/lti',
         '/projects/deleted',
         '/reports',
       ]),
     )
+    expect(superadmin).not.toContain('/admin/users')
     // The flags admin lives in the extended edition and is not searchable.
     expect(superadmin).not.toContain('/admin/feature-flags')
   })

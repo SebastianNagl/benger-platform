@@ -83,6 +83,22 @@ describe('TaskGenerationComparisonModal', () => {
     expect(firstUrl).toContain('include_history=true')
   })
 
+  it('shows the run status as the shared, translated status badge', async () => {
+    render(
+      <TaskGenerationComparisonModal
+        task={{ ...baseTask, generation_models: ['model-a'] }}
+        isOpen
+        onClose={() => {}}
+        projectId="project-1"
+      />,
+    )
+
+    const badge = await screen.findByTestId('run-status-badge')
+    expect(badge).toHaveAttribute('data-status', 'completed')
+    expect(badge).not.toHaveTextContent(/^completed$/)
+    expect(badge).toHaveClass('dark:bg-emerald-900/30')
+  })
+
   it('shows the empty state and fetches nothing when there are no models', async () => {
     render(
       <TaskGenerationComparisonModal
