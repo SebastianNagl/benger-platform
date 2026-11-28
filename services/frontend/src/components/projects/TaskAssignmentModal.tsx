@@ -20,6 +20,7 @@ import {
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api'
+import { projectsAPI } from '@/lib/api/projects'
 import { AssignTasksRequest } from '@/types/labelStudio'
 import { useState } from 'react'
 
@@ -59,26 +60,14 @@ export function TaskAssignmentModal({
 
     setIsAssigning(true)
     try {
-      const response = await fetch(`/api/projects/${projectId}/tasks/assign`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          task_ids: selectedTaskIds,
-          user_ids: form.user_ids,
-          distribution: form.distribution,
-          priority: form.priority,
-          due_date: form.due_date || undefined,
-          notes: form.notes || undefined,
-        } as AssignTasksRequest),
-      })
-
-      if (!response.ok) {
-        throw new Error(t('tasks.assignment.assignFailed'))
-      }
-
-      const result = await response.json()
+      const result = await projectsAPI.assignTasks(projectId, {
+        task_ids: selectedTaskIds,
+        user_ids: form.user_ids,
+        distribution: form.distribution,
+        priority: form.priority,
+        due_date: form.due_date || undefined,
+        notes: form.notes || undefined,
+      } as AssignTasksRequest)
 
       if (result.assignments_created > 0) {
         addToast(t('tasks.assignment.assigned'), 'success')

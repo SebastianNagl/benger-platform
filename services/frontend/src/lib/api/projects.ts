@@ -1288,7 +1288,8 @@ export const projectsAPI = {
     data: AssignTasksRequest,
   ): Promise<{
     assignments_created: number
-    skipped_existing: number
+    assignments_updated: number
+    assignments_skipped: number
     message: string
   }> => {
     const response = await apiClient.post(
@@ -1319,25 +1320,52 @@ export const projectsAPI = {
   },
 
   /**
-   * Get tasks assigned to current user
+   * Skip a task, with the annotator's optional comment.
+   */
+  skipTask: async (
+    projectId: string,
+    taskId: string,
+    comment?: string,
+  ): Promise<unknown> => {
+    return apiClient.post(`/projects/${projectId}/tasks/${taskId}/skip`, {
+      comment: comment || null,
+    })
+  },
+
+  /**
+   * Get one page of the tasks assigned to the current user. Uncached: the
+   * list changes while the user works through it.
    */
   getMyTasks: async (
     projectId: string,
-    page = 1,
-    pageSize = 50,
-    status?: string,
-  ): Promise<PaginatedResponse<Task & { assignment?: TaskAssignment }>> => {
+    {
+      page = 1,
+      pageSize = 50,
+      status,
+      search,
+    }: {
+      page?: number
+      pageSize?: number
+      status?: string
+      search?: string
+    } = {},
+  ): Promise<{
+    tasks: Array<Task & { assignment?: TaskAssignment }>
+    total: number
+    page: number
+    page_size: number
+    pages: number
+  }> => {
     const params = new URLSearchParams({
       page: page.toString(),
       page_size: pageSize.toString(),
     })
-
-    if (status) {
-      params.append('status', status)
-    }
+    if (status) params.set('status', status)
+    if (search) params.set('search', search)
 
     const response = await apiClient.get(
       `/projects/${projectId}/my-tasks?${params}`,
+      { cache: 'no-store' },
     )
     return response
   },

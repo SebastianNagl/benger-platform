@@ -84,6 +84,7 @@ import type {
   AvailableEvaluationFields,
   EvaluationConfig,
 } from '@/lib/api/evaluation-types'
+import { getProjectReport } from '@/lib/api/reports'
 import { sharesAPI, type Participation } from '@/lib/api/shares'
 import { describeEvaluationConfigWarnings } from '@/lib/evaluation/configWarnings'
 import { refreshEvaluationConfigs } from '@/lib/evaluation/refreshEvaluationConfigs'
@@ -547,25 +548,24 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
 
     setLoadingReport(true)
     try {
-      const response = await fetch(`/api/projects/${projectId}/report`, {
-        credentials: 'include',
+      // Through the API client, so an expired access token is refreshed;
+      // uncached, so the card shows the report's current state.
+      const data = await getProjectReport(projectId, { cache: 'no-store' })
+      setReportStatus({
+        reportId: data.id ?? null,
+        isPublished: data.is_published,
+        isPublic: Boolean(data.is_public),
+        canPublish: data.can_publish,
+        canPublishReason: data.can_publish_reason,
+        canEdit: data.can_edit === true,
       })
-
-      if (response.ok) {
-        const data = await response.json()
-        setReportStatus({
-          reportId: data.id ?? null,
-          isPublished: data.is_published,
-          isPublic: Boolean(data.is_public),
-          canPublish: data.can_publish,
-          canPublishReason: data.can_publish_reason,
-          canEdit: data.can_edit === true,
-        })
-      } else {
+    } catch (error: any) {
+      // A reader gets a 403 for a draft, or 404 without a report: no card.
+      if (error?.response?.status) {
         setReportStatus(null)
+      } else {
+        console.error('Failed to fetch report status:', error)
       }
-    } catch (error) {
-      console.error('Failed to fetch report status:', error)
     } finally {
       setLoadingReport(false)
     }

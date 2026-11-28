@@ -2101,10 +2101,7 @@ describe('ProjectStore', () => {
 
   describe('skipTask', () => {
     it('should skip task with requeue_for_me (keeps task in cycle)', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({}),
-      }) as any
+      mockProjectsAPI.skipTask.mockResolvedValue({})
 
       const tasks = [createMockTask({ id: '1' }), createMockTask({ id: '2' })]
 
@@ -2124,15 +2121,18 @@ describe('ProjectStore', () => {
         await useProjectStore.getState().skipTask('Test comment')
       })
 
+      expect(mockProjectsAPI.skipTask).toHaveBeenCalledWith(
+        'p1',
+        '1',
+        'Test comment',
+      )
+
       // Task should still be in cycle (requeue_for_me)
       expect(useProjectStore.getState().taskCycle).toHaveLength(2)
     })
 
     it('should skip task with requeue_for_others (removes from cycle)', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({}),
-      }) as any
+      mockProjectsAPI.skipTask.mockResolvedValue({})
 
       const tasks = [createMockTask({ id: '1' }), createMockTask({ id: '2' })]
 
@@ -2156,10 +2156,8 @@ describe('ProjectStore', () => {
     })
 
     it('should handle skip error', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
-        ok: false,
-        json: () => Promise.resolve({ detail: 'Skip failed' }),
-      }) as any
+      // The API client turns the refusal's detail into the error message.
+      mockProjectsAPI.skipTask.mockRejectedValue(new Error('Skip failed'))
 
       act(() => {
         useProjectStore.setState({
@@ -2193,10 +2191,7 @@ describe('ProjectStore', () => {
     })
 
     it('should set allTasksCompleted when skipping last task', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({}),
-      }) as any
+      mockProjectsAPI.skipTask.mockResolvedValue({})
 
       act(() => {
         useProjectStore.setState({
@@ -2218,10 +2213,7 @@ describe('ProjectStore', () => {
     })
 
     it('should skip task in auto mode and fetch next', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({}),
-      }) as any
+      mockProjectsAPI.skipTask.mockResolvedValue({})
 
       const mockNextTask = createMockTask({ id: '2' })
       mockProjectsAPI.getNextTask.mockResolvedValue(mockNextTask)

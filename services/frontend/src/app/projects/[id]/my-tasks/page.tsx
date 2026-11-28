@@ -24,6 +24,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useRouteProject } from '@/hooks/useRouteProject'
+import { projectsAPI } from '@/lib/api/projects'
 import { useSlot } from '@/lib/extensions/slots'
 import { dateFnsLocale } from '@/lib/i18n/locales'
 import { Task, TaskAssignment } from '@/types/labelStudio'
@@ -102,24 +103,12 @@ export default function MyTasksPage() {
   const loadMyTasks = useCallback(async () => {
     try {
       setLoading(true)
-      const params = new URLSearchParams({
-        page: page.toString(),
-        page_size: '20',
-      })
-      if (statusFilter !== 'all') params.set('status', statusFilter)
-      if (debouncedSearch) params.set('search', debouncedSearch)
-      const response = await fetch(
-        `/api/projects/${projectId}/my-tasks?${params.toString()}`,
-        {
-          credentials: 'include',
-        },
-      )
-
-      if (!response.ok) {
-        throw new Error(t('tasks.myTasks.loadFailed'))
-      }
-
-      const data: MyTasksResponse = await response.json()
+      const data = (await projectsAPI.getMyTasks(projectId, {
+        page,
+        pageSize: 20,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        search: debouncedSearch || undefined,
+      })) as MyTasksResponse
       setTasks(data.tasks)
       setTotalPages(data.pages)
       setTotalTasks(data.total)
