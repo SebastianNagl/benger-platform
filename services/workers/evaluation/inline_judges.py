@@ -112,7 +112,9 @@ def feature_disabled_metrics(metric: str, package: str) -> Dict[str, Any]:
     return {metric: result}
 
 
-def feature_disabled_row(row: Dict[str, Any], metric: str, package: str) -> Dict[str, Any]:
+def feature_disabled_row(
+    row: Dict[str, Any], metric: str, package: str
+) -> Dict[str, Any]:
     """The full ``TaskEvaluation`` row dict of a bulk cell for ``metric``
     while its owning ``package`` is inactive (``row`` carries the context)."""
     import extension_activation

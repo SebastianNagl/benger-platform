@@ -42,7 +42,9 @@ def _overlay(monkeypatch, *, compatible):
     falloesung_tasks._persist_falloesung_eval_error = persist_error
     billing = types.ModuleType("benger_extended.billing")
     policy = types.ModuleType("benger_extended.billing.policy")
-    select = MagicMock(side_effect=lambda db, user_id, configs, project=None: configs[:1])
+    select = MagicMock(
+        side_effect=lambda db, user_id, configs, project=None: configs[:1]
+    )
     policy.select_tier_config = select
     pkg.workers = workers
     pkg.billing = billing
@@ -143,7 +145,9 @@ class TestRequireWorkerAttr:
     def test_an_absent_package_does_not_provide_it(self, monkeypatch):
         monkeypatch.setenv("BENGER_EXTENSIONS", "")
         with pytest.raises(RuntimeError, match="not here"):
-            registry.require_worker_attr("get_falloesung_compute_fn", missing="not here")
+            registry.require_worker_attr(
+                "get_falloesung_compute_fn", missing="not here"
+            )
 
 
 class TestImmediateFalloesung:
@@ -188,5 +192,7 @@ class TestTierConfigSelector:
         from immediate_eval_dispatch import _select_immediate_configs
 
         configs = [{"id": "free"}, {"id": "paid"}]
-        assert _select_immediate_configs(MagicMock(), "user-1", configs) == [{"id": "free"}]
+        assert _select_immediate_configs(MagicMock(), "user-1", configs) == [
+            {"id": "free"}
+        ]
         switched_off.select.assert_called_once()
