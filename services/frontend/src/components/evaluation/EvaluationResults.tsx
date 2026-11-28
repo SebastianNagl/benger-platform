@@ -22,10 +22,10 @@ import {
   useResultsData,
   useTaskModelData,
 } from '@/components/evaluation/results/useResultsData'
-import { Badge } from '@/components/shared/Badge'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
+import { RunStatusBadge } from '@/components/shared/RunStatusBadge'
 import {
   Select,
   SelectContent,
@@ -980,23 +980,6 @@ export function EvaluationResults({
     }
   }
 
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'green'
-      case 'running':
-        return 'blue'
-      case 'pending':
-        return 'yellow'
-      case 'paused':
-        return 'yellow'
-      case 'failed':
-        return 'red'
-      default:
-        return 'gray'
-    }
-  }
-
   const formatTimeAgo = (dateStr: string | null) => {
     if (!dateStr) return t('evaluation.multiFieldResults.unknown')
     const date = new Date(dateStr)
@@ -1757,11 +1740,7 @@ export function EvaluationResults({
                     <span className="font-medium text-zinc-900 dark:text-white">
                       {t('evaluation.multiFieldResults.evaluation')}
                     </span>
-                    <Badge
-                      variant={getStatusBadgeColor(evaluation.status) as any}
-                    >
-                      {evaluation.status}
-                    </Badge>
+                    <RunStatusBadge status={evaluation.status} />
                     {runModelBadge(evaluation) && (
                       <span
                         className="max-w-xs truncate rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400"

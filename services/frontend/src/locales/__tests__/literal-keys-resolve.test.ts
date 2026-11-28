@@ -33,7 +33,8 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
 }
 
 // t('a.b.c') or t("a.b.c"), not someObject.t(...) or format(...).
-const LITERAL_KEY = /(?<![\w.$])t\(\s*(['"])([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+)\1/g
+const LITERAL_KEY =
+  /(?<![\w.$])t\(\s*(['"])([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+)\1/g
 
 describe('literal translation keys', () => {
   it('resolve in the platform catalogs', () => {
