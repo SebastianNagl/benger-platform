@@ -29,6 +29,7 @@
 
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
+import { putEvaluationConfigs } from '@/lib/api/evaluationConfig'
 import { projectsAPI } from '@/lib/api/projects'
 import {
   wizardDraftErrorCode,
@@ -213,6 +214,9 @@ export function useWizardDraft(options: {
   } | null>(null)
   // Canonical JSON of the evaluation configs last written or read back.
   const evalSnapshotRef = useRef<string | null>(null)
+  // The configs as last written or read back: the base of the next write,
+  // so keys another writer saved since keep the server's value.
+  const evalBaseRef = useRef<unknown[] | null>(null)
   // Cloud-storage objects already imported into the draft.
   const cloudImportedRef = useRef<Set<string>>(new Set())
   // A target the server refused; not sent again until it changes.
@@ -400,6 +404,7 @@ export function useWizardDraft(options: {
         evalSnapshotRef.current = canonicalJson(
           restored.data.evaluationConfigs ?? [],
         )
+        evalBaseRef.current = restored.data.evaluationConfigs ?? []
         cloudImportedRef.current = new Set(restored.cloudImported)
       }
     },
@@ -463,6 +468,7 @@ export function useWizardDraft(options: {
       })
       adopt(created, false)
       evalSnapshotRef.current = null
+      evalBaseRef.current = null
       setUrlDraft(created.project_id)
       await runHooks('created', {
         projectId: created.project_id,
@@ -489,6 +495,7 @@ export function useWizardDraft(options: {
     versionRef.current = 0
     savedTargetRef.current = null
     evalSnapshotRef.current = null
+    evalBaseRef.current = null
     cloudImportedRef.current = new Set()
     finishSentRef.current = false
     finishCommittedRef.current = false
@@ -720,10 +727,14 @@ export function useWizardDraft(options: {
     const configs = config?.evaluation_configs
     if (Array.isArray(configs)) {
       evalSnapshotRef.current = canonicalJson(configs)
+      evalBaseRef.current = configs
       dataRef.current = { ...dataRef.current, evaluationConfigs: configs }
       updateWizardData({ evaluationConfigs: configs })
     }
   }, [updateWizardData])
+
+  /** The configs as last written or read back (null before either). */
+  const evalConfigsBase = useCallback(() => evalBaseRef.current, [])
 
   /** Whether `configs` differ from what was last written or read back. */
   const evalConfigsChanged = useCallback(
@@ -753,11 +764,13 @@ export function useWizardDraft(options: {
         data.evaluationConfigs.length > 0 &&
         evalConfigsChanged(data.evaluationConfigs)
       ) {
-        await apiClient.put(
-          `/evaluations/projects/${current.projectId}/evaluation-config`,
-          { evaluation_configs: data.evaluationConfigs },
+        await putEvaluationConfigs(
+          current.projectId,
+          data.evaluationConfigs,
+          evalBaseRef.current,
         )
         evalSnapshotRef.current = canonicalJson(data.evaluationConfigs)
+        evalBaseRef.current = data.evaluationConfigs
       }
       await runHooks('configSynced', {
         projectId: current.projectId,
@@ -971,6 +984,7 @@ export function useWizardDraft(options: {
     syncConfig,
     basicFields,
     evalConfigsChanged,
+    evalConfigsBase,
     finish,
     /**
      * A sync after a failed finish found the draft already finished (the

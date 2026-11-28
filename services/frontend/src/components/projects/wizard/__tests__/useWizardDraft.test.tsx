@@ -441,6 +441,47 @@ describe('useWizardDraft', () => {
     expect(apiClient().put).not.toHaveBeenCalled()
   })
 
+  it('sends the configs it last read as the base of a later config write', async () => {
+    // Another writer (the rubric step) may have saved metric_parameters keys
+    // since the wizard read the list; with the base the server keeps those
+    // keys unless this write changed them, without it they are reverted.
+    const url = '/evaluations/projects/p1/evaluation-config'
+    const read = [
+      { id: 'c', metric: 'llm_judge', metric_parameters: { policy: 'held' } },
+    ]
+    const edited = [
+      {
+        id: 'c',
+        metric: 'llm_judge',
+        metric_parameters: { policy: 'held', threshold: 2 },
+      },
+    ]
+    const { result, rerender } = setup({
+      ...ORG_DATA,
+      evaluationConfigs: [{ id: 'c', metric: 'llm_judge' }] as any,
+    })
+    await create(result)
+    apiClient().get.mockResolvedValue({ evaluation_configs: read })
+    await act(async () => {
+      expect(await result.current.beforeNavigate(2, 3)).toBe(true)
+    })
+    // The first write of a new draft has nothing read yet to rebase on.
+    expect(apiClient().put).toHaveBeenLastCalledWith(url, {
+      evaluation_configs: [{ id: 'c', metric: 'llm_judge' }],
+    })
+    expect(result.current.evalConfigsBase()).toEqual(read)
+
+    apiClient().put.mockClear()
+    rerender({ wizardData: { ...ORG_DATA, evaluationConfigs: edited as any } })
+    await act(async () => {
+      expect(await result.current.beforeNavigate(2, 3)).toBe(true)
+    })
+    expect(apiClient().put).toHaveBeenCalledWith(url, {
+      evaluation_configs: edited,
+      evaluation_configs_base: read,
+    })
+  })
+
   it('stays when the configuration cannot be written or read back', async () => {
     const { result, addToast } = setup()
     await create(result)

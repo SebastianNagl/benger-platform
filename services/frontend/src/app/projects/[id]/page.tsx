@@ -84,6 +84,7 @@ import type {
   AvailableEvaluationFields,
   EvaluationConfig,
 } from '@/lib/api/evaluation-types'
+import { putEvaluationConfigs } from '@/lib/api/evaluationConfig'
 import { getProjectReport } from '@/lib/api/reports'
 import { sharesAPI, type Participation } from '@/lib/api/shares'
 import { describeEvaluationConfigWarnings } from '@/lib/evaluation/configWarnings'
@@ -773,15 +774,10 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
 
     let response: any
     try {
-      response = await apiClient.put(
-        `/evaluations/projects/${projectId}/evaluation-config`,
-        {
-          evaluation_configs: evaluations,
-          // The list this buffer started from: keys another writer changed
-          // since then and this save did not touch keep the server's value.
-          evaluation_configs_base: base,
-        },
-      )
+      // The list this buffer started from is the base: keys another writer
+      // changed since then and this save did not touch keep the server's
+      // value.
+      response = await putEvaluationConfigs(projectId, evaluations, base)
       evaluationConfigsBaselineRef.current = evaluations
     } catch (error) {
       const errorMessage =
