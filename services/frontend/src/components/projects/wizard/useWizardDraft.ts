@@ -378,6 +378,23 @@ export function useWizardDraft(options: {
     return () => clearTimeout(timer)
   }, [wizardData, draft, problem, save])
 
+  /** Read the project's stored evaluation configs as the base of the next write. */
+  const readStoredEvalConfigs = useCallback(
+    async (
+      projectId: string,
+    ): Promise<WizardData['evaluationConfigs'] | null> => {
+      const url = `/evaluations/projects/${projectId}/evaluation-config`
+      apiClient.invalidateCache(url)
+      const config: any = await apiClient.get(url)
+      const configs = config?.evaluation_configs
+      if (!Array.isArray(configs)) return null
+      evalSnapshotRef.current = canonicalJson(configs)
+      evalBaseRef.current = configs
+      return configs
+    },
+    [],
+  )
+
   const adopt = useCallback(
     (loaded: WizardDraft, restoreState: boolean) => {
       versionRef.current = loaded.state_version
@@ -401,10 +418,8 @@ export function useWizardDraft(options: {
         replaceWizardData(restored.data)
         draftImportRef.current = restored.draftImport
         setDraftImport(restored.draftImport)
-        evalSnapshotRef.current = canonicalJson(
-          restored.data.evaluationConfigs ?? [],
-        )
-        evalBaseRef.current = restored.data.evaluationConfigs ?? []
+        evalSnapshotRef.current = null
+        evalBaseRef.current = null
         cloudImportedRef.current = new Set(restored.cloudImported)
       }
     },
@@ -418,6 +433,7 @@ export function useWizardDraft(options: {
       try {
         const loaded = await wizardDraftsAPI.get(projectId)
         adopt(loaded, true)
+        await readStoredEvalConfigs(loaded.project_id).catch(() => null)
         setUrlDraft(loaded.project_id)
         if (loaded.step_id) goToStepId(loaded.step_id)
         return true
@@ -437,7 +453,7 @@ export function useWizardDraft(options: {
         setResuming(false)
       }
     },
-    [adopt, addToast, goToStepId, setUrlDraft, t],
+    [adopt, addToast, goToStepId, readStoredEvalConfigs, setUrlDraft, t],
   )
 
   // `?draft=<id>` on mount. Read from location, not useSearchParams, so the
@@ -721,17 +737,12 @@ export function useWizardDraft(options: {
   const readBackEvalConfigs = useCallback(async () => {
     const current = draftRef.current
     if (!current) return
-    const url = `/evaluations/projects/${current.projectId}/evaluation-config`
-    apiClient.invalidateCache(url)
-    const config: any = await apiClient.get(url)
-    const configs = config?.evaluation_configs
-    if (Array.isArray(configs)) {
-      evalSnapshotRef.current = canonicalJson(configs)
-      evalBaseRef.current = configs
+    const configs = await readStoredEvalConfigs(current.projectId)
+    if (configs) {
       dataRef.current = { ...dataRef.current, evaluationConfigs: configs }
       updateWizardData({ evaluationConfigs: configs })
     }
-  }, [updateWizardData])
+  }, [readStoredEvalConfigs, updateWizardData])
 
   /** The configs as last written or read back (null before either). */
   const evalConfigsBase = useCallback(() => evalBaseRef.current, [])
