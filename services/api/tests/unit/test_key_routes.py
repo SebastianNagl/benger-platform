@@ -114,6 +114,26 @@ def test_research_workflow_is_open():
         assert rule.allowed and scope in rule.scopes, (method, path, rule)
 
 
+def test_student_reads_are_not_neutral():
+    """The platform's /api/student routes aggregate the caller's data over
+    all their projects (scores and titles of graded attempts, flashcard
+    reviews, exam submissions): a project-restricted key must not reach
+    them, so none of them may be neutral."""
+    routes = [
+        e
+        for e in get_index(app)
+        if e.owner == kr.PLATFORM_OWNER and e.template.startswith("/api/student/")
+    ]
+    assert {(e.method, e.template) for e in routes} >= {
+        ("GET", "/api/student/score-history"),
+        ("GET", "/api/student/retention"),
+        ("GET", "/api/student/activity"),
+    }
+    for e in routes:
+        assert e.rule.allowed and "results:read" in e.rule.scopes, e.template
+        assert not e.rule.neutral, e.template
+
+
 def test_match_returns_template_and_params():
     entry, params = kr.match(get_index(app), "GET", "/api/projects/abc/tasks")
     assert entry.template == "/api/projects/{project_id}/tasks"

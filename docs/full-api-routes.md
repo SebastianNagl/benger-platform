@@ -444,9 +444,9 @@ project (`any`) or only for its own projects (`bound`).
 | GET | `/api/shares/{token}` | `projects:read` | any |
 | POST | `/api/shares/{token}/join` | `account:write` | any |
 | DELETE | `/api/shares/{token}/membership` | `account:write` | any |
-| GET | `/api/student/activity` | `results:read` | any |
-| GET | `/api/student/retention` | `results:read` | any |
-| GET | `/api/student/score-history` | `results:read` | any |
+| GET | `/api/student/activity` | `results:read` | bound |
+| GET | `/api/student/retention` | `results:read` | bound |
+| GET | `/api/student/score-history` | `results:read` | bound |
 | POST | `/api/task-rubrics/parse` | `tasks:write` | any |
 | DELETE | `/api/test/cleanup/{project_id}` | never |  |
 | POST | `/api/test/force-profile-overdue` | never |  |
