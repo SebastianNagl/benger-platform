@@ -773,19 +773,17 @@ def evaluate_generation_cell_impl(
                                 )
 
                                 if metric == "llm_judge_falloesung":
-                                    import extension_activation
+                                    # Inactive for the task: refuses (ExtensionInactive); refused
+                                    # by the registry or absent: not used at all.
+                                    import extension_registry
 
-                                    extension_activation.ensure_active("benger_extended")
-                                    try:
-                                        from benger_extended.workers import (
-                                            get_falloesung_bulk_compute_fn,
-                                        )
-                                    except ImportError as exc:
-                                        raise RuntimeError(
+                                    falloesung_bulk_fn = extension_registry.require_worker_attr(
+                                        "get_falloesung_bulk_compute_fn",
+                                        missing=(
                                             "Metric 'llm_judge_falloesung' requires the "
-                                            "benger_extended package; it is not installed."
-                                        ) from exc
-                                    falloesung_bulk_fn = get_falloesung_bulk_compute_fn()
+                                            "benger_extended package; it is not installed (or was refused)."
+                                        ),
+                                    )()
                                     sachverhalt = (
                                         _get_insensitive(task.data, "sachverhalt")
                                         if task.data
@@ -1481,19 +1479,17 @@ def evaluate_annotation_cell_impl(
                                     )
 
                                     if metric == "llm_judge_falloesung":
-                                        import extension_activation
+                                        # Inactive for the task: refuses (ExtensionInactive); refused
+                                        # by the registry or absent: not used at all.
+                                        import extension_registry
 
-                                        extension_activation.ensure_active("benger_extended")
-                                        try:
-                                            from benger_extended.workers import (
-                                                get_falloesung_bulk_compute_fn,
-                                            )
-                                        except ImportError as exc:
-                                            raise RuntimeError(
+                                        falloesung_bulk_fn = extension_registry.require_worker_attr(
+                                            "get_falloesung_bulk_compute_fn",
+                                            missing=(
                                                 "Metric 'llm_judge_falloesung' requires the "
-                                                "benger_extended package; it is not installed."
-                                            ) from exc
-                                        falloesung_bulk_fn = get_falloesung_bulk_compute_fn()
+                                                "benger_extended package; it is not installed (or was refused)."
+                                            ),
+                                        )()
                                         sachverhalt = (
                                             _get_insensitive(task.data, "sachverhalt")
                                             if task.data

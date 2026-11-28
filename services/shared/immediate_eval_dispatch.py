@@ -87,6 +87,13 @@ def _select_immediate_configs(db, user_id, configs, project=None):
     """
     if not configs or user_id is None:
         return configs
+    import extension_registry
+
+    # A package refused at the handshake runs no code (a direct import would
+    # still find it). Billing selection is ALWAYS-gated: the runtime switch
+    # does not change which judge a grading uses.
+    if extension_registry.is_refused("benger_extended"):
+        return configs
     try:
         from benger_extended.billing.policy import select_tier_config
 

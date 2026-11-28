@@ -64,6 +64,20 @@ def _hold_written_row(db, record_id: str, config: Dict[str, Any]) -> None:
             pass
 
 
+_FALLOESUNG_MISSING = (
+    "Metric 'llm_judge_falloesung' requires the benger_extended package; it "
+    "is not installed (or was refused) in this worker. Configure the project "
+    "to use a different LLM-judge metric or load the extended edition."
+)
+
+
+def _falloesung_available() -> bool:
+    """Whether the overlay's Falllösung surface may run for this task."""
+    import extension_registry
+
+    return extension_registry.first_worker_attr("get_falloesung_compute_fn") is not None
+
+
 def _run_immediate_config_job_impl(
     *,
     job: Dict[str, Any],
@@ -111,20 +125,13 @@ def _run_immediate_config_job_impl(
             # Community edition (no benger_extended) raises an informative
             # error rather than crashing.
             # Core 2.42: an inactive benger_extended (master flag off for
-            # this task's caller/project) refuses instead of grading.
-            import extension_activation
+            # this task's caller/project) refuses instead of grading; a
+            # package the registry refused is not used at all.
+            import extension_registry
 
-            extension_activation.ensure_active("benger_extended")
-            try:
-                from benger_extended.workers import get_falloesung_compute_fn
-            except ImportError as exc:
-                raise RuntimeError(
-                    "Metric 'llm_judge_falloesung' requires the benger_extended "
-                    "package; it is not installed in this worker. Configure the "
-                    "project to use a different LLM-judge metric or load the "
-                    "extended edition."
-                ) from exc
-            falloesung_fn = get_falloesung_compute_fn()
+            falloesung_fn = extension_registry.require_worker_attr(
+                "get_falloesung_compute_fn", missing=_FALLOESUNG_MISSING
+            )()
             # Older extended packages may not accept judge_run_id /
             # evaluation_config_id; introspect and pass only what's supported.
             fn_params = set(_inspect.signature(falloesung_fn).parameters.keys())
@@ -299,7 +306,10 @@ def _run_immediate_config_job_impl(
         # used to raise an IntegrityError that escaped and left the whole run
         # stuck "running". Falllösung routes through the extended helper (it
         # owns the canonical row shape); everything else writes a minimal row.
-        if metric_type == "llm_judge_falloesung":
+        # The overlay owns the canonical Falllösung row shape, but its code
+        # runs only while its Falllösung surface is available for the task
+        # (not refused, not switched off); otherwise the platform's row.
+        if metric_type == "llm_judge_falloesung" and _falloesung_available():
             try:
                 from benger_extended.workers.falloesung_tasks import (
                     _persist_falloesung_eval_error,
