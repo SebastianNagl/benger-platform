@@ -240,6 +240,35 @@ async def test_session_of_a_project_the_user_lost_is_closed(
     assert rows.scalars().all() == []
 
 
+async def test_session_of_a_project_the_user_lost_cannot_be_deleted(
+    async_test_client, async_test_db, world, as_member, lost
+):
+    db = async_test_db
+    sid = lost["session"].id
+    db.add(
+        LikertScaleEvaluation(
+            id=str(uuid.uuid4()),
+            session_id=sid,
+            task_id=lost["task"].id,
+            response_id="r1",
+            dimension="correctness",
+            rating=4,
+        )
+    )
+    await db.flush()
+    r = await async_test_client.delete(f"/api/evaluations/human/session/{sid}")
+    assert r.status_code == 404, r.text
+    db.expire_all()
+    session = await db.execute(
+        select(HumanEvaluationSession).where(HumanEvaluationSession.id == sid)
+    )
+    assert session.scalar_one_or_none() is not None
+    rows = await db.execute(
+        select(LikertScaleEvaluation).where(LikertScaleEvaluation.session_id == sid)
+    )
+    assert len(rows.scalars().all()) == 1
+
+
 async def test_rating_names_a_task_of_the_sessions_project(
     async_test_client, async_test_db, world, as_member
 ):

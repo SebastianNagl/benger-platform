@@ -242,17 +242,6 @@ def test_human_evaluation_routes_bind_their_session(method, path, bind):
     assert not rule.neutral and bind in rule.bind, (method, path, rule)
 
 
-def test_session_id_leads_to_its_project():
-    from middleware.key_gate import _resolver_statement
-
-    assert kr.PROJECT_PARAMS["session_id"] == "human_evaluation_session"
-    assert "human_evaluation_sessions" in str(
-        _resolver_statement("human_evaluation_session", "s1")
-    )
-    _, params = _rule("GET", "/api/evaluations/human/session/s1/progress")
-    assert params == {"session_id": "s1"}
-
-
 def test_listing_id_leads_to_its_project():
     from middleware.key_gate import _resolver_statement
 

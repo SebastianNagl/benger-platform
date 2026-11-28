@@ -100,8 +100,7 @@ async def _require_visible_session(
 ) -> HumanEvaluationSession:
     """404 unless the session exists and its project is still visible to the
     user: a session outlives the evaluator's access to its project, and its
-    tasks and progress are project data. (Deleting one's own session stays
-    possible.)"""
+    tasks, progress and ratings are project data."""
     if session is None or not await check_project_accessible_async(
         db, user, session.project_id
     ):
@@ -650,6 +649,7 @@ async def delete_human_evaluation_session(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to delete this session",
             )
+        await _require_visible_session(db, current_user, session, "Session not found")
 
         # Delete associated Likert evaluations
         await db.execute(
